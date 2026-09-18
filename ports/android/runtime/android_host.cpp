@@ -7,6 +7,11 @@
 #include <sched.h>
 #include <stdexcept>
 #include <unistd.h>
+#include <nlohmann/json.hpp>
+#include <ship/Context.h>
+#include <ship/config/Config.h>
+#include "fast/oot3d/graphics_settings_runtime.h"
+#include "fast/oot3d/graphics_settings_persistence.h"
 
 static AndroidOverlayInputState gOverlayInputState;
 
@@ -108,6 +113,26 @@ Java_org_triaevum_android_AndroidNativeInputTarget_nativeReleaseAll(
   state.cStickX.store(0.0f, std::memory_order_relaxed);
   state.cStickY.store(0.0f, std::memory_order_relaxed);
   state.touchPressed.store(false, std::memory_order_relaxed);
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
+    JNIEnv * /*env*/, jclass /*clazz*/) {
+  try {
+    auto *context = Ship::Context::GetRawInstance();
+    if (context != nullptr && context->GetConfig() != nullptr) {
+      context->GetConfig()->Reload();
+      nlohmann::json root = context->GetConfig()->GetNestedJson();
+      auto &runtime = Fast::Oot3d::GraphicsSettingsRuntime::Instance();
+      const auto loaded = Fast::Oot3d::LoadGraphicsSettingsConfig(root, runtime.Snapshot());
+      if (loaded.Found && !loaded.UnsupportedFutureVersion) {
+        runtime.Apply(loaded.Value, false);
+        SDL_Log("TriAevum: Live graphics settings reloaded and applied successfully");
+      }
+    }
+  } catch (const std::exception &e) {
+    SDL_Log("TriAevum: Failed to reload live graphics settings: %s", e.what());
+  }
 }
 
 } // extern "C"

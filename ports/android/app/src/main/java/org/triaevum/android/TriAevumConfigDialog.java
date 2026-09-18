@@ -3,13 +3,14 @@ package org.triaevum.android;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -17,7 +18,6 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-import org.triaevum.android.controls.EmulationMenuSettings;
 import org.triaevum.android.controls.WindroidVirtualControllerView;
 
 /**
@@ -25,11 +25,20 @@ import org.triaevum.android.controls.WindroidVirtualControllerView;
  *
  * Opens as an in-process Dialog (not a separate Activity) so the Vulkan
  * swapchain surface is never destroyed during configuration.
+ *
+ * NOTE: Does NOT touch EmulationMenuSettings (Kotlin object) at construction
+ * time — that class uses OverlayHost.appContext in its static initialiser and
+ * will throw if the overlay host is not yet bound.  All overlay preferences
+ * are accessed directly via SharedPreferences with the same key names.
  */
 public final class TriAevumConfigDialog extends Dialog {
 
+    private static final String TAG = "TriAevumCfg";
+    // PreferenceManager.getDefaultSharedPreferences() uses "<packageName>_preferences"
+    private static final String PREFS_NAME = "org.triaevum.android_preferences";
     private final TriAevumConfigManager mConfig;
     private final WindroidVirtualControllerView mOverlay;
+    private SharedPreferences mPrefs;
 
     // Tabs
     private Button mTabGeral, mTabGraficos, mTabCamera, mTabControles;
@@ -73,6 +82,10 @@ public final class TriAevumConfigDialog extends Dialog {
         super(owner, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
         mConfig  = new TriAevumConfigManager(owner);
         mOverlay = overlay;
+        // PreferenceManager.getDefaultSharedPreferences() → "<pkg>_preferences"
+        mPrefs = owner.getApplicationContext()
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        Log.d(TAG, "Dialog created. Prefs file: " + PREFS_NAME);
     }
 
     @Override
@@ -156,9 +169,11 @@ public final class TriAevumConfigDialog extends Dialog {
     // -------------------------------------------------------------------------
 
     private void loadFromConfig() {
+        Log.d(TAG, "--- loadFromConfig START ---");
         // Language
         setupSpinner(mSpLanguage, TriAevumConfigManager.LANGUAGE_LABELS, null);
         String langCode = mConfig.getLanguageCode();
+        Log.d(TAG, "  language: " + langCode);
         for (int i = 0; i < TriAevumConfigManager.LANGUAGE_CODES.length; i++) {
             if (TriAevumConfigManager.LANGUAGE_CODES[i].equals(langCode)) {
                 mSpLanguage.setSelection(i);
@@ -169,6 +184,7 @@ public final class TriAevumConfigDialog extends Dialog {
         // Surface resolution
         setupSpinner(mSpSurfaceRes, TriAevumConfigManager.SURFACE_RES_LABELS, null);
         int surfEdge = mConfig.getSurfaceMaxShortEdge();
+        Log.d(TAG, "  surface_max_short_edge: " + surfEdge);
         for (int i = 0; i < TriAevumConfigManager.SURFACE_RES_VALUES.length; i++) {
             if (TriAevumConfigManager.SURFACE_RES_VALUES[i] == surfEdge) {
                 mSpSurfaceRes.setSelection(i);
@@ -208,6 +224,11 @@ public final class TriAevumConfigDialog extends Dialog {
 
         mCbVSync.setChecked(mConfig.isVSync());
         mCbCustomTextures.setChecked(mConfig.isCustomTexturesEnabled());
+        Log.d(TAG, "  renderScale=" + mConfig.getRenderScale()
+            + " AA=" + mConfig.getAAMode()
+            + " FR=" + mConfig.getFrameRateMode()
+            + " vsync=" + mConfig.isVSync()
+            + " customTex=" + mConfig.isCustomTexturesEnabled());
 
         // Camera / HUD
         mCbFreeCamera.setChecked(mConfig.isFreeCameraEnabled());
@@ -225,13 +246,31 @@ public final class TriAevumConfigDialog extends Dialog {
         mTvHudScaleLabel.setText("Escala HUD: " + hudPct + "%");
         mCbMinimap.setChecked(mConfig.isMinimapVisible());
         mCbDpadIcons.setChecked(mConfig.isRenderDpadIcons());
+        Log.d(TAG, "  freeCamera=" + mConfig.isFreeCameraEnabled()
+            + " speed=" + mConfig.getFreeCameraSpeedLevel()
+            + " invertX=" + mConfig.isFreeCameraInvertX()
+            + " invertY=" + mConfig.isFreeCameraInvertY()
+            + " hudScale=" + mConfig.getHudScale()
+            + " minimap=" + mConfig.isMinimapVisible()
+            + " dpadIcons=" + mConfig.isRenderDpadIcons());
 
-        // Controls (EmulationMenuSettings via SharedPreferences)
-        mCbShowOverlay.setChecked(EmulationMenuSettings.INSTANCE.getShowOverlay());
-        mCbHaptic.setChecked(EmulationMenuSettings.INSTANCE.getHapticFeedback());
-        mCbSwapScreens.setChecked(EmulationMenuSettings.INSTANCE.getSwapScreens());
-        mCbJoystickRelCenter.setChecked(EmulationMenuSettings.INSTANCE.getJoystickRelCenter());
-        mCbDpadSlide.setChecked(EmulationMenuSettings.INSTANCE.getDpadSlide());
+        // Controls — read directly from SharedPreferences (same keys as EmulationMenuSettings)
+        boolean showOverlay = mPrefs.getBoolean("EmulationMenuSettings_ShowOverlay", true);
+        boolean haptic      = mPrefs.getBoolean("EmulationMenuSettings_HapticFeedback", true);
+        boolean swapScr     = mPrefs.getBoolean("EmulationMenuSettings_SwapScreens", false);
+        boolean joyRel      = mPrefs.getBoolean("EmulationMenuSettings_JoystickRelCenter", true);
+        boolean dpadSlide   = mPrefs.getBoolean("EmulationMenuSettings_DpadSlideEnable", true);
+        Log.d(TAG, "  [prefs=" + PREFS_NAME + "]"
+            + " showOverlay=" + showOverlay
+            + " haptic=" + haptic
+            + " swapScreens=" + swapScr
+            + " joystickRelCenter=" + joyRel
+            + " dpadSlide=" + dpadSlide);
+        mCbShowOverlay.setChecked(showOverlay);
+        mCbHaptic.setChecked(haptic);
+        mCbSwapScreens.setChecked(swapScr);
+        mCbJoystickRelCenter.setChecked(joyRel);
+        mCbDpadSlide.setChecked(dpadSlide);
 
         // Opacity from overlay
         int overlayOpacity = 100;
@@ -313,7 +352,8 @@ public final class TriAevumConfigDialog extends Dialog {
 
         btnSave.setOnClickListener(v -> {
             saveToConfig();
-            Toast.makeText(getContext(), "Configurações salvas!", Toast.LENGTH_SHORT).show();
+            mConfig.applyLiveSettings();
+            Toast.makeText(getContext(), "Configurações salvas e aplicadas!", Toast.LENGTH_SHORT).show();
             dismiss();
         });
 
@@ -321,14 +361,17 @@ public final class TriAevumConfigDialog extends Dialog {
 
         btnRestore.setOnClickListener(v -> {
             mConfig.restoreDefaults();
-            EmulationMenuSettings.INSTANCE.setShowOverlay(true);
-            EmulationMenuSettings.INSTANCE.setHapticFeedback(true);
-            EmulationMenuSettings.INSTANCE.setSwapScreens(false);
-            EmulationMenuSettings.INSTANCE.setJoystickRelCenter(true);
-            EmulationMenuSettings.INSTANCE.setDpadSlide(true);
+            mConfig.applyLiveSettings();
+            mPrefs.edit()
+                .putBoolean("EmulationMenuSettings_ShowOverlay", true)
+                .putBoolean("EmulationMenuSettings_HapticFeedback", true)
+                .putBoolean("EmulationMenuSettings_SwapScreens", false)
+                .putBoolean("EmulationMenuSettings_JoystickRelCenter", true)
+                .putBoolean("EmulationMenuSettings_DpadSlideEnable", true)
+                .apply();
             if (mOverlay != null) mOverlay.setOverlayOpacityPercent(100);
             loadFromConfig();
-            Toast.makeText(getContext(), "Padrões restaurados.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "Padrões restaurados e aplicados.", Toast.LENGTH_SHORT).show();
         });
     }
 
@@ -337,47 +380,76 @@ public final class TriAevumConfigDialog extends Dialog {
     // -------------------------------------------------------------------------
 
     private void saveToConfig() {
+        Log.d(TAG, "--- saveToConfig START ---");
         // Geral
         int langIdx = mSpLanguage.getSelectedItemPosition();
-        if (langIdx >= 0 && langIdx < TriAevumConfigManager.LANGUAGE_CODES.length)
-            mConfig.setLanguageCode(TriAevumConfigManager.LANGUAGE_CODES[langIdx]);
+        if (langIdx >= 0 && langIdx < TriAevumConfigManager.LANGUAGE_CODES.length) {
+            String lang = TriAevumConfigManager.LANGUAGE_CODES[langIdx];
+            Log.d(TAG, "  SET language -> " + lang);
+            mConfig.setLanguageCode(lang);
+        }
 
         int resIdx = mSpSurfaceRes.getSelectedItemPosition();
-        if (resIdx >= 0 && resIdx < TriAevumConfigManager.SURFACE_RES_VALUES.length)
-            mConfig.setSurfaceMaxShortEdge(TriAevumConfigManager.SURFACE_RES_VALUES[resIdx]);
+        if (resIdx >= 0 && resIdx < TriAevumConfigManager.SURFACE_RES_VALUES.length) {
+            int edge = TriAevumConfigManager.SURFACE_RES_VALUES[resIdx];
+            Log.d(TAG, "  SET surfaceMaxShortEdge -> " + edge);
+            mConfig.setSurfaceMaxShortEdge(edge);
+        }
 
         // Gráficos
         int rsIdx = mSpRenderScale.getSelectedItemPosition();
-        if (rsIdx >= 0 && rsIdx < TriAevumConfigManager.RENDER_SCALE_VALUES.length)
-            mConfig.setRenderScale(TriAevumConfigManager.RENDER_SCALE_VALUES[rsIdx]);
+        if (rsIdx >= 0 && rsIdx < TriAevumConfigManager.RENDER_SCALE_VALUES.length) {
+            float rs = TriAevumConfigManager.RENDER_SCALE_VALUES[rsIdx];
+            Log.d(TAG, "  SET renderScale -> " + rs);
+            mConfig.setRenderScale(rs);
+        }
 
         int aaIdx = mSpAAMode.getSelectedItemPosition();
-        if (aaIdx >= 0 && aaIdx < TriAevumConfigManager.AA_MODE_VALUES.length)
-            mConfig.setAAMode(TriAevumConfigManager.AA_MODE_VALUES[aaIdx]);
+        if (aaIdx >= 0 && aaIdx < TriAevumConfigManager.AA_MODE_VALUES.length) {
+            String aa = TriAevumConfigManager.AA_MODE_VALUES[aaIdx];
+            Log.d(TAG, "  SET AA -> " + aa);
+            mConfig.setAAMode(aa);
+        }
 
         int frIdx = mSpFramerate.getSelectedItemPosition();
-        if (frIdx >= 0 && frIdx < TriAevumConfigManager.FRAMERATE_VALUES.length)
-            mConfig.setFrameRateMode(TriAevumConfigManager.FRAMERATE_VALUES[frIdx]);
+        if (frIdx >= 0 && frIdx < TriAevumConfigManager.FRAMERATE_VALUES.length) {
+            String fr = TriAevumConfigManager.FRAMERATE_VALUES[frIdx];
+            Log.d(TAG, "  SET frameRate -> " + fr);
+            mConfig.setFrameRateMode(fr);
+        }
 
+        Log.d(TAG, "  SET vsync -> " + mCbVSync.isChecked());
         mConfig.setVSync(mCbVSync.isChecked());
+        Log.d(TAG, "  SET customTextures -> " + mCbCustomTextures.isChecked());
         mConfig.setCustomTexturesEnabled(mCbCustomTextures.isChecked());
 
         // Câmera / HUD
+        Log.d(TAG, "  SET freeCamera -> " + mCbFreeCamera.isChecked());
         mConfig.setFreeCameraEnabled(mCbFreeCamera.isChecked());
+        Log.d(TAG, "  SET camSpeedLevel -> " + (mSbCamSpeed.getProgress() + 1));
         mConfig.setFreeCameraSpeedLevel(mSbCamSpeed.getProgress() + 1);
         mConfig.setFreeCameraInvertX(mCbCamInvertX.isChecked());
         mConfig.setFreeCameraInvertY(mCbCamInvertY.isChecked());
         float hudScale = 0.5f + mSbHudScale.getProgress() * 0.1f;
+        Log.d(TAG, "  SET hudScale -> " + hudScale);
         mConfig.setHudScale(hudScale);
         mConfig.setMinimapVisible(mCbMinimap.isChecked());
         mConfig.setRenderDpadIcons(mCbDpadIcons.isChecked());
 
-        // Controles (EmulationMenuSettings)
-        EmulationMenuSettings.INSTANCE.setShowOverlay(mCbShowOverlay.isChecked());
-        EmulationMenuSettings.INSTANCE.setHapticFeedback(mCbHaptic.isChecked());
-        EmulationMenuSettings.INSTANCE.setSwapScreens(mCbSwapScreens.isChecked());
-        EmulationMenuSettings.INSTANCE.setJoystickRelCenter(mCbJoystickRelCenter.isChecked());
-        EmulationMenuSettings.INSTANCE.setDpadSlide(mCbDpadSlide.isChecked());
+        // Controles — write directly to SharedPreferences (same keys as EmulationMenuSettings)
+        Log.d(TAG, "  SET prefs showOverlay=" + mCbShowOverlay.isChecked()
+            + " haptic=" + mCbHaptic.isChecked()
+            + " swapScreens=" + mCbSwapScreens.isChecked()
+            + " joystickRelCenter=" + mCbJoystickRelCenter.isChecked()
+            + " dpadSlide=" + mCbDpadSlide.isChecked());
+        mPrefs.edit()
+            .putBoolean("EmulationMenuSettings_ShowOverlay", mCbShowOverlay.isChecked())
+            .putBoolean("EmulationMenuSettings_HapticFeedback", mCbHaptic.isChecked())
+            .putBoolean("EmulationMenuSettings_SwapScreens", mCbSwapScreens.isChecked())
+            .putBoolean("EmulationMenuSettings_JoystickRelCenter", mCbJoystickRelCenter.isChecked())
+            .putBoolean("EmulationMenuSettings_DpadSlideEnable", mCbDpadSlide.isChecked())
+            .apply();
+        Log.d(TAG, "--- saveToConfig END ---");
     }
 
     // -------------------------------------------------------------------------

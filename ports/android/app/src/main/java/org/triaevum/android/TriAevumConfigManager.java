@@ -35,7 +35,7 @@ public final class TriAevumConfigManager {
     public static final String[] AA_MODE_VALUES   = { "Off",       "FXAA", "TAA", "MSAA2x",  "MSAA4x"  };
 
     public static final String[] FRAMERATE_LABELS = { "30 FPS (Original)", "60 FPS (Nativo)" };
-    public static final String[] FRAMERATE_VALUES = { "Original30",         "Native60"       };
+    public static final String[] FRAMERATE_VALUES = { "Original30",         "Interpolated2x" };
 
     // ------- TriAevum.android.host.json ---
     public static final String[] SURFACE_RES_LABELS = { "720p (Padrão)", "1080p (Nativo Moto G100)", "Sem Limite" };
@@ -47,6 +47,20 @@ public final class TriAevumConfigManager {
 
     public TriAevumConfigManager(Context context) {
         mExternalDir = context.getExternalFilesDir(null);
+    }
+
+    public static native void nativeReloadGraphicsSettings();
+
+    /**
+     * Notifies the native engine to re-read and apply graphics settings live at runtime.
+     */
+    public void applyLiveSettings() {
+        try {
+            nativeReloadGraphicsSettings();
+            Log.i(TAG, "Live graphics settings reload dispatched successfully");
+        } catch (Throwable t) {
+            Log.w(TAG, "nativeReloadGraphicsSettings unavailable: " + t.getMessage());
+        }
     }
 
     // ---- helpers ----
@@ -147,16 +161,46 @@ public final class TriAevumConfigManager {
 
     public String getAAMode() {
         JSONObject aa = getGraphics().optJSONObject("AA");
-        return aa != null ? aa.optString("Mode", "Off") : "Off";
+        if (aa == null) return "Off";
+        String mode = aa.optString("Mode", "Off");
+        int msaaSamples = aa.optInt("MsaaSamples", 1);
+        if ("MSAA".equalsIgnoreCase(mode)) {
+            return msaaSamples >= 4 ? "MSAA4x" : "MSAA2x";
+        }
+        return mode;
     }
 
-    public void setAAMode(String mode) {
-        patchGraphicsNested("AA", "Mode", mode);
+    public void setAAMode(String modeValue) {
+        JSONObject root = readJson("oot3d_native_game.json");
+        try {
+            JSONObject gfx = root.optJSONObject("Graphics");
+            if (gfx == null) gfx = new JSONObject();
+            JSONObject aa = gfx.optJSONObject("AA");
+            if (aa == null) aa = new JSONObject();
+            if ("MSAA2x".equals(modeValue)) {
+                aa.put("Mode", "MSAA");
+                aa.put("MsaaSamples", 2);
+            } else if ("MSAA4x".equals(modeValue)) {
+                aa.put("Mode", "MSAA");
+                aa.put("MsaaSamples", 4);
+            } else {
+                aa.put("Mode", modeValue);
+                aa.put("MsaaSamples", 1);
+            }
+            gfx.put("AA", aa);
+            root.put("Graphics", gfx);
+        } catch (JSONException ignored) {}
+        writeJson("oot3d_native_game.json", root);
     }
 
     public String getFrameRateMode() {
         JSONObject fr = getGraphics().optJSONObject("FrameRate");
-        return fr != null ? fr.optString("Mode", "Original30") : "Original30";
+        if (fr == null) return "Original30";
+        String mode = fr.optString("Mode", "Original30");
+        if ("Fixed60".equalsIgnoreCase(mode) || "Native60".equalsIgnoreCase(mode)) {
+            return "Interpolated2x";
+        }
+        return mode;
     }
 
     public void setFrameRateMode(String mode) {
