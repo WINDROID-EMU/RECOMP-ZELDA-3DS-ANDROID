@@ -353,10 +353,10 @@ public class WindroidVirtualControllerView extends View {
             case B_BUTTON: return "B";
             case X_BUTTON: return "X";
             case Y_BUTTON: return "Y";
-            case RB_BUTTON: return "RB";
-            case LB_BUTTON: return "LB";
-            case RT_BUTTON: return "RT";
-            case LT_BUTTON: return "LT";
+            case RB_BUTTON: return "R";
+            case LB_BUTTON: return "L";
+            case RT_BUTTON: return "ZR";
+            case LT_BUTTON: return "ZL";
             default: return "";
         }
     }
