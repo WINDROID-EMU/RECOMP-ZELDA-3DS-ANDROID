@@ -6130,8 +6130,18 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
               : oot3d::ui::N64UiCanvasMode::Widescreen16x9;
       if (!n64UiRenderer.Render(primitives, width, height, canvasMode,
                                 &error)) {
-        throw std::runtime_error("integrated N64 UI presentation failed: " +
-                                 error);
+        // A missing or unrecognized UI texture semantic (e.g. during the
+        // in-game pause menu) is non-fatal: skip this subsystem this frame
+        // rather than killing the game loop entirely.
+        static std::string sLastUiRenderError;
+        if (error != sLastUiRenderError) {
+          std::fprintf(stderr,
+                       "oot3d_native_game: N64 UI subsystem %zu render "
+                       "skipped: %s\n",
+                       subsystemIndex, error.c_str());
+          sLastUiRenderError = error;
+        }
+        continue;
       }
     }
 
