@@ -178,7 +178,7 @@ public class TriAevumDownloadActivity extends Activity {
                     extractZip(tempDownloadFile, targetDir);
                 } else {
                     // Extract 3DS / CCI container
-                    CtrRomExtractor.extractRom(tempDownloadFile, targetDir, (stage, percent) -> {
+                    CtrRomExtractor.extractRom(TriAevumDownloadActivity.this, tempDownloadFile, targetDir, (stage, percent) -> {
                         mMainHandler.post(() -> {
                             mTvStatus.setText(stage);
                             mPbDownload.setProgress(percent);
