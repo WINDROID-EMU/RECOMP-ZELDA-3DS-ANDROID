@@ -20,6 +20,13 @@ AndroidOverlayInputState &GetAndroidOverlayInputState() {
 }
 
 void InitializeAndroidGameHost() {
+  // Keep the game loop running when a dialog (e.g. settings) steals focus.
+  // Without this, SDL blocks its event loop on onPause and the process is
+  // killed by Android's ANR watchdog when the menu is left open too long.
+  SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE, "0");
+  // Keep audio running while the config dialog is open.
+  SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO, "0");
+
   SDL_setenv("SDL_AUDIODRIVER", "aaudio,openslES", 1);
   SDL_setenv("TRIAEVUM_VULKAN_PRESENT_DISPATCH", "graphics", 1);
 
