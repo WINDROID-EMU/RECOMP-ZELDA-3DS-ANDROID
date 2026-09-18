@@ -1,0 +1,23 @@
+{
+  "format": "oot3d_native_game_launch_profile_v1",
+  "arguments": [
+    "--a32-process-manifest",
+    "${profile_dir}/process-manifest.json",
+    "--resource-root",
+    "${profile_dir}/resources",
+    "--renderer",
+    "nri",
+    "--ui-profile",
+    "topscreen",
+    "--save-data",
+    "${profile_dir}/savedata",
+    "--gameplay-timing",
+    "native30_no_interpolation",
+    "--presentation-rate",
+    "30",
+    "--width",
+    "1280",
+    "--height",
+    "720"
+  ]
+}

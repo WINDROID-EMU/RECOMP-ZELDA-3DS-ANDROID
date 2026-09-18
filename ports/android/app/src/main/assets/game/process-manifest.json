@@ -1,0 +1,235 @@
+{
+  "format": "oot3d_native_process_manifest_v1",
+  "source": {
+    "exheader_path": "exheader.bin",
+    "exheader_sha256": "dbe5fa0174d73bffb75d7cf0fbaa05d3e0ee080df0e257afc58b6c45ae5de3d0",
+    "code_bin_path": "code.bin",
+    "code_bin_sha256": "16a6b0aa4c4784680220a6f780f7f8a73cfb205557aa9f9f0e705179e0613220",
+    "code_bin_size": 4567040,
+    "romfs_image_path": "romfs.bin",
+    "romfs_image_file_size": 473522176,
+    "romfs_service_offset": 0,
+    "romfs_service_size": 473522176,
+    "layout_authority": "CTR ExHeader; page/BSS/stack/TLS semantics verified against Azahar NCCH loader"
+  },
+  "process": {
+    "name": "CtrApp",
+    "entrypoint": 1048576,
+    "page_size": 4096,
+    "bss_declared_size": 443368,
+    "bss_mapped_size": 446464,
+    "segments": [
+      {
+        "name": "text",
+        "address": 1048576,
+        "mapped_size": 3973120,
+        "declared_code_size": 3971496,
+        "file_offset": 0,
+        "file_size": 3973120,
+        "writable": false,
+        "executable": true
+      },
+      {
+        "name": "rodata",
+        "address": 5021696,
+        "mapped_size": 192512,
+        "declared_code_size": 189256,
+        "file_offset": 3973120,
+        "file_size": 192512,
+        "writable": false,
+        "executable": false
+      },
+      {
+        "name": "data_bss",
+        "address": 5214208,
+        "mapped_size": 847872,
+        "declared_code_size": 397856,
+        "file_offset": 4165632,
+        "file_size": 401408,
+        "writable": true,
+        "executable": false
+      }
+    ],
+    "system_regions": [
+      {
+        "name": "ctr_vram",
+        "address": 520093696,
+        "mapped_size": 6291456,
+        "writable": true,
+        "executable": false,
+        "initial_values": []
+      },
+      {
+        "name": "ctr_dsp_ram",
+        "address": 535822336,
+        "mapped_size": 524288,
+        "writable": true,
+        "executable": false,
+        "initial_values": []
+      },
+      {
+        "name": "ctr_config_memory",
+        "address": 536346624,
+        "mapped_size": 4096,
+        "writable": false,
+        "executable": false,
+        "initial_values": [
+          {
+            "offset": 1,
+            "size": 1,
+            "value": 58
+          },
+          {
+            "offset": 3,
+            "size": 1,
+            "value": 2
+          },
+          {
+            "offset": 8,
+            "size": 8,
+            "value": 1127205576933378
+          },
+          {
+            "offset": 16,
+            "size": 4,
+            "value": 2
+          },
+          {
+            "offset": 20,
+            "size": 1,
+            "value": 1
+          },
+          {
+            "offset": 22,
+            "size": 1,
+            "value": 1
+          },
+          {
+            "offset": 24,
+            "size": 4,
+            "value": 62544
+          },
+          {
+            "offset": 48,
+            "size": 4,
+            "value": 0
+          },
+          {
+            "offset": 64,
+            "size": 4,
+            "value": 67108864
+          },
+          {
+            "offset": 68,
+            "size": 4,
+            "value": 46137344
+          },
+          {
+            "offset": 72,
+            "size": 4,
+            "value": 20971520
+          },
+          {
+            "offset": 98,
+            "size": 1,
+            "value": 58
+          },
+          {
+            "offset": 99,
+            "size": 1,
+            "value": 2
+          },
+          {
+            "offset": 100,
+            "size": 4,
+            "value": 2
+          },
+          {
+            "offset": 104,
+            "size": 4,
+            "value": 62544
+          }
+        ]
+      },
+      {
+        "name": "ctr_shared_page",
+        "address": 536350720,
+        "mapped_size": 4096,
+        "writable": false,
+        "executable": false,
+        "initial_values": [
+          {
+            "offset": 4,
+            "size": 1,
+            "value": 1
+          },
+          {
+            "offset": 102,
+            "size": 1,
+            "value": 3
+          },
+          {
+            "offset": 103,
+            "size": 1,
+            "value": 2
+          },
+          {
+            "offset": 133,
+            "size": 1,
+            "value": 23
+          },
+          {
+            "offset": 134,
+            "size": 1,
+            "value": 1
+          }
+        ]
+      }
+    ],
+    "resource_limit": {
+      "limit_values": [
+        24,
+        67108864,
+        32,
+        32,
+        32,
+        8,
+        8,
+        16,
+        2,
+        0
+      ],
+      "initial_values": [
+        0,
+        5029888,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "linear_heap": {
+      "base_address": 335544320,
+      "size": 67108864
+    },
+    "heap": {
+      "base_address": 134217728,
+      "size": 134217728
+    }
+  },
+  "primary_thread": {
+    "stack_base_address": 268419072,
+    "stack_size": 16384,
+    "tls_base_address": 536354816,
+    "tls_size": 4096,
+    "thread_pointer": 536354816,
+    "argument0": 0,
+    "initial_cpsr": 16,
+    "initial_fpscr": 62914576,
+    "priority": 48
+  }
+}

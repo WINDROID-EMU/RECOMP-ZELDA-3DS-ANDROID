@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layout_downloader_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="#000000"
+    android:clickable="true"
+    android:focusable="true">
 
     <!-- Background artwork: Link with Ocarina in Lost Woods -->
     <ImageView
@@ -15,7 +18,7 @@
     <!-- Bottom gradient scrim for high text contrast -->
     <View
         android:layout_width="match_parent"
-        android:layout_height="220dp"
+        android:layout_height="240dp"
         android:layout_gravity="bottom"
         android:background="@drawable/scrim_bottom" />
 
@@ -59,6 +62,7 @@
             android:progressDrawable="@drawable/progress_bar_gold" />
 
         <LinearLayout
+            android:id="@+id/layout_progress_details"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
@@ -82,10 +86,23 @@
                 android:id="@+id/tv_download_details"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Aguardando conexão..."
+                android:text="Conectando..."
                 android:textColor="#8B9BB4"
                 android:textSize="12sp" />
         </LinearLayout>
+
+        <!-- "Touch screen to start" glowing message -->
+        <TextView
+            android:id="@+id/tv_touch_to_start"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center"
+            android:text="✦ TOQUE NA TELA PARA INICIAR ✦"
+            android:textColor="#FFD700"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
 
         <Button
             android:id="@+id/btn_download_action"
