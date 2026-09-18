@@ -255,8 +255,8 @@ public final class TriAevumConfigDialog extends Dialog {
             + " dpadIcons=" + mConfig.isRenderDpadIcons());
 
         // Controls — read directly from SharedPreferences (same keys as EmulationMenuSettings)
-        boolean showOverlay = mPrefs.getBoolean("EmulationMenuSettings_ShowOverlay", true);
-        boolean haptic      = mPrefs.getBoolean("EmulationMenuSettings_HapticFeedback", true);
+        boolean showOverlay = (mOverlay != null) ? mOverlay.isShowControls() : mPrefs.getBoolean("EmulationMenuSettings_ShowOverlay", true);
+        boolean haptic      = (mOverlay != null) ? mOverlay.isHapticFeedbackEnabled() : mPrefs.getBoolean("EmulationMenuSettings_HapticFeedback", true);
         boolean swapScr     = mPrefs.getBoolean("EmulationMenuSettings_SwapScreens", false);
         boolean joyRel      = mPrefs.getBoolean("EmulationMenuSettings_JoystickRelCenter", true);
         boolean dpadSlide   = mPrefs.getBoolean("EmulationMenuSettings_DpadSlideEnable", true);
@@ -369,7 +369,16 @@ public final class TriAevumConfigDialog extends Dialog {
                 .putBoolean("EmulationMenuSettings_JoystickRelCenter", true)
                 .putBoolean("EmulationMenuSettings_DpadSlideEnable", true)
                 .apply();
-            if (mOverlay != null) mOverlay.setOverlayOpacityPercent(100);
+            if (mOverlay != null) {
+                mOverlay.setShowControls(true);
+                mOverlay.setHapticFeedbackEnabled(true);
+                mOverlay.setOverlayOpacityPercent(100);
+            }
+            try {
+                AndroidNativeInputTarget.nativeSwapScreens(false);
+            } catch (Throwable t) {
+                Log.w(TAG, "Failed to reset nativeSwapScreens", t);
+            }
             loadFromConfig();
             Toast.makeText(getContext(), "Padrões restaurados e aplicados.", Toast.LENGTH_SHORT).show();
         });
@@ -437,18 +446,35 @@ public final class TriAevumConfigDialog extends Dialog {
         mConfig.setRenderDpadIcons(mCbDpadIcons.isChecked());
 
         // Controles — write directly to SharedPreferences (same keys as EmulationMenuSettings)
-        Log.d(TAG, "  SET prefs showOverlay=" + mCbShowOverlay.isChecked()
-            + " haptic=" + mCbHaptic.isChecked()
-            + " swapScreens=" + mCbSwapScreens.isChecked()
-            + " joystickRelCenter=" + mCbJoystickRelCenter.isChecked()
-            + " dpadSlide=" + mCbDpadSlide.isChecked());
+        boolean showOverlay = mCbShowOverlay.isChecked();
+        boolean haptic = mCbHaptic.isChecked();
+        boolean swapScr = mCbSwapScreens.isChecked();
+        boolean joyRel = mCbJoystickRelCenter.isChecked();
+        boolean dpadSlide = mCbDpadSlide.isChecked();
+
+        Log.d(TAG, "  SET prefs showOverlay=" + showOverlay
+            + " haptic=" + haptic
+            + " swapScreens=" + swapScr
+            + " joystickRelCenter=" + joyRel
+            + " dpadSlide=" + dpadSlide);
         mPrefs.edit()
-            .putBoolean("EmulationMenuSettings_ShowOverlay", mCbShowOverlay.isChecked())
-            .putBoolean("EmulationMenuSettings_HapticFeedback", mCbHaptic.isChecked())
-            .putBoolean("EmulationMenuSettings_SwapScreens", mCbSwapScreens.isChecked())
-            .putBoolean("EmulationMenuSettings_JoystickRelCenter", mCbJoystickRelCenter.isChecked())
-            .putBoolean("EmulationMenuSettings_DpadSlideEnable", mCbDpadSlide.isChecked())
+            .putBoolean("EmulationMenuSettings_ShowOverlay", showOverlay)
+            .putBoolean("EmulationMenuSettings_HapticFeedback", haptic)
+            .putBoolean("EmulationMenuSettings_SwapScreens", swapScr)
+            .putBoolean("EmulationMenuSettings_JoystickRelCenter", joyRel)
+            .putBoolean("EmulationMenuSettings_DpadSlideEnable", dpadSlide)
             .apply();
+
+        if (mOverlay != null) {
+            mOverlay.setShowControls(showOverlay);
+            mOverlay.setHapticFeedbackEnabled(haptic);
+            mOverlay.setOverlayOpacityPercent(mSbOpacity.getProgress());
+        }
+        try {
+            AndroidNativeInputTarget.nativeSwapScreens(swapScr);
+        } catch (Throwable t) {
+            Log.w(TAG, "Failed to apply nativeSwapScreens", t);
+        }
         Log.d(TAG, "--- saveToConfig END ---");
     }
 

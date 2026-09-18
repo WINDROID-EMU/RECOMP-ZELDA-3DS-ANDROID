@@ -105,6 +105,13 @@ Java_org_triaevum_android_AndroidNativeInputTarget_nativeReleaseAll(
 }
 
 JNIEXPORT void JNICALL
+Java_org_triaevum_android_AndroidNativeInputTarget_nativeSwapScreens(
+    JNIEnv * /*env*/, jclass /*clazz*/, jboolean enabled) {
+  auto &state = GetAndroidOverlayInputState();
+  state.swapScreens.store(enabled, std::memory_order_relaxed);
+}
+
+JNIEXPORT void JNICALL
 Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
     JNIEnv * /*env*/, jclass /*clazz*/) {
   try {

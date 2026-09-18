@@ -2941,16 +2941,17 @@ PollNativeA32Input(Fast::Fast3dWindow &window,
   frame.CStick.Y = overlayScaledCStickY;
   frame.CStick.Kind = Oot3dNativeGame::NativeFreeCameraInputKind::Absolute;
 
+  const bool swapScreensActive =
+      androidInput.swapScreens.load(std::memory_order_relaxed);
   if (androidInput.touchPressed.load(std::memory_order_relaxed)) {
     const float tx = androidInput.touchX.load(std::memory_order_relaxed);
     const float ty = androidInput.touchY.load(std::memory_order_relaxed);
     const auto overlayTouch = Oot3dNativeGame::MapHostPointerToNativeA32Touch(
         static_cast<int32_t>(tx), static_cast<int32_t>(ty), window.GetWidth(),
         window.GetHeight(), true,
-        topScreenUiProfile
-            ? Oot3dNativeGame::NativeA32TouchPresentation::TopScreen400x240
-            : Oot3dNativeGame::NativeA32TouchPresentation::
-                  NativeLowerScreen320x240);
+        (swapScreensActive || !topScreenUiProfile)
+            ? Oot3dNativeGame::NativeA32TouchPresentation::NativeLowerScreen320x240
+            : Oot3dNativeGame::NativeA32TouchPresentation::TopScreen400x240);
     if (overlayTouch.Inside) {
       frame.Hid.TouchX = overlayTouch.X;
       frame.Hid.TouchY = overlayTouch.Y;
@@ -5293,7 +5294,19 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
       if (presentHostFrame) {
         const auto visualPresentationStart = std::chrono::steady_clock::now();
         const bool lcdForceBlack = hostServices.LcdForceBlack();
-        const auto topFramebuffer = hostServices.TopFramebuffer();
+        const auto rawTopFramebuffer = hostServices.TopFramebuffer();
+        const auto rawBottomFramebuffer = hostServices.BottomFramebuffer();
+#if defined(__ANDROID__)
+        const bool swapScreensActive =
+            GetAndroidOverlayInputState().swapScreens.load(std::memory_order_relaxed);
+#else
+        const bool swapScreensActive = false;
+#endif
+        const auto topFramebuffer =
+            swapScreensActive ? (rawBottomFramebuffer.has_value() ? rawBottomFramebuffer : rawTopFramebuffer)
+                              : rawTopFramebuffer;
+        const auto bottomFramebuffer =
+            swapScreensActive ? rawTopFramebuffer : rawBottomFramebuffer;
         const Oot3dNativeGame::Oot3dPicaDisplayTransferSubmission
             *traceSelectedTopTransfer = nullptr;
         if (topFramebuffer.has_value()) {
@@ -5591,7 +5604,6 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
               Oot3dNativeGame::ShouldPresentNativeBottomFrontend(
                   launch.UiProfile,
                   uiLifecycleBridge.NativeFrontendPresentationActive());
-          const auto bottomFramebuffer = hostServices.BottomFramebuffer();
           if (presentNativeBottomFrontend &&
               bottomFramebuffer.has_value()) {
             ++nativeFrontendPresentationActiveCount;

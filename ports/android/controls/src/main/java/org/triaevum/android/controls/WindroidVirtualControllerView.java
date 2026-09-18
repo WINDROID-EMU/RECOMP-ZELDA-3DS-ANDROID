@@ -9,7 +9,9 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.os.Build;
 import android.os.SystemClock;
+import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -134,6 +136,11 @@ public class WindroidVirtualControllerView extends View {
         mSettingsListener = listener;
     }
 
+    private static final String PREF_SHOW_OVERLAY = "EmulationMenuSettings_ShowOverlay";
+    private static final String PREF_HAPTIC = "EmulationMenuSettings_HapticFeedback";
+    private boolean mShowControls = true;
+    private boolean mHapticFeedbackEnabled = true;
+
     /** Returns the current overlay opacity (20-100). */
     public int getOverlayOpacityPercent() {
         return mOverlayOpacityPercent;
@@ -148,6 +155,67 @@ public class WindroidVirtualControllerView extends View {
         invalidate();
     }
 
+    public boolean isShowControls() {
+        return mShowControls;
+    }
+
+    public void setShowControls(boolean show) {
+        mShowControls = show;
+        if (!show) {
+            releaseAllControls();
+        }
+        if (preferences != null) {
+            preferences.edit().putBoolean(PREF_SHOW_OVERLAY, show).apply();
+        }
+        invalidate();
+    }
+
+    public boolean isHapticFeedbackEnabled() {
+        return mHapticFeedbackEnabled;
+    }
+
+    public void setHapticFeedbackEnabled(boolean enabled) {
+        mHapticFeedbackEnabled = enabled;
+        if (preferences != null) {
+            preferences.edit().putBoolean(PREF_HAPTIC, enabled).apply();
+        }
+    }
+
+    public void releaseAllControls() {
+        for (VirtualControllerButton btn : buttonList) {
+            if (btn.isPressed) {
+                btn.fingerId = -1;
+                btn.isPressed = false;
+            }
+        }
+        resetAnalog(true);
+        resetAnalog(false);
+        if (dpad != null) {
+            dpad.fingerId = -1;
+            dpad.fingerX = 0F;
+            dpad.fingerY = 0F;
+            dpad.isPressed = false;
+            dpad.dpadStatus = 0;
+        }
+        if (inputTarget != null) {
+            inputTarget.releaseAll();
+        }
+    }
+
+    private void performHaptic() {
+        if (!mHapticFeedbackEnabled) return;
+        try {
+            Vibrator v = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+            if (v != null && v.hasVibrator()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    v.vibrate(VibrationEffect.createOneShot(35, VibrationEffect.DEFAULT_AMPLITUDE));
+                } else {
+                    v.vibrate(35);
+                }
+            }
+        } catch (Exception ignored) {}
+    }
+
     private void init() {
         setWillNotDraw(false);
         setFocusable(true);
@@ -155,6 +223,8 @@ public class WindroidVirtualControllerView extends View {
         try {
             preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
             mOverlayOpacityPercent = preferences.getInt(PREF_OPACITY, 100);
+            mShowControls = preferences.getBoolean(PREF_SHOW_OVERLAY, true);
+            mHapticFeedbackEnabled = preferences.getBoolean(PREF_HAPTIC, true);
         } catch (Exception ignored) {}
 
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -310,6 +380,10 @@ public class WindroidVirtualControllerView extends View {
 
         // ---- Settings gear button (always drawn, scales uniformly with min floor) ----
         drawSettingsButton(canvas, alphaFactor);
+
+        if (!mShowControls) {
+            return;
+        }
 
         // 1. Draw buttons (ABXY, Triggers, Start, Select)
         for (VirtualControllerButton i : buttonList) {
@@ -587,6 +661,9 @@ public class WindroidVirtualControllerView extends View {
     }
 
     private void handleButton(VirtualControllerButton button, boolean isPressed) {
+        if (isPressed && !button.isPressed) {
+            performHaptic();
+        }
         button.isPressed = isPressed;
         if (inputTarget != null) {
             int mask = get3dsHidMaskForButton(button.id);
@@ -598,6 +675,9 @@ public class WindroidVirtualControllerView extends View {
 
     private void updateDpadHid(int oldStatus, int newStatus) {
         if (inputTarget == null || oldStatus == newStatus) return;
+        if (oldStatus == 0 && newStatus != 0) {
+            performHaptic();
+        }
 
         int oldUp = (oldStatus == UP || oldStatus == RIGHT_UP || oldStatus == LEFT_UP) ? 1 : 0;
         int newUp = (newStatus == UP || newStatus == RIGHT_UP || newStatus == LEFT_UP) ? 1 : 0;
@@ -637,54 +717,55 @@ public class WindroidVirtualControllerView extends View {
                     if (sdx * sdx + sdy * sdy <= mSettingsTouchRadius * mSettingsTouchRadius) {
                         mSettingsPointerId = pointerId;
                         mSettingsBtnPressed = true;
+                        performHaptic();
                         invalidate();
                         hit = true;
                     }
                 }
 
-                // 1. Check ABXY, Triggers (LT, LB, RT, RB), Start and Select
-                for (VirtualControllerButton btn : buttonList) {
+                if (!hit && mShowControls) {
+                    // 1. Check ABXY, Triggers (LT, LB, RT, RB), Start and Select
+                    for (VirtualControllerButton btn : buttonList) {
+                        if (detectClick(px, py, btn.x, btn.y, btn.radius, btn.shape)) {
+                            btn.fingerId = pointerId;
+                            handleButton(btn, true);
+                            hit = true;
+                            break;
+                        }
+                    }
 
-                    if (detectClick(px, py, btn.x, btn.y, btn.radius, btn.shape)) {
-                        btn.fingerId = pointerId;
-                        btn.isPressed = true;
-                        handleButton(btn, true);
+                    // 2. Check Circle Pad (Left Analog)
+                    if (!hit && detectClick(px, py, leftAnalog.x, leftAnalog.y, leftAnalog.radius, SHAPE_CIRCLE)) {
+                        leftAnalog.fingerId = pointerId;
+                        leftAnalog.isPressed = true;
+                        updateAnalogPosition(px - leftAnalog.x, py - leftAnalog.y, true);
                         hit = true;
-                        break;
+                    }
+
+                    // 3. Check C-Stick (Right Analog)
+                    if (!hit && detectClick(px, py, rightAnalog.x, rightAnalog.y, rightAnalog.radius, SHAPE_CIRCLE)) {
+                        rightAnalog.fingerId = pointerId;
+                        rightAnalog.isPressed = true;
+                        updateAnalogPosition(px - rightAnalog.x, py - rightAnalog.y, false);
+                        hit = true;
+                    }
+
+                    // 4. Check D-Pad
+                    if (!hit && detectClick(px, py, dpad.x, dpad.y, dpad.radius, SHAPE_DPAD)) {
+                        float posX = px - dpad.x;
+                        float posY = py - dpad.y;
+                        dpad.fingerId = pointerId;
+                        dpad.fingerX = posX;
+                        dpad.fingerY = posY;
+                        dpad.isPressed = true;
+                        int newStatus = getAxisStatus(posX / dpad.radius, posY / dpad.radius, 0.25F);
+                        updateDpadHid(dpad.dpadStatus, newStatus);
+                        dpad.dpadStatus = newStatus;
+                        hit = true;
                     }
                 }
 
-                // 2. Check Circle Pad (Left Analog)
-                if (!hit && detectClick(px, py, leftAnalog.x, leftAnalog.y, leftAnalog.radius, SHAPE_CIRCLE)) {
-                    leftAnalog.fingerId = pointerId;
-                    leftAnalog.isPressed = true;
-                    updateAnalogPosition(px - leftAnalog.x, py - leftAnalog.y, true);
-                    hit = true;
-                }
-
-                // 3. Check C-Stick (Right Analog)
-                if (!hit && detectClick(px, py, rightAnalog.x, rightAnalog.y, rightAnalog.radius, SHAPE_CIRCLE)) {
-                    rightAnalog.fingerId = pointerId;
-                    rightAnalog.isPressed = true;
-                    updateAnalogPosition(px - rightAnalog.x, py - rightAnalog.y, false);
-                    hit = true;
-                }
-
-                // 4. Check D-Pad
-                if (!hit && detectClick(px, py, dpad.x, dpad.y, dpad.radius, SHAPE_DPAD)) {
-                    float posX = px - dpad.x;
-                    float posY = py - dpad.y;
-                    dpad.fingerId = pointerId;
-                    dpad.fingerX = posX;
-                    dpad.fingerY = posY;
-                    dpad.isPressed = true;
-                    int newStatus = getAxisStatus(posX / dpad.radius, posY / dpad.radius, 0.25F);
-                    updateDpadHid(dpad.dpadStatus, newStatus);
-                    dpad.dpadStatus = newStatus;
-                    hit = true;
-                }
-
-                // 5. Native 3DS touchscreen passthrough for touches outside virtual controls
+                // 5. Native 3DS touchscreen passthrough for touches outside virtual controls (or when controls are hidden)
                 if (!hit) {
                     touchscreenPointerId = pointerId;
                     if (inputTarget != null) {
@@ -701,11 +782,11 @@ public class WindroidVirtualControllerView extends View {
                     float curX = event.getX(i);
                     float curY = event.getY(i);
 
-                    if (leftAnalog.isPressed && leftAnalog.fingerId == pId) {
+                    if (mShowControls && leftAnalog.isPressed && leftAnalog.fingerId == pId) {
                         updateAnalogPosition(curX - leftAnalog.x, curY - leftAnalog.y, true);
-                    } else if (rightAnalog.isPressed && rightAnalog.fingerId == pId) {
+                    } else if (mShowControls && rightAnalog.isPressed && rightAnalog.fingerId == pId) {
                         updateAnalogPosition(curX - rightAnalog.x, curY - rightAnalog.y, false);
-                    } else if (dpad.isPressed && dpad.fingerId == pId) {
+                    } else if (mShowControls && dpad.isPressed && dpad.fingerId == pId) {
                         float posX = curX - dpad.x;
                         float posY = curY - dpad.y;
                         dpad.fingerX = posX;
@@ -765,11 +846,7 @@ public class WindroidVirtualControllerView extends View {
                     mSettingsPointerId = -1;
                     invalidate();
                     if (action != MotionEvent.ACTION_CANCEL && mSettingsListener != null) {
-                        // short haptic feedback
-                        try {
-                            Vibrator v = (Vibrator) getContext().getSystemService(android.content.Context.VIBRATOR_SERVICE);
-                            if (v != null && v.hasVibrator()) v.vibrate(40);
-                        } catch (Exception ignored) {}
+                        performHaptic();
                         mSettingsListener.onSettingsClick();
                     }
                     break;

@@ -495,8 +495,8 @@
                         android:layout_height="wrap_content"
                         android:background="@drawable/card_bg"
                         android:orientation="vertical"
-                        android:padding="12dp"
-                        android:layout_marginBottom="8dp">
+                        android:padding="8dp"
+                        android:layout_marginBottom="6dp">
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -505,10 +505,10 @@
                             android:textColor="#FFC107"
                             android:textSize="11sp"
                             android:textStyle="bold"
-                            android:layout_marginBottom="10dp" />
+                            android:layout_marginBottom="6dp" />
 
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:orientation="horizontal" android:layout_marginBottom="10dp">
+                            android:orientation="horizontal" android:layout_marginBottom="6dp">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content"
                                 android:layout_weight="1" android:text="Exibir Controles na Tela"
                                 android:textColor="#C8D8E8" android:textSize="12sp" android:layout_gravity="center_vertical" />
@@ -520,15 +520,15 @@
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:id="@+id/tv_opacity_label"
                             android:text="Opacidade dos Controles: 100%"
-                            android:textColor="#8B9BB4" android:textSize="11sp" android:layout_marginBottom="4dp" />
+                            android:textColor="#8B9BB4" android:textSize="11sp" android:layout_marginBottom="2dp" />
                         <SeekBar android:id="@+id/sb_overlay_opacity"
                             android:layout_width="match_parent" android:layout_height="wrap_content"
                             android:max="100" android:progress="100"
                             android:progressTint="#FFD700" android:thumbTint="#FFC107"
-                            android:layout_marginBottom="10dp" />
+                            android:layout_marginBottom="6dp" />
 
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:orientation="horizontal" android:layout_marginBottom="6dp">
+                            android:orientation="horizontal" android:layout_marginBottom="5dp">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content"
                                 android:layout_weight="1" android:text="Feedback Háptico / Vibração"
                                 android:textColor="#C8D8E8" android:textSize="12sp" android:layout_gravity="center_vertical" />
@@ -538,7 +538,7 @@
                         </LinearLayout>
 
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:orientation="horizontal" android:layout_marginBottom="6dp">
+                            android:orientation="horizontal" android:layout_marginBottom="5dp">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content"
                                 android:layout_weight="1" android:text="Inverter Telas (Superior/Inferior)"
                                 android:textColor="#C8D8E8" android:textSize="12sp" android:layout_gravity="center_vertical" />
@@ -548,7 +548,7 @@
                         </LinearLayout>
 
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:orientation="horizontal" android:layout_marginBottom="6dp">
+                            android:orientation="horizontal" android:layout_marginBottom="5dp">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content"
                                 android:layout_weight="1" android:text="Centro Relativo do Analógico"
                                 android:textColor="#C8D8E8" android:textSize="12sp" android:layout_gravity="center_vertical" />

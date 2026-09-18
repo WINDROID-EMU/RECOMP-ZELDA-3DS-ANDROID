@@ -56,6 +56,20 @@ public final class TriAevumActivity extends SDLActivity {
             mWindroidOverlay = new WindroidVirtualControllerView(this);
             mWindroidOverlay.bindInputTarget(mInputTarget);
 
+            // Synchronize saved preferences for controls and screen swapping
+            try {
+                android.content.SharedPreferences prefs = getApplicationContext()
+                    .getSharedPreferences("org.triaevum.android_preferences", Context.MODE_PRIVATE);
+                boolean showOverlay = prefs.getBoolean("EmulationMenuSettings_ShowOverlay", true);
+                boolean haptic = prefs.getBoolean("EmulationMenuSettings_HapticFeedback", true);
+                boolean swapScreens = prefs.getBoolean("EmulationMenuSettings_SwapScreens", false);
+                mWindroidOverlay.setShowControls(showOverlay);
+                mWindroidOverlay.setHapticFeedbackEnabled(haptic);
+                AndroidNativeInputTarget.nativeSwapScreens(swapScreens);
+            } catch (Throwable t) {
+                Log.w("TriAevum", "Failed to sync initial control settings", t);
+            }
+
             // Open the Zenda-style settings dialog when the gear icon is tapped
             mWindroidOverlay.setOnSettingsClickListener(() -> {
                 if (!isFinishing() && !isDestroyed()) {
