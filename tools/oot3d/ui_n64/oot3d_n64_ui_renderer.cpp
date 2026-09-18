@@ -12,6 +12,8 @@ namespace {
 
 constexpr float kWidescreenCanvasWidth = 1280.0F / 3.0F;
 constexpr float kNativeTopScreenCanvasWidth = 400.0F;
+// 3DS lower (touch) screen is 320x240 - narrower than the top screen (400x240)
+constexpr float kNativeLowerScreenCanvasWidth = 320.0F;
 constexpr float kCanvasHeight = 240.0F;
 
 constexpr std::array<std::pair<std::string_view, std::string_view>, 18>
@@ -273,7 +275,9 @@ bool N64UiFast3dRenderer::Render(std::span<const UiPrimitive> primitives,
     const float canvasWidth =
         canvasMode == N64UiCanvasMode::NativeTopScreen400x240
             ? kNativeTopScreenCanvasWidth
-            : kWidescreenCanvasWidth;
+            : canvasMode == N64UiCanvasMode::NativeLowerScreen320x240
+                  ? kNativeLowerScreenCanvasWidth
+                  : kWidescreenCanvasWidth;
     const auto viewport = Oot3d::Renderer::FitUiPresentationViewport(
         width, height, canvasWidth, kCanvasHeight);
     if (!rendering_api_.PrepareUiOverlay(

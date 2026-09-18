@@ -16,6 +16,9 @@ namespace oot3d::ui {
 enum class N64UiCanvasMode : std::uint8_t {
     Widescreen16x9,
     NativeTopScreen400x240,
+    // 3DS lower (touch) screen - 320x240 pixels, 4:3 aspect ratio.
+    // Used for the pause/inventory UI subsystem (TouchControls).
+    NativeLowerScreen320x240,
 };
 
 struct N64UiRendererStats {

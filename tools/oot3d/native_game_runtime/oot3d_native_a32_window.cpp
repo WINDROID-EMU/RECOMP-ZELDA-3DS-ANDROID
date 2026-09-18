@@ -6124,8 +6124,16 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
       if (topScreenPresentation) {
         lastTopScreenPrimitivesBySubsystem[subsystemIndex] = primitives;
       }
+      // The TouchControls subsystem renders the 3DS lower (touch) screen at
+      // 320x240. Using the top-screen (400x240) canvas would leave gray bars
+      // on the sides. Widescreen16x9 would stretch it. Use the dedicated
+      // NativeLowerScreen320x240 mode so the 4:3 viewport is letter-boxed
+      // correctly on the wider display.
       const auto canvasMode =
-          topScreenPresentation
+          topScreenPresentation &&
+                  subsystem == oot3d::ui::UiSubsystem::TouchControls
+              ? oot3d::ui::N64UiCanvasMode::NativeLowerScreen320x240
+          : topScreenPresentation
               ? oot3d::ui::N64UiCanvasMode::NativeTopScreen400x240
               : oot3d::ui::N64UiCanvasMode::Widescreen16x9;
       if (!n64UiRenderer.Render(primitives, width, height, canvasMode,
