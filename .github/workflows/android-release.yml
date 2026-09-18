@@ -149,20 +149,20 @@ jobs:
 
       - name: Determine Release Tag
         id: release_info
-        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release) || github.ref == 'refs/heads/main'
         run: |
           if [ -n "${{ github.event.inputs.release_tag }}" ]; then
             TAG="${{ github.event.inputs.release_tag }}"
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
           else
-            TAG="v0.6.0-android-$(date +'%Y%m%d%H%M')"
+            TAG="v1.0.0-android"
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release) || github.ref == 'refs/heads/main'
         with:
           tag_name: ${{ steps.release_info.outputs.tag }}
           name: ${{ steps.release_info.outputs.tag }}
@@ -175,4 +175,5 @@ jobs:
             - **Platform**: Android ARM64 (Snapdragon 870 / Adreno 650 optimized)
             - **Display**: True 21:9 edge-to-edge immersive fullscreen (cutout supported)
             - **Controls**: Authentic Windroid-emu layout with vertical triggers (LT/LB, RT/RB), 8-way vector D-Pad, 360° analog sticks, and responsive 3DS touchscreen passthrough.
+            - **ROM Downloader**: Integrated first-run direct ROM downloader with custom Zelda artwork, background progress, and automatic touch-to-start flow.
             - **Icon**: Custom Link Ocarina golden crest icon.
