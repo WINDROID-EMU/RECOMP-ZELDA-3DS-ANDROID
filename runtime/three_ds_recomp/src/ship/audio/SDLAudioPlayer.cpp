@@ -1,6 +1,8 @@
 #include "ship/audio/SDLAudioPlayer.h"
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+
 namespace Ship {
 
 SDLAudioPlayer::~SDLAudioPlayer() {
@@ -21,6 +23,9 @@ void SDLAudioPlayer::DoClose() {
 }
 
 bool SDLAudioPlayer::DoInit() {
+#ifdef __ANDROID__
+    SDL_setenv("SDL_AUDIODRIVER", "aaudio,openslES", 1);
+#endif
     if (SDL_Init(SDL_INIT_AUDIO) != 0) {
         SPDLOG_ERROR("SDL init error: {}", SDL_GetError());
         return false;
@@ -34,7 +39,11 @@ bool SDLAudioPlayer::DoInit() {
     want.freq = this->GetSampleRate();
     want.format = AUDIO_S16SYS;
     want.channels = mNumChannels;
+#ifdef __ANDROID__
+    want.samples = std::max<int32_t>(this->GetSampleLength(), 1024);
+#else
     want.samples = this->GetSampleLength();
+#endif
     want.callback = NULL;
 
     mDevice = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
@@ -43,7 +52,9 @@ bool SDLAudioPlayer::DoInit() {
         return false;
     }
 
-    SPDLOG_INFO("SDL Audio initialized: {} channels, {} Hz", mNumChannels, this->GetSampleRate());
+    SPDLOG_INFO("SDL Audio initialized using driver '{}': {} channels, want {} Hz, have {} Hz, samples {}",
+                SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver() : "unknown",
+                mNumChannels, this->GetSampleRate(), have.freq, have.samples);
 
     SDL_PauseAudioDevice(mDevice, 0);
     return true;

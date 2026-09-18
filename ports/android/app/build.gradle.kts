@@ -18,7 +18,7 @@ android {
     defaultConfig {
         applicationId = "org.triaevum.android"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 33
         versionCode = 1
         versionName = "0.1-intro-dev"
         ndk { abiFilters += "arm64-v8a" }

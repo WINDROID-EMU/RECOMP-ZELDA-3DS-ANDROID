@@ -135,6 +135,7 @@ public class TriAevumDownloadActivity extends Activity {
 
     private synchronized void launchGame() {
         Intent intent = new Intent(this, TriAevumActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
         finish();
     }

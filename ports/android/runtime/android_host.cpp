@@ -19,20 +19,9 @@ AndroidOverlayInputState &GetAndroidOverlayInputState() {
   return gOverlayInputState;
 }
 
-static void SetPerformanceThreadAffinity() {
-  // Snapdragon 870: Cores 4-6 (Cortex-A77 Gold @ 2.42GHz) and Core 7
-  // (Cortex-A77 Prime @ 3.2GHz)
-  cpu_set_t cpuset;
-  CPU_ZERO(&cpuset);
-  CPU_SET(4, &cpuset);
-  CPU_SET(5, &cpuset);
-  CPU_SET(6, &cpuset);
-  CPU_SET(7, &cpuset);
-  sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
-}
-
 void InitializeAndroidGameHost() {
-  SetPerformanceThreadAffinity();
+  SDL_setenv("SDL_AUDIODRIVER", "aaudio,openslES", 1);
+  SDL_setenv("TRIAEVUM_VULKAN_PRESENT_DISPATCH", "graphics", 1);
 
   SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
   const char *root = SDL_AndroidGetExternalStoragePath();

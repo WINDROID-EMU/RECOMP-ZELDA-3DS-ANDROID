@@ -49,6 +49,10 @@ VulkanQueueTopologyPlan ResolveVulkanQueueTopology(
     // this adds no host fence or queue-idle wait and leaves other surfaces alone.
     if (mode == VulkanPresentDispatchMode::Automatic && videoDriver == "wayland")
         mode = VulkanPresentDispatchMode::GraphicsQueue;
+#if defined(__ANDROID__)
+    if (mode == VulkanPresentDispatchMode::Automatic)
+        mode = VulkanPresentDispatchMode::GraphicsQueue;
+#endif
     VulkanQueueTopologyPlan plan;
     plan.GraphicsFamily = graphicsFamily;
     plan.PresentFamily = presentFamily;
