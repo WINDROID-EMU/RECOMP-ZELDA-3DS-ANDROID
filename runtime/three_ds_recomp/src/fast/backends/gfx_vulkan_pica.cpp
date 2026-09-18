@@ -159,6 +159,20 @@ VkFormat ToNativeVkVertexFormat(GfxNativePicaVertexFormat format,
     throw std::runtime_error("invalid native PICA vertex format");
 }
 
+template <typename TAttributes>
+bool AnyVertexFormatUnsupported(VkPhysicalDevice physicalDevice, const TAttributes& attributes) {
+    for (const auto& attribute : attributes) {
+        const VkFormat format = ToNativeVkVertexFormat(
+            attribute.Format, attribute.ComponentCount);
+        VkFormatProperties properties{};
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &properties);
+        if ((properties.bufferFeatures & VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 GfxNativeTextureWrap DecodeNativePicaWrap(uint8_t wrap) {
     switch (wrap) {
         case 0:
@@ -668,10 +682,14 @@ void GfxRenderingAPIVulkan::CreateNativePicaRenderPass() {
     // Android's API-29 loader stub does not export Vulkan 1.2 entry points.
     // Resolve against the selected device, whose Vulkan capabilities are checked
     // at initialization; this also works with desktop and custom driver loaders.
-    const auto createRenderPass2 = reinterpret_cast<PFN_vkCreateRenderPass2>(
+    auto createRenderPass2 = reinterpret_cast<PFN_vkCreateRenderPass2>(
         vkGetDeviceProcAddr(mDevice, "vkCreateRenderPass2"));
     if (createRenderPass2 == nullptr) {
-        throw std::runtime_error("native PICA requires Vulkan vkCreateRenderPass2");
+        createRenderPass2 = reinterpret_cast<PFN_vkCreateRenderPass2>(
+            vkGetDeviceProcAddr(mDevice, "vkCreateRenderPass2KHR"));
+    }
+    if (createRenderPass2 == nullptr) {
+        throw std::runtime_error("native PICA requires Vulkan vkCreateRenderPass2 or vkCreateRenderPass2KHR");
     }
     const auto createRenderPass = [this, createRenderPass2](uint32_t colorCount, VkRenderPass& renderPass) {
         const bool multisampled = mNativePicaSampleCount != VK_SAMPLE_COUNT_1_BIT;
@@ -3251,17 +3269,10 @@ VkPipeline GfxRenderingAPIVulkan::GetOrCreateNativePicaPipeline(
     }
     std::vector<VkVertexInputAttributeDescription> attributes;
     attributes.reserve(draw.VertexAttributes.size());
+    const bool usePackedLayout = AnyVertexFormatUnsupported(mPhysicalDevice, draw.VertexAttributes);
     for (const auto& attribute : draw.VertexAttributes) {
         const VkFormat format = ToNativeVkVertexFormat(
             attribute.Format, attribute.ComponentCount);
-        VkFormatProperties properties{};
-        vkGetPhysicalDeviceFormatProperties(mPhysicalDevice, format,
-                                            &properties);
-        if ((properties.bufferFeatures &
-             VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT) == 0) {
-            throw std::runtime_error(
-                "native PICA vertex format is not supported by this GPU");
-        }
         attributes.push_back({attribute.Location, attribute.Binding, format,
                               attribute.ByteOffset});
     }
@@ -3308,11 +3319,13 @@ VkPipeline GfxRenderingAPIVulkan::GetOrCreateNativePicaPipeline(
     VkPipelineVertexInputStateCreateInfo vertexInput{
         VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
     vertexInput.vertexBindingDescriptionCount =
-        static_cast<uint32_t>(bindings.size());
-    vertexInput.pVertexBindingDescriptions = bindings.data();
+        static_cast<uint32_t>(usePackedLayout ? nriBindings.size() : bindings.size());
+    vertexInput.pVertexBindingDescriptions =
+        usePackedLayout ? nriBindings.data() : bindings.data();
     vertexInput.vertexAttributeDescriptionCount =
-        static_cast<uint32_t>(attributes.size());
-    vertexInput.pVertexAttributeDescriptions = attributes.data();
+        static_cast<uint32_t>(usePackedLayout ? nriAttributes.size() : attributes.size());
+    vertexInput.pVertexAttributeDescriptions =
+        usePackedLayout ? nriAttributes.data() : attributes.data();
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{
         VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
     inputAssembly.topology = ToNativeVkTopology(draw.Topology);
@@ -4363,6 +4376,7 @@ bool GfxRenderingAPIVulkan::SubmitPicaDraw(
             Oot3d::PicaExtensionPassEnabled(
                 mPicaExtensionGraph,
                 Oot3d::PicaExtensionPass::DirectionalShadowLighting);
+        const bool usePackedLayout = AnyVertexFormatUnsupported(mPhysicalDevice, draw.VertexAttributes);
         const auto geometryResolution = mPicaGeometryRegistry.Resolve({
             draw.GeometryIdentity,
             draw.GeometryContentVersion,
@@ -4374,7 +4388,7 @@ bool GfxRenderingAPIVulkan::SubmitPicaDraw(
             draw.Indexed,
             draw.IndicesAre16Bit,
             draw.VertexCount,
-            nriDrawOwnership.Prepared || directionalShadowGeometry,
+            nriDrawOwnership.Prepared || directionalShadowGeometry || usePackedLayout,
         });
         if (geometryResolution.Geometry == nullptr) {
             throw std::runtime_error("native PICA geometry preparation failed");
@@ -4444,9 +4458,16 @@ bool GfxRenderingAPIVulkan::SubmitPicaDraw(
         }
 
         std::vector<std::pair<uint32_t, VkDeviceSize>> bindingOffsets;
-        bindingOffsets.reserve(geometry.SourceBindings.size());
-        for (const auto& binding : geometry.SourceBindings) {
-            bindingOffsets.emplace_back(binding.Binding, geometryBaseOffset + binding.Offset);
+        if (usePackedLayout && geometry.PackedValid) {
+            bindingOffsets.reserve(geometry.PackedBindings.size());
+            for (const auto& binding : geometry.PackedBindings) {
+                bindingOffsets.emplace_back(binding.Binding, geometryBaseOffset + binding.Offset);
+            }
+        } else {
+            bindingOffsets.reserve(geometry.SourceBindings.size());
+            for (const auto& binding : geometry.SourceBindings) {
+                bindingOffsets.emplace_back(binding.Binding, geometryBaseOffset + binding.Offset);
+            }
         }
         std::vector<Oot3d::NriPicaVertexBufferBindingDesc>
             nriVertexBindings;

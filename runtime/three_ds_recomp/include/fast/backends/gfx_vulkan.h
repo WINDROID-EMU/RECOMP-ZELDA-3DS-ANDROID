@@ -100,19 +100,14 @@ struct VulkanShaderProgram {
     bool HasGrayscale = false;
     int16_t NativeShaderId = 0;
     uint32_t VertexStride = 0;
-    std::array<uint32_t, 3> TextureCoordinateOffsets = {
-        kAbsentAttribute, kAbsentAttribute, kAbsentAttribute
-    };
+    std::array<uint32_t, 3> TextureCoordinateOffsets = { kAbsentAttribute, kAbsentAttribute, kAbsentAttribute };
     uint32_t FogOffset = kAbsentAttribute;
     uint32_t GrayscaleOffset = kAbsentAttribute;
-    std::array<uint32_t, 4> InputOffsets = {
-        kAbsentAttribute, kAbsentAttribute, kAbsentAttribute, kAbsentAttribute
-    };
+    std::array<uint32_t, 4> InputOffsets = { kAbsentAttribute, kAbsentAttribute, kAbsentAttribute, kAbsentAttribute };
     uint32_t ShadowCoordinateOffset = kAbsentAttribute;
 };
 
-class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
-                                    public Oot3d::TitleRenderBackend {
+class GfxRenderingAPIVulkan final : public GfxRenderingAPI, public Oot3d::TitleRenderBackend {
   public:
     explicit GfxRenderingAPIVulkan(GfxWindowBackendSDL2* windowBackend);
     ~GfxRenderingAPIVulkan() override;
@@ -130,8 +125,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     void SelectTexture(int tile, uint32_t textureId) override;
     void UploadTexture(const uint8_t* rgba32Buf, uint32_t width, uint32_t height) override;
     void SetSamplerParameters(int sampler, bool linearFilter, uint32_t cms, uint32_t cmt) override;
-    bool UploadTextureMipLevel(uint32_t level, const uint8_t* rgba32Buf, uint32_t width,
-                               uint32_t height) override;
+    bool UploadTextureMipLevel(uint32_t level, const uint8_t* rgba32Buf, uint32_t width, uint32_t height) override;
     bool SetNativeSamplerParameters(int sampler, const GfxNativeSamplerState& state) override;
     void SetDepthTestAndMask(bool depthTest, bool zUpd) override;
     void SetZmodeDecal(bool decal) override;
@@ -141,88 +135,68 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     bool SetNativeBlendState(const GfxNativeBlendState& state) override;
     bool SetNativeCullMode(GfxNativeCullMode mode) override;
     bool SupportsOot3dPicaFogLut() const override;
-    bool SetOot3dPicaFogShaderParameters(const uint32_t* lutWords, size_t lutWordCount,
-                                         bool fogFlip, uint64_t stateKey) override;
-    bool SetOot3dPicaAlphaTestShaderParameters(bool enabled, uint32_t function,
-                                               uint8_t reference) override;
+    bool SetOot3dPicaFogShaderParameters(const uint32_t* lutWords, size_t lutWordCount, bool fogFlip,
+                                         uint64_t stateKey) override;
+    bool SetOot3dPicaAlphaTestShaderParameters(bool enabled, uint32_t function, uint8_t reference) override;
     bool SupportsOot3dPicaTexture2() const override;
-    bool PublishPicaCompositionSequence(
-        const ::Fast::Renderer3ds::PicaCompositionSequenceView& sequence,
-        std::string* error = nullptr) override;
-    bool SubmitPicaDraw(const GfxNativePicaDrawView& draw,
-                        std::string* error = nullptr) override;
-    bool SubmitPicaDisplayTransfer(
-        const GfxNativePicaDisplayTransferView& transfer,
-        std::string* error = nullptr) override;
-    bool ClearPicaRenderTarget(
-        uint64_t renderTargetNamespace, uint32_t colorPhysicalAddress,
-        std::string* error = nullptr) override;
-    bool PrepareOverlay(
-        std::string* error = nullptr) override;
-    bool SubmitPicaMemoryFill(
-        const GfxNativePicaMemoryFillView& fill,
-        std::string* error = nullptr) override;
-    bool CapturePicaTextureCache(
-        std::vector<GfxNativePicaTextureCacheEntrySnapshot>& snapshots,
-        std::string* error = nullptr) override;
-    bool RestorePicaTextureCache(
-        std::span<const GfxNativePicaTextureCacheEntrySnapshot> snapshots,
-        std::string* error = nullptr) override;
-    bool CapturePicaColorTargets(
-        std::vector<GfxNativePicaRenderTargetColorSnapshot>& snapshots,
-        std::string* error = nullptr) override;
-    bool RestorePicaColorTargets(
-        std::span<const GfxNativePicaRenderTargetColorSnapshot> snapshots,
-        std::string* error = nullptr) override;
-    bool CapturePicaPresentationState(
-        GfxNativePicaPresentationStateSnapshot& snapshot,
-        std::string* error = nullptr) override;
-    bool RestorePicaPresentationState(
-        const GfxNativePicaPresentationStateSnapshot& snapshot,
-        std::string* error = nullptr) override;
-    bool QueuePicaCompletion(
-        uint64_t completionId, std::string* error = nullptr) override;
+    bool PublishPicaCompositionSequence(const ::Fast::Renderer3ds::PicaCompositionSequenceView& sequence,
+                                        std::string* error = nullptr) override;
+    bool SubmitPicaDraw(const GfxNativePicaDrawView& draw, std::string* error = nullptr) override;
+    bool SubmitPicaDisplayTransfer(const GfxNativePicaDisplayTransferView& transfer,
+                                   std::string* error = nullptr) override;
+    bool ClearPicaRenderTarget(uint64_t renderTargetNamespace, uint32_t colorPhysicalAddress,
+                               std::string* error = nullptr) override;
+    bool PrepareOverlay(std::string* error = nullptr) override;
+    bool SubmitPicaMemoryFill(const GfxNativePicaMemoryFillView& fill, std::string* error = nullptr) override;
+    bool CapturePicaTextureCache(std::vector<GfxNativePicaTextureCacheEntrySnapshot>& snapshots,
+                                 std::string* error = nullptr) override;
+    bool RestorePicaTextureCache(std::span<const GfxNativePicaTextureCacheEntrySnapshot> snapshots,
+                                 std::string* error = nullptr) override;
+    bool CapturePicaColorTargets(std::vector<GfxNativePicaRenderTargetColorSnapshot>& snapshots,
+                                 std::string* error = nullptr) override;
+    bool RestorePicaColorTargets(std::span<const GfxNativePicaRenderTargetColorSnapshot> snapshots,
+                                 std::string* error = nullptr) override;
+    bool CapturePicaPresentationState(GfxNativePicaPresentationStateSnapshot& snapshot,
+                                      std::string* error = nullptr) override;
+    bool RestorePicaPresentationState(const GfxNativePicaPresentationStateSnapshot& snapshot,
+                                      std::string* error = nullptr) override;
+    bool QueuePicaCompletion(uint64_t completionId, std::string* error = nullptr) override;
     std::vector<uint64_t> TakePicaCompletions() override;
-    bool ResetPicaState(
-        std::string* error = nullptr) override;
-    bool ApplyPresentationSettings(
-        const Oot3d::TitlePresentationSettingsView& settings,
-        std::string* error = nullptr) override;
-    bool PublishSceneView(
-        const Oot3d::TitleSceneViewSubmission& view) override;
+    bool ResetPicaState(std::string* error = nullptr) override;
+    bool ApplyPresentationSettings(const Oot3d::TitlePresentationSettingsView& settings,
+                                   std::string* error = nullptr) override;
+    bool PublishSceneView(const Oot3d::TitleSceneViewSubmission& view) override;
     bool ResetTitleState(std::string* error = nullptr) override;
-    bool PublishPicaFrameTemporalSample(
-        const ::Fast::Renderer3ds::PicaFrameTemporalSample& sample) override;
+    bool PublishPicaFrameTemporalSample(const ::Fast::Renderer3ds::PicaFrameTemporalSample& sample) override;
     bool SetOot3dNativeTransform(const float* rowMajorMatrix) override;
-    bool DrawTrianglesCached(uint64_t cacheId, uint64_t contentVersion, const float* bufVbo,
-                             size_t bufVboLen, size_t bufVboNumTris) override;
+    bool DrawTrianglesCached(uint64_t cacheId, uint64_t contentVersion, const float* bufVbo, size_t bufVboLen,
+                             size_t bufVboNumTris) override;
     void DrawTriangles(float bufVbo[], size_t bufVboLen, size_t bufVboNumTris) override;
     void Init() override;
     void Shutdown() override;
     void OnResize() override;
     void StartFrame() override;
-    bool HasActiveFrame() const override { return mFrameActive; }
+    bool HasActiveFrame() const override {
+        return mFrameActive;
+    }
     void EndFrame() override;
     void FinishRender() override;
     int CreateFramebuffer() override;
-    void UpdateFramebufferParameters(int fbId, uint32_t width, uint32_t height, uint32_t msaaLevel,
-                                     bool openglInvertY, bool renderTarget, bool hasDepthBuffer,
-                                     bool canExtractDepth) override;
-    bool UpdateFramebufferParametersWithColorFormat(
-        int fbId, uint32_t width, uint32_t height, uint32_t msaaLevel,
-        bool openglInvertY, bool renderTarget, bool hasDepthBuffer,
-        bool canExtractDepth, GfxFramebufferColorFormat colorFormat) override;
+    void UpdateFramebufferParameters(int fbId, uint32_t width, uint32_t height, uint32_t msaaLevel, bool openglInvertY,
+                                     bool renderTarget, bool hasDepthBuffer, bool canExtractDepth) override;
+    bool UpdateFramebufferParametersWithColorFormat(int fbId, uint32_t width, uint32_t height, uint32_t msaaLevel,
+                                                    bool openglInvertY, bool renderTarget, bool hasDepthBuffer,
+                                                    bool canExtractDepth,
+                                                    GfxFramebufferColorFormat colorFormat) override;
     bool SupportsOot3dShadow2dR32uiPipeline() const override;
     bool BindOot3dShadow2dTexture(int fbId, uint32_t textureUnit) override;
-    bool SetOot3dShadow2dShaderParameters(uint32_t textureBias, bool orthographic,
-                                         bool invert) override;
+    bool SetOot3dShadow2dShaderParameters(uint32_t textureBias, bool orthographic, bool invert) override;
     bool StartOot3dShadow2dDepthEncodePass(int fbId, uint32_t clearValue) override;
     void EndOot3dShadow2dDepthEncodePass() override;
-    bool DrawOot3dShadow2dDepthEncodedTriangles(float bufVbo[], size_t bufVboLen,
-                                                size_t bufVboNumTris) override;
+    bool DrawOot3dShadow2dDepthEncodedTriangles(float bufVbo[], size_t bufVboLen, size_t bufVboNumTris) override;
     void StartDrawToFramebuffer(int fbId, float noiseScale) override;
-    void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1,
-                         int dstX0, int dstY0, int dstX1, int dstY1) override;
+    void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0,
+                         int dstX1, int dstY1) override;
     void ClearFramebuffer(bool color, bool depth) override;
     void ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) override;
     void ResolveMSAAColorBuffer(int fbIdTarget, int fbIdSrc) override;
@@ -448,8 +422,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
         bool AuxiliaryNeedsClear = false;
         bool WBuffering = false;
         bool NriOwned = false;
-        Oot3d::PicaReflectionEnvironmentAccumulator
-            ReflectionEnvironment;
+        Oot3d::PicaReflectionEnvironmentAccumulator ReflectionEnvironment;
     };
 
     struct NativePicaDisplayImage {
@@ -460,8 +433,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
         VkImageView View = VK_NULL_HANDLE;
         bool Initialized = false;
         bool NriOwned = false;
-        ::Oot3d::Renderer::PicaCompositionDomain CompositionDomain =
-            ::Oot3d::Renderer::PicaCompositionDomain::Unknown;
+        ::Oot3d::Renderer::PicaCompositionDomain CompositionDomain = ::Oot3d::Renderer::PicaCompositionDomain::Unknown;
         uint64_t CompositionSequenceId = 0U;
         bool SceneResolved = false;
     };
@@ -518,23 +490,20 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
 
     struct TransformPushConstants {
         std::array<float, 16> ModelViewProjection = {
-            1.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
         };
     };
 
     void CreateInstance();
     void CreateSurface();
+    void RecreateSurface();
     void PickPhysicalDevice();
     void CreateLogicalDevice();
     void CreatePipelineCache();
     void StorePipelineCache();
     void CreateCommandResources();
-    VkCommandBuffer SplitFrameForExternalCompute(
-        VkSemaphore timelineSemaphore, uint64_t vulkanSignalValue,
-        uint64_t externalCompletionValue);
+    VkCommandBuffer SplitFrameForExternalCompute(VkSemaphore timelineSemaphore, uint64_t vulkanSignalValue,
+                                                 uint64_t externalCompletionValue);
     void CreateSyncObjects();
     void StartPresentWorker();
     void StopPresentWorker();
@@ -550,46 +519,34 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     void CreateNativePicaScanoutPipeline();
     void CreateNativePicaRenderPass();
     void ApplyNativePicaSampleCount(VkSampleCountFlagBits sampleCount);
-    NativePicaRenderTarget& GetOrCreateNativePicaRenderTarget(
-        const GfxNativePicaDrawView& draw,
-        uint32_t restoredWidth = 0U, uint32_t restoredHeight = 0U);
+    NativePicaRenderTarget& GetOrCreateNativePicaRenderTarget(const GfxNativePicaDrawView& draw,
+                                                              uint32_t restoredWidth = 0U,
+                                                              uint32_t restoredHeight = 0U);
     void DestroyNativePicaRenderTarget(NativePicaRenderTarget& target);
     void PrepareNativePicaTargetAttachments(NativePicaRenderTarget& target);
     VkFramebuffer NativePicaFramebuffer(NativePicaRenderTarget& target, bool canonical);
-    NativePicaDisplayImage& GetOrCreateNativePicaDisplayImage(
-        uint64_t renderTargetNamespace, uint32_t physicalAddress,
-        uint32_t width, uint32_t height);
+    NativePicaDisplayImage& GetOrCreateNativePicaDisplayImage(uint64_t renderTargetNamespace, uint32_t physicalAddress,
+                                                              uint32_t width, uint32_t height);
     void DestroyNativePicaDisplayImage(NativePicaDisplayImage& image);
-    std::vector<uint8_t> CaptureNativePicaImageBytes(
-        VkImage image, uint32_t width, uint32_t height,
-        uint32_t bytesPerPixel,
-        VkImageLayout stableLayout, VkPipelineStageFlags stableStage,
-        VkAccessFlags stableAccess, uint32_t mipLevel = 0U);
-    void RestoreNativePicaImageBytes(
-        VkImage image, uint32_t width, uint32_t height,
-        uint32_t bytesPerPixel, std::span<const uint8_t> bytes,
-        VkImageLayout initialLayout,
-        VkPipelineStageFlags initialStage, VkAccessFlags initialAccess,
-        VkImageLayout stableLayout, VkPipelineStageFlags stableStage,
-        VkAccessFlags stableAccess);
-    void CaptureNativePicaDepthStencilImage(
-        VkImage image, uint32_t width, uint32_t height,
-        std::vector<float>& depthValues,
-        std::vector<uint8_t>& stencilValues);
-    void RestoreNativePicaDepthStencilImage(
-        VkImage image, uint32_t width, uint32_t height,
-        std::span<const float> depthValues,
-        std::span<const uint8_t> stencilValues);
+    std::vector<uint8_t> CaptureNativePicaImageBytes(VkImage image, uint32_t width, uint32_t height,
+                                                     uint32_t bytesPerPixel, VkImageLayout stableLayout,
+                                                     VkPipelineStageFlags stableStage, VkAccessFlags stableAccess,
+                                                     uint32_t mipLevel = 0U);
+    void RestoreNativePicaImageBytes(VkImage image, uint32_t width, uint32_t height, uint32_t bytesPerPixel,
+                                     std::span<const uint8_t> bytes, VkImageLayout initialLayout,
+                                     VkPipelineStageFlags initialStage, VkAccessFlags initialAccess,
+                                     VkImageLayout stableLayout, VkPipelineStageFlags stableStage,
+                                     VkAccessFlags stableAccess);
+    void CaptureNativePicaDepthStencilImage(VkImage image, uint32_t width, uint32_t height,
+                                            std::vector<float>& depthValues, std::vector<uint8_t>& stencilValues);
+    void RestoreNativePicaDepthStencilImage(VkImage image, uint32_t width, uint32_t height,
+                                            std::span<const float> depthValues, std::span<const uint8_t> stencilValues);
     void BeginNativePicaRenderPass(NativePicaRenderTarget& target);
     void EndNativePicaRenderPass();
-    bool TryRenderInteractiveGrass(
-        NativePicaRenderTarget& target,
-        const Oot3d::GraphicsSettings& settings,
-        Oot3d::EffectGeometryProviderInvocationKind invocationKind);
-    bool TryRenderDirectionalShadowMap(
-        NativePicaRenderTarget& target,
-        const Oot3d::GraphicsSettings& settings,
-        const Oot3d::PicaCompositionStageAnchor& anchor);
+    bool TryRenderInteractiveGrass(NativePicaRenderTarget& target, const Oot3d::GraphicsSettings& settings,
+                                   Oot3d::EffectGeometryProviderInvocationKind invocationKind);
+    bool TryRenderDirectionalShadowMap(NativePicaRenderTarget& target, const Oot3d::GraphicsSettings& settings,
+                                       const Oot3d::PicaCompositionStageAnchor& anchor);
     void ReleaseEffectGraphImageClients();
     void ApplyInternalResolutionScale(float scale);
     void ResetNativePicaRenderTargets(bool preserveDisplayImages = false);
@@ -600,9 +557,8 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     void CreateOot3dShadow2dRenderPass();
     void CreateOot3dShadow2dDepthEncodePipeline();
     void DestroyOffscreenFramebuffer(OffscreenFramebufferRecord& framebuffer);
-    bool CreateOot3dShadow2dFramebuffer(OffscreenFramebufferRecord& framebuffer,
-                                       uint32_t width, uint32_t height,
-                                       bool hasDepthBuffer);
+    bool CreateOot3dShadow2dFramebuffer(OffscreenFramebufferRecord& framebuffer, uint32_t width, uint32_t height,
+                                        bool hasDepthBuffer);
     void CreateSwapchainResources();
     void DestroySwapchainResources();
     void DestroyPresentationPipelines();
@@ -619,55 +575,41 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     VkExtent2D ChooseExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
     VkFormat FindDepthFormat() const;
     uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
-    BufferAllocation CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-                                  VkMemoryPropertyFlags properties, bool persistentlyMapped);
-    void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height,
-                           uint32_t mipLevel);
-    void TransitionImageLayout(VkImage image, uint32_t baseMipLevel, uint32_t levelCount,
-                               VkImageLayout oldLayout, VkImageLayout newLayout);
+    BufferAllocation CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+                                  bool persistentlyMapped);
+    void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t mipLevel);
+    void TransitionImageLayout(VkImage image, uint32_t baseMipLevel, uint32_t levelCount, VkImageLayout oldLayout,
+                               VkImageLayout newLayout);
     VkCommandBuffer BeginImmediateCommands();
     void EndImmediateCommands(VkCommandBuffer commandBuffer);
-    void CreateTextureImage(TextureRecord& texture, const uint8_t* rgba32Buf,
-                            uint32_t width, uint32_t height);
-    void UploadTextureLevel(TextureRecord& texture, uint32_t level, const uint8_t* rgba32Buf,
-                            uint32_t width, uint32_t height);
+    void CreateTextureImage(TextureRecord& texture, const uint8_t* rgba32Buf, uint32_t width, uint32_t height);
+    void UploadTextureLevel(TextureRecord& texture, uint32_t level, const uint8_t* rgba32Buf, uint32_t width,
+                            uint32_t height);
     void RecreateSampler(TextureRecord& texture);
     VkDescriptorSet AllocateTextureDescriptorSet();
     VkPipeline GetOrCreatePipeline(const VulkanShaderProgram& shader);
     PipelineKey BuildPipelineKey(const VulkanShaderProgram& shader) const;
-    VkShaderModule CompileShaderModule(
-        const std::string& source, bool vertexShader,
-        const char* sourceName,
-        std::vector<uint32_t>* spirvOutput = nullptr);
-    std::vector<uint32_t> CompileShaderSpirv(
-        const std::string& source, bool vertexShader,
-        const char* sourceName);
+    VkShaderModule CompileShaderModule(const std::string& source, bool vertexShader, const char* sourceName,
+                                       std::vector<uint32_t>* spirvOutput = nullptr);
+    std::vector<uint32_t> CompileShaderSpirv(const std::string& source, bool vertexShader, const char* sourceName);
     void ConfigureNativePicaAotShaders();
     void FinishNativePicaAotShaders();
     void PrewarmNativePicaPipelines();
-    std::vector<uint32_t> ResolveNativePicaShaderSpirv(
-        std::string_view source, Oot3d::PicaAotShaderStage stage,
-        bool vertexShader, const char* sourceName);
-    VkShaderModule CreateShaderModuleFromSpirv(
-        std::span<const uint32_t> spirv);
-    VkPipeline GetOrCreateNativePicaPipeline(
-        const GfxNativePicaDrawView& draw,
-        const NativePicaShaderProgram& shader, bool writesReactiveMask,
-        Oot3d::PicaShaderDomain domain,
-        Oot3d::PicaShaderInstrumentationFeature requestedFeatures,
-        Oot3d::PicaShaderInstrumentationFeature appliedFeatures,
-        bool recordInventory = true, bool outlineOcclusionOnly = false);
-    void CreateNativePicaTextureImage(TextureRecord& texture,
-                                      std::span<const uint8_t> pixels,
-                                      uint32_t width, uint32_t height,
-                                      uint32_t mipLevels, VkFormat format);
-    TextureRecord* GetOrCreateNativePicaTexture(
-        const GfxNativePicaTextureView& texture, std::string* error,
-        uint64_t replacementGeneration,
-        const uint64_t* precomputedContentHash = nullptr);
-    TextureRecord* GetOrCreateNativePicaLightingLut(
-        const ::Oot3d::Renderer::PicaLightingLutView& lightingLut,
-        std::string* error);
+    std::vector<uint32_t> ResolveNativePicaShaderSpirv(std::string_view source, Oot3d::PicaAotShaderStage stage,
+                                                       bool vertexShader, const char* sourceName);
+    VkShaderModule CreateShaderModuleFromSpirv(std::span<const uint32_t> spirv);
+    VkPipeline GetOrCreateNativePicaPipeline(const GfxNativePicaDrawView& draw, const NativePicaShaderProgram& shader,
+                                             bool writesReactiveMask, Oot3d::PicaShaderDomain domain,
+                                             Oot3d::PicaShaderInstrumentationFeature requestedFeatures,
+                                             Oot3d::PicaShaderInstrumentationFeature appliedFeatures,
+                                             bool recordInventory = true, bool outlineOcclusionOnly = false);
+    void CreateNativePicaTextureImage(TextureRecord& texture, std::span<const uint8_t> pixels, uint32_t width,
+                                      uint32_t height, uint32_t mipLevels, VkFormat format);
+    TextureRecord* GetOrCreateNativePicaTexture(const GfxNativePicaTextureView& texture, std::string* error,
+                                                uint64_t replacementGeneration,
+                                                const uint64_t* precomputedContentHash = nullptr);
+    TextureRecord* GetOrCreateNativePicaLightingLut(const ::Oot3d::Renderer::PicaLightingLutView& lightingLut,
+                                                    std::string* error);
     VkDescriptorSet AllocateNativePicaDescriptorSet();
     VkDescriptorSet AllocateNativePicaScanoutDescriptorSet();
     std::string BuildVertexShaderSource(const VulkanShaderProgram& shader) const;
@@ -676,8 +618,8 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     void CreateDepthResources();
     void BeginRenderPassIfNeeded();
     void ApplyDynamicViewportAndScissor();
-    void DrawTrianglesFromBuffer(VkBuffer vertexBuffer, VkDeviceSize vertexOffset,
-                                 size_t bufVboLen, size_t bufVboNumTris);
+    void DrawTrianglesFromBuffer(VkBuffer vertexBuffer, VkDeviceSize vertexOffset, size_t bufVboLen,
+                                 size_t bufVboNumTris);
 
     GfxWindowBackendSDL2* mWindowBackend = nullptr;
     VkInstance mInstance = VK_NULL_HANDLE;
@@ -723,8 +665,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     std::vector<VkFramebuffer> mSwapchainFramebuffers;
     VkCommandPool mCommandPool = VK_NULL_HANDLE;
     std::array<VkCommandBuffer, kFramesInFlight> mCommandBuffers{};
-    std::array<VkCommandBuffer, kFramesInFlight>
-        mContinuationCommandBuffers{};
+    std::array<VkCommandBuffer, kFramesInFlight> mContinuationCommandBuffers{};
     bool mFrameExternalComputeSplit = false;
     VkSemaphore mFrameExternalWaitSemaphore = VK_NULL_HANDLE;
     uint64_t mFrameExternalWaitValue = 0U;
@@ -757,10 +698,8 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     VkPipeline mNativePicaScanoutPipeline = VK_NULL_HANDLE;
     VkPipeline mNativePicaScanoutOverlayPipeline = VK_NULL_HANDLE;
     VkSampler mNativePicaScanoutSampler = VK_NULL_HANDLE;
-    std::map<std::pair<uint64_t, uint64_t>, NativePicaShaderProgram>
-        mCanonicalNativePicaShaders;
-    std::map<std::pair<uint64_t, uint64_t>, NativePicaShaderProgram>
-        mInstrumentedNativePicaShaders;
+    std::map<std::pair<uint64_t, uint64_t>, NativePicaShaderProgram> mCanonicalNativePicaShaders;
+    std::map<std::pair<uint64_t, uint64_t>, NativePicaShaderProgram> mInstrumentedNativePicaShaders;
     Oot3d::PicaGeometryRegistry mPicaGeometryRegistry;
     Oot3d::PicaCompositionSchedule mNativePicaCompositionSchedule;
     Oot3d::PicaSceneFrame mPicaSceneFrame;
@@ -777,8 +716,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     Oot3d::PicaGraphicsPipelineInventory mPicaPipelineInventory;
     Oot3d::PicaGraphicsPipelineManifest mPicaPipelineManifest;
     std::set<uint64_t> mPicaPipelinePrewarmedProfiles;
-    std::set<std::pair<Oot3d::PicaAotShaderStage, uint64_t>>
-        mPicaAotShaderMissesLogged;
+    std::set<std::pair<Oot3d::PicaAotShaderStage, uint64_t>> mPicaAotShaderMissesLogged;
     uint64_t mPicaAotShaderHits = 0;
     uint64_t mPicaAotShaderMisses = 0;
     bool mPicaAotShaderStrict = false;
@@ -791,31 +729,23 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     Oot3d::GraphicsSettings mFrameGraphicsSettings;
     uint64_t mFrameGraphicsSettingsRevision = 0;
     uint64_t mAzaharConfiguredSettingsRevision = 0;
-    std::optional<Oot3d::PicaAttachmentFeatureRequests>
-        mPicaExtensionRequests;
+    std::optional<Oot3d::PicaAttachmentFeatureRequests> mPicaExtensionRequests;
     Oot3d::CompiledEffectGraph mPicaExtensionGraph;
     Oot3d::EffectGeometryProviderPlan mInteractiveGrassProviderPlan;
-    Oot3d::EffectGeometryProviderExecutionLedger
-        mInteractiveGrassProviderExecution;
+    Oot3d::EffectGeometryProviderExecutionLedger mInteractiveGrassProviderExecution;
     Oot3d::EffectPassBarrierPlan mDirectionalShadowMapBarrierPlan;
-    ::Fast::Renderer::ExtensionPassSchedulePlan
-        mDirectionalShadowSchedulePlan;
+    ::Fast::Renderer::ExtensionPassSchedulePlan mDirectionalShadowSchedulePlan;
     uint64_t mFrameAzaharTextureGeneration = 0;
     uint64_t mCustomTextureUploadBytesThisFrame = 0;
     std::map<std::vector<uint8_t>, VkPipeline> mNativePicaPipelines;
     std::map<NativePicaTextureKey, TextureRecord> mNativePicaTextures;
-    std::map<uint64_t, NativePicaLightingLutTexture>
-        mNativePicaLightingLuts;
-    std::map<NativePicaRenderTargetKey, NativePicaRenderTarget>
-        mNativePicaRenderTargets;
-    std::map<std::pair<uint64_t, uint32_t>, NativePicaDisplayImage>
-        mNativePicaDisplayImages;
-    std::map<std::pair<uint64_t, uint32_t>, NativePicaRenderTargetKey>
-        mNativePicaDisplayDepthTargets;
+    std::map<uint64_t, NativePicaLightingLutTexture> mNativePicaLightingLuts;
+    std::map<NativePicaRenderTargetKey, NativePicaRenderTarget> mNativePicaRenderTargets;
+    std::map<std::pair<uint64_t, uint32_t>, NativePicaDisplayImage> mNativePicaDisplayImages;
+    std::map<std::pair<uint64_t, uint32_t>, NativePicaRenderTargetKey> mNativePicaDisplayDepthTargets;
     std::set<uint32_t> mInvalidatedNativePicaRenderTargetAddresses;
     NativePicaRenderTarget* mActiveNativePicaRenderTarget = nullptr;
-    std::optional<GfxNativePicaDisplayTransferView>
-        mLastPresentedNativePicaDisplayTransfer;
+    std::optional<GfxNativePicaDisplayTransferView> mLastPresentedNativePicaDisplayTransfer;
     std::vector<GfxNativePicaMemoryFillView> mPendingNativePicaMemoryFills;
     bool mPicaMemoryFillSmokeInjected = false;
     std::vector<uint64_t> mCompletedNativePicaIds;
@@ -831,6 +761,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     float mCurrentNoiseScale = 1.0f;
     bool mInitialized = false;
     bool mSwapchainDirty = false;
+    bool mSurfaceLost = false;
     bool mFrameActive = false;
     bool mRenderPassActive = false;
     bool mOverlayRenderPassActive = false;
@@ -879,9 +810,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     bool mViewportSetBeforeOot3dShadow2d = false;
     bool mScissorSetBeforeOot3dShadow2d = false;
     int mFramebufferBeforeOot3dShadow2d = 0;
-    Oot3dVulkanDiagnostics mDiagnostics{
-        Oot3dVulkanDiagnosticsConfig::FromEnvironment()
-    };
+    Oot3dVulkanDiagnostics mDiagnostics{ Oot3dVulkanDiagnosticsConfig::FromEnvironment() };
     Oot3d::RendererValidationTelemetry mValidationTelemetry;
     Oot3dVulkanValidation mVulkanValidation;
 
@@ -903,8 +832,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     Oot3d::LinearSceneColorPass mLinearSceneColorPass;
     Oot3d::MotionVectorPass mMotionVectorPass;
     Oot3d::NriDirectionalShadowPass mNriDirectionalShadowPass;
-    Oot3d::NriEffectGraphTransientImageArena
-        mNriEffectGraphTransientImageArena;
+    Oot3d::NriEffectGraphTransientImageArena mNriEffectGraphTransientImageArena;
     Oot3d::NriPicaDisplayCopyPass mNriPicaDisplayCopyPass;
     Oot3d::NriPicaMemoryFillClearPass mNriPicaMemoryFillClearPass;
     Oot3d::NriPicaScanoutPass mNriPicaScanoutPass;
@@ -922,8 +850,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     Oot3d::SceneCompositePass mSceneCompositePass;
     Oot3d::Smaa1xPass mSmaa1xPass;
     Oot3d::ReflectionIblPass mReflectionIblPass;
-    Oot3d::ReflectionMaterialResolvePass
-        mReflectionMaterialResolvePass;
+    Oot3d::ReflectionMaterialResolvePass mReflectionMaterialResolvePass;
     Oot3d::TemporalAaPass mTemporalAaPass;
     uint64_t mCacaoRenderTargetNamespace = 0;
     uint32_t mCacaoDisplayPhysicalAddress = 0;
@@ -935,20 +862,16 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     bool mHiZOutputValid = false;
     std::optional<Oot3d::SceneSurfaceKey> mHiZReflectionSurface;
     bool mReflectionExecutedThisFrame = false;
-    Oot3d::ReflectionProvider mReflectionProviderThisFrame =
-        Oot3d::ReflectionProvider::Off;
-    Oot3d::SceneColorEncoding mReflectionOutputEncodingThisFrame =
-        Oot3d::SceneColorEncoding::Unknown;
+    Oot3d::ReflectionProvider mReflectionProviderThisFrame = Oot3d::ReflectionProvider::Off;
+    Oot3d::SceneColorEncoding mReflectionOutputEncodingThisFrame = Oot3d::SceneColorEncoding::Unknown;
     std::optional<Oot3d::SceneSurfaceKey> mMotionSurface;
     std::optional<Oot3d::SceneSurfaceKey> mLinearColorSurface;
     bool mLinearColorExecutedThisFrame = false;
     bool mMotionExecutedThisFrame = false;
     bool mUpscalerExecutedThisFrame = false;
     bool mUpscalerUsedD3d12ThisFrame = false;
-    Oot3d::UpscalerProvider mUpscalerProviderThisFrame =
-        Oot3d::UpscalerProvider::Nis;
-    Oot3d::SceneColorEncoding mUpscalerOutputEncodingThisFrame =
-        Oot3d::SceneColorEncoding::Unknown;
+    Oot3d::UpscalerProvider mUpscalerProviderThisFrame = Oot3d::UpscalerProvider::Nis;
+    Oot3d::SceneColorEncoding mUpscalerOutputEncodingThisFrame = Oot3d::SceneColorEncoding::Unknown;
     bool mUpscalerEffectsCompositedThisFrame = false;
     uint64_t mUpscalerRenderTargetNamespace = 0;
     uint32_t mUpscalerDisplayPhysicalAddress = 0;
@@ -957,17 +880,14 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     std::optional<Oot3d::SceneSurfaceKey> mTaaSurface;
     std::optional<Oot3d::SceneSurfaceKey> mCompositeSurface;
     bool mCompositeExecutedThisFrame = false;
-    Oot3d::SceneColorEncoding mCompositeOutputEncodingThisFrame =
-        Oot3d::SceneColorEncoding::Unknown;
+    Oot3d::SceneColorEncoding mCompositeOutputEncodingThisFrame = Oot3d::SceneColorEncoding::Unknown;
     bool mTaaOutputValid = false;
     bool mTaaExecutedThisFrame = false;
-    Oot3d::SceneColorEncoding mTaaOutputEncodingThisFrame =
-        Oot3d::SceneColorEncoding::Unknown;
+    Oot3d::SceneColorEncoding mTaaOutputEncodingThisFrame = Oot3d::SceneColorEncoding::Unknown;
     bool mTaaEffectsCompositedThisFrame = false;
     bool mSmaaExecutedThisFrame = false;
     bool mSmaaEffectsCompositedThisFrame = false;
-    Oot3d::SceneColorEncoding mSmaaOutputEncodingThisFrame =
-        Oot3d::SceneColorEncoding::Unknown;
+    Oot3d::SceneColorEncoding mSmaaOutputEncodingThisFrame = Oot3d::SceneColorEncoding::Unknown;
     uint64_t mSmaaRenderTargetNamespace = 0;
     uint32_t mSmaaDisplayPhysicalAddress = 0;
     uint32_t mSmaaWidth = 0;
@@ -978,20 +898,13 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI,
     Oot3d::PicaAttachmentRequirements mFramePicaAttachmentRequirements;
     std::array<float, 2> mTemporalJitterPixels{};
     bool mGrassExecutedThisFrame = false;
-    std::set<NativePicaRenderTargetKey>
-        mGrassRenderedTargetsThisFrame;
-    std::set<NativePicaRenderTargetKey>
-        mGrassInsertionAttemptedTargetsThisFrame;
-    std::set<NativePicaRenderTargetKey>
-        mGrassWorldTargetsThisFrame;
-    std::set<std::pair<uint64_t, NativePicaRenderTargetKey>>
-        mDirectionalShadowInsertionAttemptedTargetsThisFrame;
-    std::unordered_map<uint64_t, uint32_t>
-        mGrassSurfaceOccurrencesThisFrame;
-    std::unordered_map<uint64_t, uint32_t>
-        mRigidMotionOccurrencesThisFrame;
-    std::unordered_map<uint64_t, PreviousPicaVertexUniforms>
-        mPreviousPicaVertexUniforms;
+    std::set<NativePicaRenderTargetKey> mGrassRenderedTargetsThisFrame;
+    std::set<NativePicaRenderTargetKey> mGrassInsertionAttemptedTargetsThisFrame;
+    std::set<NativePicaRenderTargetKey> mGrassWorldTargetsThisFrame;
+    std::set<std::pair<uint64_t, NativePicaRenderTargetKey>> mDirectionalShadowInsertionAttemptedTargetsThisFrame;
+    std::unordered_map<uint64_t, uint32_t> mGrassSurfaceOccurrencesThisFrame;
+    std::unordered_map<uint64_t, uint32_t> mRigidMotionOccurrencesThisFrame;
+    std::unordered_map<uint64_t, PreviousPicaVertexUniforms> mPreviousPicaVertexUniforms;
     uint32_t mNativePicaDepthWritingDrawsThisFrame = 0;
     Oot3d::SceneSurfaceRegistry mSceneSurfaces;
     Oot3d::ResourceStateTracker mResourceStates;

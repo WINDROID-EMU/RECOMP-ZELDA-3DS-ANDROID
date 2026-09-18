@@ -3,16 +3,26 @@ package org.triaevum.android;
 import org.libsdl.app.SDLActivity;
 import org.libsdl.app.SDLSurface;
 import org.json.JSONObject;
+import org.triaevum.android.controls.WindroidVirtualControllerView;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.charset.StandardCharsets;
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Process;
 import android.util.Log;
+import android.view.ViewGroup;
 import android.view.WindowManager;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 /** SDL owns Surface/lifecycle. Game, renderer and title loading retain their native owners. */
 public final class TriAevumActivity extends SDLActivity {
+    private WindroidVirtualControllerView mWindroidOverlay;
+    private AndroidNativeInputTarget mInputTarget;
+
     @Override protected SDLSurface createSDLSurface(Context context) {
         int maximumShortEdge = 720;
         File config = new File(getExternalFilesDir(null), "TriAevum.android.host.json");
@@ -32,6 +42,69 @@ public final class TriAevumActivity extends SDLActivity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        // Enable edge-to-edge layout across the entire physical display including camera cutouts
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        hideSystemBars();
+
+        try {
+            mInputTarget = new AndroidNativeInputTarget();
+            mWindroidOverlay = new WindroidVirtualControllerView(this);
+            mWindroidOverlay.bindInputTarget(mInputTarget);
+
+            ViewGroup.LayoutParams lp = new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            mLayout.addView(mWindroidOverlay, lp);
+            Log.i("TriAevum", "Windroid virtual controller overlay initialized successfully");
+        } catch (Exception error) {
+            Log.e("TriAevum", "Failed to initialize Windroid virtual controller overlay", error);
+        }
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        hideSystemBars();
+    }
+
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            hideSystemBars();
+        }
+    }
+
+    private void hideSystemBars() {
+        try {
+            WindowInsetsControllerCompat controller =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+            if (controller != null) {
+                controller.hide(WindowInsetsCompat.Type.systemBars());
+                controller.setSystemBarsBehavior(
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            }
+        } catch (Exception error) {
+            Log.w("TriAevum", "Failed to set immersive sticky fullscreen", error);
+        }
+    }
+
+    @Override protected void onPause() {
+        super.onPause();
+        if (mWindroidOverlay != null) {
+            mWindroidOverlay.releaseAll();
+        } else if (mInputTarget != null) {
+            mInputTarget.releaseAll();
+        }
+    }
+
+    @Override protected void onDestroy() {
+        super.onDestroy();
+        // Clean process termination to prevent dirty static globals from persisting
+        // across consecutive app launches on Android Bionic.
+        Process.killProcess(Process.myPid());
     }
 
     @Override protected String[] getLibraries() {

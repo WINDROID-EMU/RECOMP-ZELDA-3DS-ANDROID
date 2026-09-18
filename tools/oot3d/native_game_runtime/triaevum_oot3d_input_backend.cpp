@@ -8,6 +8,10 @@
 
 #include <SDL2/SDL.h>
 
+#if defined(__ANDROID__)
+#include "android_host.h"
+#endif
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -221,11 +225,12 @@ bool TriAevumOot3dInputBackend::Poll(Fast::Fast3dWindow &window,
   }
 
   const auto mouseDelta = window.GetMouseDelta();
-  const bool mouseOwned = mConfig.MouseEnabled && !window.IsMouseCaptureReleased();
+  const bool mouseOwned =
+      mConfig.MouseEnabled && !window.IsMouseCaptureReleased();
   host.MouseDeltaX = mouseOwned ? mouseDelta.x : 0;
   host.MouseDeltaY = mouseOwned ? mouseDelta.y : 0;
-  auto frame =
-      MapNativeControlInput(mConfig, host, {}, &mRightStickProfile, true, &mVirtualMotion);
+  auto frame = MapNativeControlInput(mConfig, host, {}, &mRightStickProfile,
+                                     true, &mVirtualMotion);
   ApplyNativeControlShortcutTouch(host, frame);
   const auto pointer = window.GetMousePos();
   const auto touch = MapHostPointerToNativeA32Touch(
@@ -237,6 +242,51 @@ bool TriAevumOot3dInputBackend::Poll(Fast::Fast3dWindow &window,
     frame.Hid.TouchY = touch.Y;
     frame.Hid.TouchPressed = touch.Pressed;
   }
+
+#if defined(__ANDROID__)
+  const auto &androidInput = GetAndroidOverlayInputState();
+  const uint32_t overlayButtons =
+      androidInput.buttons.load(std::memory_order_relaxed);
+  frame.Hid.Buttons |= overlayButtons;
+
+  const float overlayCircleX =
+      androidInput.circlePadX.load(std::memory_order_relaxed);
+  const float overlayCircleY =
+      androidInput.circlePadY.load(std::memory_order_relaxed);
+  const int16_t overlayScaledX = std::clamp<int16_t>(
+      static_cast<int16_t>(std::lround(overlayCircleX * 154.0f)), -154, 154);
+  const int16_t overlayScaledY = std::clamp<int16_t>(
+      static_cast<int16_t>(std::lround(overlayCircleY * 154.0f)), -154, 154);
+  if (overlayScaledX != 0 || overlayScaledY != 0) {
+    frame.Hid.CirclePadX = overlayScaledX;
+    frame.Hid.CirclePadY = overlayScaledY;
+  }
+
+  const float overlayCStickX =
+      androidInput.cStickX.load(std::memory_order_relaxed);
+  const float overlayCStickY =
+      androidInput.cStickY.load(std::memory_order_relaxed);
+  const int16_t overlayScaledCStickX = std::clamp<int16_t>(
+      static_cast<int16_t>(std::lround(overlayCStickX * 154.0f)), -154, 154);
+  const int16_t overlayScaledCStickY = std::clamp<int16_t>(
+      static_cast<int16_t>(std::lround(overlayCStickY * 154.0f)), -154, 154);
+  frame.CStick.X = overlayScaledCStickX;
+  frame.CStick.Y = overlayScaledCStickY;
+  frame.CStick.Kind = NativeFreeCameraInputKind::Absolute;
+
+  if (androidInput.touchPressed.load(std::memory_order_relaxed)) {
+    const float tx = androidInput.touchX.load(std::memory_order_relaxed);
+    const float ty = androidInput.touchY.load(std::memory_order_relaxed);
+    const auto overlayTouch = MapHostPointerToNativeA32Touch(
+        static_cast<int32_t>(tx), static_cast<int32_t>(ty), window.GetWidth(),
+        window.GetHeight(), true, NativeA32TouchPresentation::TopScreen400x240);
+    if (overlayTouch.Inside) {
+      frame.Hid.TouchX = overlayTouch.X;
+      frame.Hid.TouchY = overlayTouch.Y;
+      frame.Hid.TouchPressed = true;
+    }
+  }
+#endif
 
   ++mStats.HostPolls;
   mState = {};

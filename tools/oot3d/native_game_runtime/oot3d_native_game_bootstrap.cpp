@@ -747,6 +747,7 @@ bool ParseOot3dNativeGameArgs(int argc, char** argv, Oot3dNativeGameLaunch& laun
         } else if (arg == "--height" && index + 1 < argc) {
             launch.Host.Height = std::max<uint32_t>(1, ParseU32(argv[++index], "height"));
         } else {
+            std::cerr << "Unrecognized argument: " << arg << " at index " << index << std::endl;
             return false;
         }
     }

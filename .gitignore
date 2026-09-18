@@ -56,7 +56,18 @@ graphs/
 *.mtl
 *.fbx
 !*_custom*
+!ports/android/**/src/main/res/**
 .extracted-assets.json
+
+# ROMs & Binaries
+*.3ds
+*.3dsx
+*.cia
+*.cxi
+
+# Local agent instructions
+AGENTE.MD
+
 
 
 # Docs

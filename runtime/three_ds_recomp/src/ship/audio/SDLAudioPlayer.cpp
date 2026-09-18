@@ -50,16 +50,18 @@ bool SDLAudioPlayer::DoInit() {
 }
 
 int SDLAudioPlayer::Buffered() {
+    if (mDevice == 0) {
+        return 0;
+    }
     return SDL_GetQueuedAudioSize(mDevice) / (sizeof(int16_t) * mNumChannels);
 }
 
 void SDLAudioPlayer::DoPlay(const uint8_t* buf, size_t len) {
-    if (Buffered() < 6000) {
+    if (mDevice != 0 && Buffered() < 6000) {
         // Don't fill the audio buffer too much in case this happens
         SDL_QueueAudio(mDevice, buf, len);
     }
 }
-
 
 void SDLAudioPlayer::DoFlush() {
     if (mDevice != 0) {

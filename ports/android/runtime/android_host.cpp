@@ -3,22 +3,111 @@
 #include <SDL.h>
 #include <cstdio>
 #include <filesystem>
+#include <jni.h>
+#include <sched.h>
 #include <stdexcept>
+#include <unistd.h>
+
+static AndroidOverlayInputState gOverlayInputState;
+
+AndroidOverlayInputState &GetAndroidOverlayInputState() {
+  return gOverlayInputState;
+}
+
+static void SetPerformanceThreadAffinity() {
+  // Snapdragon 870: Cores 4-6 (Cortex-A77 Gold @ 2.42GHz) and Core 7
+  // (Cortex-A77 Prime @ 3.2GHz)
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(4, &cpuset);
+  CPU_SET(5, &cpuset);
+  CPU_SET(6, &cpuset);
+  CPU_SET(7, &cpuset);
+  sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
+}
 
 void InitializeAndroidGameHost() {
-    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
-    const char* root = SDL_AndroidGetExternalStoragePath();
-    if (!root || !*root) {
-        throw std::runtime_error("Android application data directory is unavailable");
-    }
-    std::filesystem::current_path(root);
-    std::filesystem::create_directories("logs");
-    // Android does not preserve a console stream; retain diagnostics beside user data.
-    if (!std::freopen("logs/native-stdout.log", "w", stdout) ||
-        !std::freopen("logs/native-stderr.log", "w", stderr)) {
-        throw std::runtime_error("Cannot open Android runtime logs");
-    }
-    std::setvbuf(stdout, nullptr, _IOLBF, 0);
-    std::setvbuf(stderr, nullptr, _IONBF, 0);
-    SDL_Log("TriAevum game data: %s", root);
+  SetPerformanceThreadAffinity();
+
+  SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+  const char *root = SDL_AndroidGetExternalStoragePath();
+  if (!root || !*root) {
+    throw std::runtime_error(
+        "Android application data directory is unavailable");
+  }
+  std::filesystem::current_path(root);
+  std::filesystem::create_directories("logs");
+  // Android does not preserve a console stream; retain diagnostics beside user
+  // data.
+  if (!std::freopen("logs/native-stdout.log", "w", stdout) ||
+      !std::freopen("logs/native-stderr.log", "w", stderr)) {
+    throw std::runtime_error("Cannot open Android runtime logs");
+  }
+  std::setvbuf(stdout, nullptr, _IOLBF, 0);
+  std::setvbuf(stderr, nullptr, _IONBF, 0);
+  SDL_Log("TriAevum game data: %s", root);
 }
+
+void ShutdownAndroidGameHost() {
+  auto &state = GetAndroidOverlayInputState();
+  state.buttons.store(0, std::memory_order_relaxed);
+  state.circlePadX.store(0.0f, std::memory_order_relaxed);
+  state.circlePadY.store(0.0f, std::memory_order_relaxed);
+  state.cStickX.store(0.0f, std::memory_order_relaxed);
+  state.cStickY.store(0.0f, std::memory_order_relaxed);
+  state.touchPressed.store(false, std::memory_order_relaxed);
+}
+
+extern "C" {
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_AndroidNativeInputTarget_nativeButton(
+    JNIEnv * /*env*/, jclass /*clazz*/, jint hidMask, jboolean pressed) {
+  auto &state = GetAndroidOverlayInputState();
+  uint32_t current = state.buttons.load(std::memory_order_relaxed);
+  if (pressed) {
+    current |= static_cast<uint32_t>(hidMask);
+  } else {
+    current &= ~static_cast<uint32_t>(hidMask);
+  }
+  state.buttons.store(current, std::memory_order_relaxed);
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_AndroidNativeInputTarget_nativeCirclePad(
+    JNIEnv * /*env*/, jclass /*clazz*/, jfloat x, jfloat y) {
+  auto &state = GetAndroidOverlayInputState();
+  state.circlePadX.store(x, std::memory_order_relaxed);
+  state.circlePadY.store(y, std::memory_order_relaxed);
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_AndroidNativeInputTarget_nativeCStick(
+    JNIEnv * /*env*/, jclass /*clazz*/, jfloat x, jfloat y) {
+  auto &state = GetAndroidOverlayInputState();
+  state.cStickX.store(x, std::memory_order_relaxed);
+  state.cStickY.store(y, std::memory_order_relaxed);
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_AndroidNativeInputTarget_nativeTouch(
+    JNIEnv * /*env*/, jclass /*clazz*/, jfloat x, jfloat y, jboolean pressed) {
+  auto &state = GetAndroidOverlayInputState();
+  state.touchX.store(x, std::memory_order_relaxed);
+  state.touchY.store(y, std::memory_order_relaxed);
+  state.touchPressed.store(pressed, std::memory_order_relaxed);
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_AndroidNativeInputTarget_nativeReleaseAll(
+    JNIEnv * /*env*/, jclass /*clazz*/) {
+  auto &state = GetAndroidOverlayInputState();
+  state.buttons.store(0, std::memory_order_relaxed);
+  state.circlePadX.store(0.0f, std::memory_order_relaxed);
+  state.circlePadY.store(0.0f, std::memory_order_relaxed);
+  state.cStickX.store(0.0f, std::memory_order_relaxed);
+  state.cStickY.store(0.0f, std::memory_order_relaxed);
+  state.touchPressed.store(false, std::memory_order_relaxed);
+}
+
+} // extern "C"

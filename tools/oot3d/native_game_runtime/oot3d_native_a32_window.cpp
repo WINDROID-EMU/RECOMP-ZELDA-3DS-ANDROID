@@ -71,6 +71,10 @@
 #include "oot3d_top_screen_texture_runtime.h"
 #include "oot3d_typed_gameplay_bridge.h"
 
+#if defined(__ANDROID__)
+#include "android_host.h"
+#endif
+
 #include "fast/Fast3dWindow.h"
 #include "fast/oot3d/graphics_settings_runtime.h"
 #include "fast/oot3d/graphics_settings_window.h"
@@ -2906,6 +2910,54 @@ PollNativeA32Input(Fast::Fast3dWindow &window,
     frame.Hid.TouchPressed = touch.Pressed;
   }
   ApplyNativeControlShortcutTouch(host, frame);
+#if defined(__ANDROID__)
+  const auto &androidInput = GetAndroidOverlayInputState();
+  const uint32_t overlayButtons =
+      androidInput.buttons.load(std::memory_order_relaxed);
+  frame.Hid.Buttons |= overlayButtons;
+
+  const float overlayCircleX =
+      androidInput.circlePadX.load(std::memory_order_relaxed);
+  const float overlayCircleY =
+      androidInput.circlePadY.load(std::memory_order_relaxed);
+  const int16_t overlayScaledX = std::clamp<int16_t>(
+      static_cast<int16_t>(std::lround(overlayCircleX * 154.0f)), -154, 154);
+  const int16_t overlayScaledY = std::clamp<int16_t>(
+      static_cast<int16_t>(std::lround(overlayCircleY * 154.0f)), -154, 154);
+  if (overlayScaledX != 0 || overlayScaledY != 0) {
+    frame.Hid.CirclePadX = overlayScaledX;
+    frame.Hid.CirclePadY = overlayScaledY;
+  }
+
+  const float overlayCStickX =
+      androidInput.cStickX.load(std::memory_order_relaxed);
+  const float overlayCStickY =
+      androidInput.cStickY.load(std::memory_order_relaxed);
+  const int16_t overlayScaledCStickX = std::clamp<int16_t>(
+      static_cast<int16_t>(std::lround(overlayCStickX * 154.0f)), -154, 154);
+  const int16_t overlayScaledCStickY = std::clamp<int16_t>(
+      static_cast<int16_t>(std::lround(overlayCStickY * 154.0f)), -154, 154);
+  frame.CStick.X = overlayScaledCStickX;
+  frame.CStick.Y = overlayScaledCStickY;
+  frame.CStick.Kind = Oot3dNativeGame::NativeFreeCameraInputKind::Absolute;
+
+  if (androidInput.touchPressed.load(std::memory_order_relaxed)) {
+    const float tx = androidInput.touchX.load(std::memory_order_relaxed);
+    const float ty = androidInput.touchY.load(std::memory_order_relaxed);
+    const auto overlayTouch = Oot3dNativeGame::MapHostPointerToNativeA32Touch(
+        static_cast<int32_t>(tx), static_cast<int32_t>(ty), window.GetWidth(),
+        window.GetHeight(), true,
+        topScreenUiProfile
+            ? Oot3dNativeGame::NativeA32TouchPresentation::TopScreen400x240
+            : Oot3dNativeGame::NativeA32TouchPresentation::
+                  NativeLowerScreen320x240);
+    if (overlayTouch.Inside) {
+      frame.Hid.TouchX = overlayTouch.X;
+      frame.Hid.TouchY = overlayTouch.Y;
+      frame.Hid.TouchPressed = true;
+    }
+  }
+#endif
   return frame;
 }
 
@@ -3070,6 +3122,9 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
           launch.ControlConfigPath, launch.ControlConfig);
   Oot3dNativeGame::TopScreenUiConfig activeTopScreenConfig =
       topScreenConfigRuntime->Snapshot().Config;
+#if defined(__ANDROID__)
+  activeTopScreenConfig.FreeCameraEnabled = true;
+#endif
 #if defined(__SWITCH__)
   gSwitchUiProfile = Oot3dNativeGame::Oot3dUiProfileName(launch.UiProfile);
   gSwitchGameplayTiming =
@@ -3737,6 +3792,9 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
       return;
     }
     activeTopScreenConfig = snapshot.Config;
+#if defined(__ANDROID__)
+    activeTopScreenConfig.FreeCameraEnabled = true;
+#endif
     appliedTopScreenConfigRevision = snapshot.Revision;
     uiLifecycleBridge.SetTopScreenConfig(activeTopScreenConfig);
     widescreenProjection.TopScreenConfig = activeTopScreenConfig;
