@@ -291,9 +291,10 @@ public class WindroidVirtualControllerView extends View {
         }
     }
 
-    private void drawDPad(Path path, boolean isPressed, Canvas canvas) {
+    private void drawDPad(Path path, boolean isPressed, Canvas canvas, int baseAlpha) {
         paint.setStyle(isPressed ? Paint.Style.FILL_AND_STROKE : Paint.Style.STROKE);
-        paint.setAlpha(isPressed ? 230 : 180);
+        paint.setColor(Color.WHITE);
+        paint.setAlpha(isPressed ? 240 : baseAlpha);
         canvas.drawPath(path, paint);
     }
 
@@ -301,12 +302,14 @@ public class WindroidVirtualControllerView extends View {
     protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
 
-        // Scale baseAlpha by opacity setting (20-100% → alpha 46-180)
-        int baseAlpha = (int) (180 * mOverlayOpacityPercent / 100f);
+        // Scale alpha uniformly across ALL virtual controller elements
+        float alphaFactor = mOverlayOpacityPercent / 100.0f;
+        int baseAlpha = Math.max(10, Math.min(255, (int) (220 * alphaFactor)));
+        int fillAlpha = Math.max(8, Math.min(255, (int) (130 * alphaFactor)));
         paint.setStrokeWidth(16F * scaleFactor);
 
-        // ---- Settings gear button (always drawn, above opacity dimming) ----
-        drawSettingsButton(canvas);
+        // ---- Settings gear button (always drawn, scales uniformly with min floor) ----
+        drawSettingsButton(canvas, alphaFactor);
 
         // 1. Draw buttons (ABXY, Triggers, Start, Select)
         for (VirtualControllerButton i : buttonList) {
@@ -355,8 +358,14 @@ public class WindroidVirtualControllerView extends View {
                     startButton.lineTo(i.x + w3, i.y);
                     startButton.moveTo(i.x - w3, i.y + h8);
                     startButton.lineTo(i.x + w3, i.y + h8);
-                    paint.setColor(i.isPressed ? Color.BLACK : Color.WHITE);
                     paint.setStyle(Paint.Style.STROKE);
+                    if (i.isPressed) {
+                        paint.setColor(Color.BLACK);
+                        paint.setAlpha(255);
+                    } else {
+                        paint.setColor(Color.WHITE);
+                        paint.setAlpha(baseAlpha);
+                    }
                     canvas.drawPath(startButton, paint);
                     break;
                 }
@@ -378,8 +387,14 @@ public class WindroidVirtualControllerView extends View {
                     selectButton.lineTo(i.x - s4 + 20F * scaleFactor, i.y - s4 + 70F * scaleFactor);
                     selectButton.close();
 
-                    paint.setColor(i.isPressed ? Color.BLACK : Color.WHITE);
                     paint.setStyle(Paint.Style.STROKE);
+                    if (i.isPressed) {
+                        paint.setColor(Color.BLACK);
+                        paint.setAlpha(255);
+                    } else {
+                        paint.setColor(Color.WHITE);
+                        paint.setAlpha(baseAlpha);
+                    }
                     canvas.drawPath(selectButton, paint);
                     break;
                 }
@@ -408,9 +423,9 @@ public class WindroidVirtualControllerView extends View {
         canvas.drawCircle(leftAnalog.x, leftAnalog.y, leftOuterRadius, paint);
 
         fillPaint.setColor(Color.WHITE);
-        fillPaint.setAlpha(leftAnalog.isPressed ? 230 : 130);
+        fillPaint.setAlpha(leftAnalog.isPressed ? 230 : fillAlpha);
         canvas.drawCircle(leftStickX, leftStickY, leftOuterRadius * 0.44F, fillPaint);
-        paint.setAlpha(leftAnalog.isPressed ? 255 : 180);
+        paint.setAlpha(leftAnalog.isPressed ? 255 : baseAlpha);
         canvas.drawCircle(leftStickX, leftStickY, leftOuterRadius * 0.44F, paint);
 
         // 3. Right Analog Stick (C-Stick / Camera)
@@ -428,12 +443,13 @@ public class WindroidVirtualControllerView extends View {
         paint.setColor(Color.WHITE);
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(14F * scaleFactor);
-        paint.setAlpha(150);
+        paint.setAlpha(baseAlpha);
         canvas.drawCircle(rightAnalog.x, rightAnalog.y, rightOuterRadius, paint);
 
-        fillPaint.setAlpha(rightAnalog.isPressed ? 210 : 100);
+        fillPaint.setColor(Color.WHITE);
+        fillPaint.setAlpha(rightAnalog.isPressed ? 210 : fillAlpha);
         canvas.drawCircle(rightStickX, rightStickY, rightOuterRadius * 0.44F, fillPaint);
-        paint.setAlpha(rightAnalog.isPressed ? 240 : 150);
+        paint.setAlpha(rightAnalog.isPressed ? 240 : baseAlpha);
         canvas.drawCircle(rightStickX, rightStickY, rightOuterRadius * 0.44F, paint);
 
         // 4. Exact Windroid-emu D-Pad vector glyphs
@@ -482,28 +498,31 @@ public class WindroidVirtualControllerView extends View {
         dpadDown.close();
 
         paint.setStrokeWidth(16F * scaleFactor);
-        drawDPad(dpadUp, dpad.dpadStatus == UP || dpad.dpadStatus == RIGHT_UP || dpad.dpadStatus == LEFT_UP, canvas);
-        drawDPad(dpadDown, dpad.dpadStatus == DOWN || dpad.dpadStatus == RIGHT_DOWN || dpad.dpadStatus == LEFT_DOWN, canvas);
-        drawDPad(dpadLeft, dpad.dpadStatus == LEFT || dpad.dpadStatus == LEFT_DOWN || dpad.dpadStatus == LEFT_UP, canvas);
-        drawDPad(dpadRight, dpad.dpadStatus == RIGHT || dpad.dpadStatus == RIGHT_DOWN || dpad.dpadStatus == RIGHT_UP, canvas);
+        drawDPad(dpadUp, dpad.dpadStatus == UP || dpad.dpadStatus == RIGHT_UP || dpad.dpadStatus == LEFT_UP, canvas, baseAlpha);
+        drawDPad(dpadDown, dpad.dpadStatus == DOWN || dpad.dpadStatus == RIGHT_DOWN || dpad.dpadStatus == LEFT_DOWN, canvas, baseAlpha);
+        drawDPad(dpadLeft, dpad.dpadStatus == LEFT || dpad.dpadStatus == LEFT_DOWN || dpad.dpadStatus == LEFT_UP, canvas, baseAlpha);
+        drawDPad(dpadRight, dpad.dpadStatus == RIGHT || dpad.dpadStatus == RIGHT_DOWN || dpad.dpadStatus == RIGHT_UP, canvas, baseAlpha);
     }
 
-    private void drawSettingsButton(Canvas canvas) {
+    private void drawSettingsButton(Canvas canvas, float alphaFactor) {
         if (mSettingsBtnX <= 0F) return;
 
+        // Keep settings button visible with at least 35% opacity so user can always find it
+        float gearAlphaRatio = Math.max(0.35F, alphaFactor);
+
         // Background circle (semi-transparent black)
-        mSettingsGearFillPaint.setAlpha(mSettingsBtnPressed ? 220 : 140);
+        mSettingsGearFillPaint.setAlpha((int) ((mSettingsBtnPressed ? 220 : 140) * gearAlphaRatio));
         canvas.drawCircle(mSettingsBtnX, mSettingsBtnY, mSettingsBtnRadius, mSettingsGearFillPaint);
 
         // Outer circle ring
         mSettingsGearPaint.setColor(mSettingsBtnPressed
             ? Color.parseColor("#FFFFFF")
             : Color.parseColor("#FFD700"));
-        mSettingsGearPaint.setAlpha(mSettingsBtnPressed ? 240 : 180);
+        mSettingsGearPaint.setAlpha((int) ((mSettingsBtnPressed ? 240 : 180) * gearAlphaRatio));
         canvas.drawCircle(mSettingsBtnX, mSettingsBtnY, mSettingsBtnRadius, mSettingsGearPaint);
 
         // Gear symbol (⚙)
-        mSettingsTextPaint.setAlpha(mSettingsBtnPressed ? 255 : 200);
+        mSettingsTextPaint.setAlpha((int) ((mSettingsBtnPressed ? 255 : 200) * gearAlphaRatio));
         mSettingsTextPaint.setColor(mSettingsBtnPressed
             ? Color.parseColor("#FFFFFF")
             : Color.parseColor("#FFD700"));
