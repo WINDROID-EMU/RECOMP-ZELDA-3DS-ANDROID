@@ -7,7 +7,10 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.os.SystemClock;
+import android.os.Vibrator;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -84,6 +87,29 @@ public class WindroidVirtualControllerView extends View {
     private float scaleY = 1.0F;
     private float scaleFactor = 1.0F;
 
+    // ------- Settings button (top-center) -------
+    /** Callback fired when the user taps the settings gear button. */
+    public interface OnSettingsClickListener {
+        void onSettingsClick();
+    }
+    private OnSettingsClickListener mSettingsListener;
+    // Position computed in adjustButtons(); touch detection uses mSettingsTouchRadius
+    private float mSettingsBtnX = 0F;
+    private float mSettingsBtnY = 0F;
+    private float mSettingsBtnRadius = 0F;  // display radius
+    private float mSettingsTouchRadius = 0F; // slightly larger for comfortable tap
+    private boolean mSettingsBtnPressed = false;
+    private int mSettingsPointerId = -1;
+    private final Paint mSettingsGearPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mSettingsGearFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mSettingsTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF mSettingsRect = new RectF();
+
+    // ------- Overlay opacity -------
+    /** 20-100 percent; stored in SharedPreferences. */
+    private static final String PREF_OPACITY = "VC_OVERLAY_OPACITY";
+    private int mOverlayOpacityPercent = 100;
+
     public WindroidVirtualControllerView(Context context) {
         super(context);
         init();
@@ -103,12 +129,32 @@ public class WindroidVirtualControllerView extends View {
         this.inputTarget = target;
     }
 
+    /** Register a listener to be notified when the user taps the settings gear icon. */
+    public void setOnSettingsClickListener(OnSettingsClickListener listener) {
+        mSettingsListener = listener;
+    }
+
+    /** Returns the current overlay opacity (20-100). */
+    public int getOverlayOpacityPercent() {
+        return mOverlayOpacityPercent;
+    }
+
+    /** Sets overlay opacity (clamped to 20-100) and persists to SharedPreferences. */
+    public void setOverlayOpacityPercent(int percent) {
+        mOverlayOpacityPercent = Math.max(20, Math.min(100, percent));
+        if (preferences != null) {
+            preferences.edit().putInt(PREF_OPACITY, mOverlayOpacityPercent).apply();
+        }
+        invalidate();
+    }
+
     private void init() {
         setWillNotDraw(false);
         setFocusable(true);
 
         try {
             preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+            mOverlayOpacityPercent = preferences.getInt(PREF_OPACITY, 100);
         } catch (Exception ignored) {}
 
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -133,6 +179,15 @@ public class WindroidVirtualControllerView extends View {
         } catch (Exception ignored) {
             textPaint.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
         }
+
+        // Settings gear paint
+        mSettingsGearPaint.setStyle(Paint.Style.STROKE);
+        mSettingsGearPaint.setColor(Color.parseColor("#FFD700"));
+        mSettingsGearFillPaint.setStyle(Paint.Style.FILL);
+        mSettingsGearFillPaint.setColor(Color.parseColor("#1A1500"));
+        mSettingsTextPaint.setColor(Color.parseColor("#FFD700"));
+        mSettingsTextPaint.setTextAlign(Paint.Align.CENTER);
+        mSettingsTextPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
 
         // Exact Windroid-emu base layout on 2400x1080 canvas
         addButton(A_BUTTON, 2065F, 910F, 180F, SHAPE_CIRCLE);
@@ -191,6 +246,14 @@ public class WindroidVirtualControllerView extends View {
         dpad.y = dpad.baseY * scaleY;
         dpad.radius = dpad.baseRadius * scaleFactor;
 
+        // Settings gear button: center top, radius = ~24dp equivalent
+        mSettingsBtnRadius = 44F * scaleFactor;
+        mSettingsTouchRadius = mSettingsBtnRadius * 1.6F;
+        mSettingsBtnX = width / 2F;
+        mSettingsBtnY = mSettingsBtnRadius + 18F * scaleFactor;
+        mSettingsGearPaint.setStrokeWidth(6F * scaleFactor);
+        mSettingsTextPaint.setTextSize(mSettingsBtnRadius * 0.9F);
+
         // Allow saved user preferences only if layout was explicitly saved by user
         if (preferences != null && preferences.getBoolean("VC_CUSTOM_USER_SAVED", false)) {
             for (VirtualControllerButton i : buttonList) {
@@ -238,8 +301,12 @@ public class WindroidVirtualControllerView extends View {
     protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
 
-        int baseAlpha = 180;
+        // Scale baseAlpha by opacity setting (20-100% → alpha 46-180)
+        int baseAlpha = (int) (180 * mOverlayOpacityPercent / 100f);
         paint.setStrokeWidth(16F * scaleFactor);
+
+        // ---- Settings gear button (always drawn, above opacity dimming) ----
+        drawSettingsButton(canvas);
 
         // 1. Draw buttons (ABXY, Triggers, Start, Select)
         for (VirtualControllerButton i : buttonList) {
@@ -421,6 +488,29 @@ public class WindroidVirtualControllerView extends View {
         drawDPad(dpadRight, dpad.dpadStatus == RIGHT || dpad.dpadStatus == RIGHT_DOWN || dpad.dpadStatus == RIGHT_UP, canvas);
     }
 
+    private void drawSettingsButton(Canvas canvas) {
+        if (mSettingsBtnX <= 0F) return;
+
+        // Background circle (semi-transparent black)
+        mSettingsGearFillPaint.setAlpha(mSettingsBtnPressed ? 220 : 140);
+        canvas.drawCircle(mSettingsBtnX, mSettingsBtnY, mSettingsBtnRadius, mSettingsGearFillPaint);
+
+        // Outer circle ring
+        mSettingsGearPaint.setColor(mSettingsBtnPressed
+            ? Color.parseColor("#FFFFFF")
+            : Color.parseColor("#FFD700"));
+        mSettingsGearPaint.setAlpha(mSettingsBtnPressed ? 240 : 180);
+        canvas.drawCircle(mSettingsBtnX, mSettingsBtnY, mSettingsBtnRadius, mSettingsGearPaint);
+
+        // Gear symbol (⚙)
+        mSettingsTextPaint.setAlpha(mSettingsBtnPressed ? 255 : 200);
+        mSettingsTextPaint.setColor(mSettingsBtnPressed
+            ? Color.parseColor("#FFFFFF")
+            : Color.parseColor("#FFD700"));
+        float textY = mSettingsBtnY - (mSettingsTextPaint.descent() + mSettingsTextPaint.ascent()) / 2F;
+        canvas.drawText("\u2699", mSettingsBtnX, textY, mSettingsTextPaint);
+    }
+
     /**
      * Hit testing faithful to Windroid-emu's detectClick logic.
      */
@@ -521,8 +611,21 @@ public class WindroidVirtualControllerView extends View {
                 float py = event.getY(actionIndex);
                 boolean hit = false;
 
+                // 0. Check Settings gear button (top-center)
+                if (!hit && mSettingsTouchRadius > 0F) {
+                    float sdx = px - mSettingsBtnX;
+                    float sdy = py - mSettingsBtnY;
+                    if (sdx * sdx + sdy * sdy <= mSettingsTouchRadius * mSettingsTouchRadius) {
+                        mSettingsPointerId = pointerId;
+                        mSettingsBtnPressed = true;
+                        invalidate();
+                        hit = true;
+                    }
+                }
+
                 // 1. Check ABXY, Triggers (LT, LB, RT, RB), Start and Select
                 for (VirtualControllerButton btn : buttonList) {
+
                     if (detectClick(px, py, btn.x, btn.y, btn.radius, btn.shape)) {
                         btn.fingerId = pointerId;
                         btn.isPressed = true;
@@ -637,6 +740,22 @@ public class WindroidVirtualControllerView extends View {
             }
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
+                // Settings gear button release
+                if (mSettingsBtnPressed && pointerId == mSettingsPointerId) {
+                    mSettingsBtnPressed = false;
+                    mSettingsPointerId = -1;
+                    invalidate();
+                    if (action != MotionEvent.ACTION_CANCEL && mSettingsListener != null) {
+                        // short haptic feedback
+                        try {
+                            Vibrator v = (Vibrator) getContext().getSystemService(android.content.Context.VIBRATOR_SERVICE);
+                            if (v != null && v.hasVibrator()) v.vibrate(40);
+                        } catch (Exception ignored) {}
+                        mSettingsListener.onSettingsClick();
+                    }
+                    break;
+                }
+
                 for (VirtualControllerButton btn : buttonList) {
                     if (btn.isPressed) {
                         btn.fingerId = -1;
@@ -664,6 +783,7 @@ public class WindroidVirtualControllerView extends View {
                 invalidate();
                 break;
             }
+
         }
         return true;
     }

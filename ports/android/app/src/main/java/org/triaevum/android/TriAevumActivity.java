@@ -56,6 +56,17 @@ public final class TriAevumActivity extends SDLActivity {
             mWindroidOverlay = new WindroidVirtualControllerView(this);
             mWindroidOverlay.bindInputTarget(mInputTarget);
 
+            // Open the Zenda-style settings dialog when the gear icon is tapped
+            mWindroidOverlay.setOnSettingsClickListener(() -> {
+                if (!isFinishing() && !isDestroyed()) {
+                    try {
+                        new TriAevumConfigDialog(this, mWindroidOverlay).show();
+                    } catch (Exception err) {
+                        Log.e("TriAevum", "Failed to open settings dialog", err);
+                    }
+                }
+            });
+
             ViewGroup.LayoutParams lp = new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
             mLayout.addView(mWindroidOverlay, lp);
@@ -63,6 +74,7 @@ public final class TriAevumActivity extends SDLActivity {
         } catch (Exception error) {
             Log.e("TriAevum", "Failed to initialize Windroid virtual controller overlay", error);
         }
+
     }
 
     @Override protected void onResume() {
