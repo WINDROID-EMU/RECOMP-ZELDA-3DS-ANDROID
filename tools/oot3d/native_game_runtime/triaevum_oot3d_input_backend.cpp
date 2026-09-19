@@ -6,7 +6,14 @@
 #include "ship/controller/physicaldevice/ConnectedPhysicalDeviceManager.h"
 #include "ship/controller/physicaldevice/GlobalSDLDeviceSettings.h"
 
+#if !defined(__ANDROID__)
 #include <SDL2/SDL.h>
+#else
+#include "ship/controller/controldevice/controller/mapping/sdl/SDLMapping.h"
+#include "android_host.h"
+struct _SDL_GameController;
+typedef struct _SDL_GameController SDL_GameController;
+#endif
 
 #if defined(__ANDROID__)
 #include "android_host.h"
@@ -31,6 +38,10 @@ struct SelectedController {
 
 std::optional<SelectedController>
 SelectController(const NativeControlConfig &config) {
+#if defined(__ANDROID__)
+  (void)config;
+  return std::nullopt;
+#else
   auto *context = Ship::Context::GetRawInstance();
   auto controlDeck = context != nullptr ? context->GetControlDeck() : nullptr;
   auto devices = controlDeck != nullptr
@@ -65,6 +76,7 @@ SelectController(const NativeControlConfig &config) {
     }
   }
   return selected;
+#endif
 }
 
 class WindowButtonSource final : public ThreeDsRecomp::Input::HostButtonSource {
@@ -86,6 +98,10 @@ public:
 
   bool
   IsGamepadButtonHeld(NativeGamepadButton binding) const noexcept override {
+#if defined(__ANDROID__)
+    (void)binding;
+    return false;
+#else
     if (mController == nullptr || binding == NativeGamepadButton::None) {
       return false;
     }
@@ -135,6 +151,7 @@ public:
       return false;
     }
     return false;
+#endif
   }
 
 private:
@@ -173,6 +190,7 @@ bool TriAevumOot3dInputBackend::Poll(Fast::Fast3dWindow &window,
         mConfig.Bindings[index], enabled, buttonSource);
   }
 
+#if !defined(__ANDROID__)
   if (controller != nullptr) {
     const auto axis = [&](SDL_GameControllerAxis value) {
       return SDL_GameControllerGetAxis(controller, value);
@@ -223,6 +241,7 @@ bool TriAevumOot3dInputBackend::Poll(Fast::Fast3dWindow &window,
     }
 #endif
   }
+#endif
 
   const auto mouseDelta = window.GetMouseDelta();
   const bool mouseOwned =

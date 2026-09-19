@@ -4,10 +4,12 @@
 #include <algorithm>
 #include "ship/Context.h"
 #include "ship/config/ConsoleVariable.h"
+#if !defined(__ANDROID__)
 #if __APPLE__
 #include <SDL_events.h>
 #else
 #include <SDL2/SDL_events.h>
+#endif
 #endif
 #include <spdlog/spdlog.h>
 #include "ship/utils/StringHelper.h"

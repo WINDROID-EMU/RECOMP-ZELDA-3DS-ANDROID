@@ -33,8 +33,9 @@
 #endif
 #if defined(__ANDROID__)
 #include "ship/audio/AAudioAudioPlayer.h"
-#endif
+#else
 #include "ship/audio/SDLAudioPlayer.h"
+#endif
 #ifdef __APPLE__
 #include "ship/utils/AppleFolderManager.h"
 #endif

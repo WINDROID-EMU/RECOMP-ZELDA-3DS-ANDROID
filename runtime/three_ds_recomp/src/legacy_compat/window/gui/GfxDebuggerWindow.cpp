@@ -69,11 +69,11 @@ void GfxDebuggerWindow::DrawDisasNode(const F3DGfx* cmd, std::vector<const F3DGf
 
         if (ImGui::BeginPopupContextItem(nullptr, ImGuiPopupFlags_MouseButtonRight)) {
             if (ImGui::Selectable("Copy text")) {
-                SDL_SetClipboardText(text.c_str());
+                ImGui::SetClipboardText(text.c_str());
             }
             if (ImGui::Selectable("Copy address")) {
                 std::string address = fmt::format("0x{:x}", (uintptr_t)cmd);
-                SDL_SetClipboardText(address.c_str());
+                ImGui::SetClipboardText(address.c_str());
             }
             if (parentPosY > 0) {
                 scrollTo = ImGui::Selectable("Scroll to parent");

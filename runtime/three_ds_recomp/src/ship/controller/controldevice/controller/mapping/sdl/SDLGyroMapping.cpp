@@ -16,6 +16,7 @@ SDLGyroMapping::SDLGyroMapping(uint8_t portIndex, float sensitivity, float neutr
 }
 
 void SDLGyroMapping::Recalibrate() {
+#if !defined(__ANDROID__)
     for (const auto& [instanceId, gamepad] : Context::GetRawInstance()
                                                  ->GetControlDeck()
                                                  ->GetConnectedPhysicalDeviceManager()
@@ -34,6 +35,7 @@ void SDLGyroMapping::Recalibrate() {
         mNeutralRoll = gyroData[2];
         return;
     }
+#endif
 
     // if we didn't find a gyro device zero everything out
     mNeutralPitch = 0;
@@ -48,6 +50,7 @@ void SDLGyroMapping::UpdatePad(float& x, float& y) {
         return;
     }
 
+#if !defined(__ANDROID__)
     for (const auto& [instanceId, gamepad] : Context::GetRawInstance()
                                                  ->GetControlDeck()
                                                  ->GetConnectedPhysicalDeviceManager()
@@ -65,6 +68,7 @@ void SDLGyroMapping::UpdatePad(float& x, float& y) {
         y = (gyroData[1] - mNeutralYaw) * mSensitivity;
         return;
     }
+#endif
 
     // if we didn't find a gyro device zero everything out
     x = 0;

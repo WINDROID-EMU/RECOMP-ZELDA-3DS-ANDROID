@@ -36,6 +36,10 @@ std::shared_ptr<ControllerGyroMapping> GyroMappingFactory::CreateGyroMappingFrom
 }
 
 std::shared_ptr<ControllerGyroMapping> GyroMappingFactory::CreateGyroMappingFromSDLInput(uint8_t portIndex) {
+#if defined(__ANDROID__)
+    (void)portIndex;
+    return nullptr;
+#else
     std::shared_ptr<ControllerGyroMapping> mapping = nullptr;
 
     for (auto [instanceId, gamepad] : Context::GetRawInstance()
@@ -79,5 +83,6 @@ std::shared_ptr<ControllerGyroMapping> GyroMappingFactory::CreateGyroMappingFrom
     }
 
     return mapping;
+#endif
 }
 } // namespace Ship

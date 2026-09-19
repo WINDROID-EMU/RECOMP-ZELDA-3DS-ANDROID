@@ -92,7 +92,13 @@
 #include "ship/controller/physicaldevice/GlobalSDLDeviceSettings.h"
 #include "ship/window/gui/Gui.h"
 
+#if !defined(__ANDROID__)
 #include <SDL2/SDL.h>
+#else
+#include "ship/controller/controldevice/controller/mapping/sdl/SDLMapping.h"
+struct _SDL_GameController;
+typedef struct _SDL_GameController SDL_GameController;
+#endif
 #include <imgui.h>
 
 #include <nlohmann/json.hpp>
@@ -2600,6 +2606,7 @@ PollNativeA32Input(Fast::Fast3dWindow &window,
   };
   std::optional<SelectedController> selectedController;
   std::vector<NativeControlDeviceDescriptor> deviceDescriptors;
+#if !defined(__ANDROID__)
   auto *context = Ship::Context::GetRawInstance();
   auto controlDeck = context != nullptr ? context->GetControlDeck() : nullptr;
   if (controlDeck != nullptr) {
@@ -2649,6 +2656,7 @@ PollNativeA32Input(Fast::Fast3dWindow &window,
       }
     }
   }
+#endif
   controls.ObserveDevices(std::move(deviceDescriptors));
 
   const int16_t triggerThreshold = static_cast<int16_t>(
@@ -2679,6 +2687,10 @@ PollNativeA32Input(Fast::Fast3dWindow &window,
 
     bool IsGamepadButtonHeld(
         NativeGamepadButton binding) const noexcept override {
+#if defined(__ANDROID__)
+      (void)binding;
+      return false;
+#else
       if (mController == nullptr || binding == NativeGamepadButton::None) {
         return false;
       }
@@ -2728,6 +2740,7 @@ PollNativeA32Input(Fast::Fast3dWindow &window,
         return false;
       }
       return false;
+#endif
     }
 
    private:
@@ -2782,6 +2795,7 @@ PollNativeA32Input(Fast::Fast3dWindow &window,
     }
   }
 
+#if !defined(__ANDROID__)
   if (config.ControllerEnabled && selectedController.has_value()) {
     SDL_GameController *controller = selectedController->Controller;
     const auto axis = [&](SDL_GameControllerAxis value) {
@@ -2839,6 +2853,7 @@ PollNativeA32Input(Fast::Fast3dWindow &window,
     }
 #endif
   }
+#endif
   controls.ObserveMotion(host.ControllerMotion);
   if (hostGuiVisible) {
     host.ControllerMotion = {};

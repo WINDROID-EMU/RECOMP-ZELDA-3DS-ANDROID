@@ -171,5 +171,7 @@ class AudioPlayer {
 #include "AAudioAudioPlayer.h"
 #endif
 
+#if !defined(__ANDROID__)
 #include "SDLAudioPlayer.h"
+#endif
 #include "NullAudioPlayer.h"

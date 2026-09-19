@@ -54,7 +54,9 @@ void ControlDeck::WriteToPad(void* pad) {
 }
 
 void ControlDeck::WriteToOSContPad(OSContPad* pad) {
+#if !defined(__ANDROID__)
     SDL_PumpEvents();
+#endif
     Ship::WheelHandler::GetInstance()->Update();
 
     if (AllGameInputBlocked()) {

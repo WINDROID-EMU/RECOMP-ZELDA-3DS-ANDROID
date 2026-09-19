@@ -20,6 +20,7 @@
 
 #include <cstdlib>
 
+#if !defined(__ANDROID__)
 #ifdef __APPLE__
 #include <SDL_hints.h>
 #include <SDL_video.h>
@@ -32,6 +33,7 @@
 #endif
 #include <SDL2/SDL_video.h>
 #endif
+#endif
 
 #if defined(__ANDROID__) || defined(__IOS__)
 #include "ship/port/mobile/MobileImpl.h"
@@ -39,7 +41,9 @@
 
 #ifdef ENABLE_OPENGL
 #include <imgui_impl_opengl3.h>
+#if !defined(__ANDROID__)
 #include <imgui_impl_sdl2.h>
+#endif
 #endif
 
 #if defined(ENABLE_DX11) || defined(ENABLE_DX12)
@@ -121,6 +125,7 @@ class Oot3dDisplayConfirmationWindow final : public Ship::GuiWindow {
     void DrawElement() override {}
 };
 
+#if !defined(__ANDROID__)
 struct Oot3dMousePosition {
     float X = 0.0F;
     float Y = 0.0F;
@@ -195,6 +200,7 @@ ImGuiMouseSource Oot3dMouseSource(uint32_t which) {
     return which == SDL_TOUCH_MOUSEID ? ImGuiMouseSource_TouchScreen
                                       : ImGuiMouseSource_Mouse;
 }
+#endif
 #endif
 } // namespace
 
@@ -356,6 +362,7 @@ void Fast3dGui::DrawMenu() {
 
 void Fast3dGui::ImGuiWMInit() {
     switch (mImpl.Backend) {
+#if !defined(__ANDROID__)
         case WindowBackend::FAST3D_SDL_OPENGL:
             SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
             if (Ship::Context::GetRawInstance()->GetConsoleVariables()->GetInteger(CVAR_ALLOW_BACKGROUND_INPUTS, 1)) {
@@ -363,6 +370,7 @@ void Fast3dGui::ImGuiWMInit() {
             }
             ImGui_ImplSDL2_InitForOpenGL(static_cast<SDL_Window*>(mImpl.Opengl.Window), mImpl.Opengl.Context);
             break;
+#endif
 #ifdef ENABLE_OOT3D_VULKAN
         case WindowBackend::FAST3D_SDL_OOT3D_VULKAN:
 #if !defined(__ANDROID__)
@@ -393,10 +401,12 @@ void Fast3dGui::ImGuiWMInit() {
 
 void Fast3dGui::ImGuiWMShutdown() {
     switch (mImpl.Backend) {
+#if !defined(__ANDROID__)
 #ifdef ENABLE_OPENGL
         case WindowBackend::FAST3D_SDL_OPENGL:
             ImGui_ImplSDL2_Shutdown();
             break;
+#endif
 #endif
 #ifdef ENABLE_OOT3D_VULKAN
         case WindowBackend::FAST3D_SDL_OOT3D_VULKAN:
@@ -624,6 +634,7 @@ void Fast3dGui::ImGuiRenderDrawData(ImDrawData* data) {
 }
 
 void Fast3dGui::DrawFloatingWindows() {
+#if !defined(__ANDROID__)
     if (!(ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)) {
         return;
     }
@@ -651,6 +662,7 @@ void Fast3dGui::DrawFloatingWindows() {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
     }
+#endif
 }
 
 void Fast3dGui::CalculateGameViewport() {

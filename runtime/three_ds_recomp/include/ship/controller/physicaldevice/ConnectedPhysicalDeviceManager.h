@@ -4,7 +4,12 @@
 #include <unordered_set>
 #include <vector>
 #include <string>
+#if !defined(__ANDROID__)
 #include <SDL2/SDL.h>
+#else
+struct _SDL_GameController;
+typedef struct _SDL_GameController SDL_GameController;
+#endif
 
 namespace Ship {
 

@@ -32,6 +32,10 @@ std::shared_ptr<ControllerLEDMapping> LEDMappingFactory::CreateLEDMappingFromCon
 }
 
 std::shared_ptr<ControllerLEDMapping> LEDMappingFactory::CreateLEDMappingFromSDLInput(uint8_t portIndex) {
+#if defined(__ANDROID__)
+    (void)portIndex;
+    return nullptr;
+#else
     std::shared_ptr<ControllerLEDMapping> mapping = nullptr;
 
     for (auto [instanceId, gamepad] : Context::GetRawInstance()
@@ -73,5 +77,6 @@ std::shared_ptr<ControllerLEDMapping> LEDMappingFactory::CreateLEDMappingFromSDL
     }
 
     return mapping;
+#endif
 }
 } // namespace Ship

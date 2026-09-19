@@ -231,7 +231,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Define o limite da superfície de renderização SDL. 720p = padrão; 1080p = nativo Moto G100."
+                            android:text="Define o limite da superfície de renderização Vulkan. 720p = padrão; 1080p = nativo Moto G100."
                             android:textColor="#8B9BB4"
                             android:textSize="10sp"
                             android:layout_marginBottom="8dp" />

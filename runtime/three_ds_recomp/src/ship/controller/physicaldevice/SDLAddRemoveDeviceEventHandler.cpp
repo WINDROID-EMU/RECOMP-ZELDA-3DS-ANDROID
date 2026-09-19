@@ -1,5 +1,7 @@
 #include "ship/controller/physicaldevice/SDLAddRemoveDeviceEventHandler.h"
+#if !defined(__ANDROID__)
 #include <SDL2/SDL.h>
+#endif
 #include "ship/Context.h"
 #include "ship/controller/controldeck/ControlDeck.h"
 

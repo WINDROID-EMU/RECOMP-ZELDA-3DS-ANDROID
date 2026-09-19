@@ -42,6 +42,10 @@ RumbleMappingFactory::CreateDefaultSDLRumbleMappings(PhysicalDeviceType physical
 }
 
 std::shared_ptr<ControllerRumbleMapping> RumbleMappingFactory::CreateRumbleMappingFromSDLInput(uint8_t portIndex) {
+#if defined(__ANDROID__)
+    (void)portIndex;
+    return nullptr;
+#else
     std::shared_ptr<ControllerRumbleMapping> mapping = nullptr;
 
     for (auto [instanceId, gamepad] : Context::GetRawInstance()
@@ -85,5 +89,6 @@ std::shared_ptr<ControllerRumbleMapping> RumbleMappingFactory::CreateRumbleMappi
     }
 
     return mapping;
+#endif
 }
 } // namespace Ship

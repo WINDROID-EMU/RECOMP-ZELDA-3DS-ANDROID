@@ -10,7 +10,6 @@ dependencies {
 }
 
 // Native compilation is a separate incremental build, never a Gradle side effect.
-val sdlSource = providers.gradleProperty("triaevumSdlSource")
 val nativeStage = providers.gradleProperty("triaevumNativeStage")
 android {
     namespace = "org.triaevum.android"
@@ -31,14 +30,6 @@ android {
         jvmTarget = "17"
     }
     sourceSets.getByName("main") {
-        if (sdlSource.isPresent) {
-            java.srcDir("${sdlSource.get()}/android-project/app/src/main/java")
-        } else {
-            val defaultSdl = file("/home/windroid/triaevum-android-build/runtime/_deps/sdl2-src/android-project/app/src/main/java")
-            if (defaultSdl.isDirectory) {
-                java.srcDir(defaultSdl)
-            }
-        }
         if (nativeStage.isPresent) jniLibs.srcDir(nativeStage.get())
     }
     packaging { jniLibs.useLegacyPackaging = true }

@@ -125,6 +125,11 @@ ButtonMappingFactory::CreateDefaultSDLButtonMappings(uint8_t portIndex, CONTROLL
 
 std::shared_ptr<ControllerButtonMapping>
 ButtonMappingFactory::CreateButtonMappingFromSDLInput(uint8_t portIndex, CONTROLLERBUTTONS_T bitmask) {
+#if defined(__ANDROID__)
+    (void)portIndex;
+    (void)bitmask;
+    return nullptr;
+#else
     std::shared_ptr<ControllerButtonMapping> mapping = nullptr;
 
     for (auto [instanceId, gamepad] : Context::GetRawInstance()
@@ -159,9 +164,14 @@ ButtonMappingFactory::CreateButtonMappingFromSDLInput(uint8_t portIndex, CONTROL
             mapping = std::make_shared<SDLAxisDirectionToButtonMapping>(portIndex, bitmask, axis, axisDirection);
             break;
         }
+
+        if (mapping != nullptr) {
+            break;
+        }
     }
 
     return mapping;
+#endif
 }
 
 std::shared_ptr<ControllerButtonMapping>

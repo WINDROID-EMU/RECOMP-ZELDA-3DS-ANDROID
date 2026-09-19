@@ -190,11 +190,13 @@ static void ErrorHandler(int sig, siginfo_t* sigInfo, void* data) {
         snprintf(intToCharBuffer, sizeof(intToCharBuffer), "%i ", (int)i);
         WRITE_VAR_LINE(crashHandler, intToCharBuffer, functionName.c_str());
     }
+#if !defined(__ANDROID__)
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, (Context::GetRawInstance()->GetName() + " has crashed").c_str(),
                              (Context::GetRawInstance()->GetName() +
                               " has crashed. Diagnostic details were written to the local logs directory.")
                                  .c_str(),
                              nullptr);
+#endif
     free(symbols);
     crashHandler->PrintCommon();
 

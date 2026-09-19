@@ -1,5 +1,7 @@
 #include "three_ds_recomp/legacy/runtime_compat.h"
+#if !defined(__ANDROID__)
 #include <SDL2/SDL.h>
+#endif
 #include <ratio>
 
 // Establish a chrono duration for the N64 46.875MHz clock rate

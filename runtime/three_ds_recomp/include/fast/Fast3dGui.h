@@ -1,5 +1,9 @@
 #pragma once
+#if !defined(__ANDROID__)
 #include <SDL2/SDL.h>
+#else
+struct SDL_Renderer;
+#endif
 
 #include "Fast3dWindow.h"
 #include "ship/window/gui/Gui.h"

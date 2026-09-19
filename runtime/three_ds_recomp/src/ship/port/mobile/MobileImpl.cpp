@@ -1,6 +1,8 @@
 #if defined(__ANDROID__) || defined(__IOS__)
 #include "ship/port/mobile/MobileImpl.h"
+#if !defined(__ANDROID__)
 #include <SDL2/SDL.h>
+#endif
 
 #include <imgui_internal.h>
 

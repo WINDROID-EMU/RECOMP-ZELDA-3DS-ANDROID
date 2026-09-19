@@ -35,11 +35,13 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_SYSTEM_NAME STREQUAL "
     list(FILTER Source_Files__Graphic EXCLUDE REGEX "^backends/gfx_metal.*")
 endif()
 
-if (CMAKE_SYSTEM_NAME STREQUAL "iOS")
+if (CMAKE_SYSTEM_NAME STREQUAL "iOS" OR CMAKE_SYSTEM_NAME STREQUAL "Android")
     list(FILTER Source_Files__Graphic EXCLUDE REGEX "^backends/gfx_opengl.*")
 endif()
 
-if (NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
+if (CMAKE_SYSTEM_NAME STREQUAL "Android")
+    list(FILTER Source_Files__Graphic EXCLUDE REGEX "^backends/gfx_sdl2.*")
+else()
     list(FILTER Source_Files__Graphic EXCLUDE REGEX "^backends/gfx_android.*")
 endif()
 

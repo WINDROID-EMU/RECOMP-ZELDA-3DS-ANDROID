@@ -19,6 +19,7 @@ void SDLLEDMapping::SetLEDColor(Color_RGB8 color) {
         color = mSavedColor;
     }
 
+#if !defined(__ANDROID__)
     for (const auto& [instanceId, gamepad] : Context::GetRawInstance()
                                                  ->GetControlDeck()
                                                  ->GetConnectedPhysicalDeviceManager()
@@ -29,6 +30,7 @@ void SDLLEDMapping::SetLEDColor(Color_RGB8 color) {
 
         SDL_JoystickSetLED(SDL_GameControllerGetJoystick(gamepad), color.r, color.g, color.b);
     }
+#endif
 }
 
 std::string SDLLEDMapping::GetLEDMappingId() {

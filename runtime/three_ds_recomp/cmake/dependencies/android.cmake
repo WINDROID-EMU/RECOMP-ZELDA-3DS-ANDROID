@@ -1,18 +1,6 @@
 include(FetchContent)
 
-#=================== SDL2 ===================
-find_package(SDL2 QUIET)
-if (NOT ${SDL2_FOUND})
-    FetchContent_Declare(
-        SDL2
-    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-    GIT_TAG release-2.32.10
-    OVERRIDE_FIND_PACKAGE
-    )
-    message("SDL2 not found. Downloading now...")
-    FetchContent_MakeAvailable(SDL2)
-    message("SDL2 downloaded to " ${FETCHCONTENT_BASE_DIR}/sdl2-src)
-endif()
+# On Android, SDL2 is excluded in favor of native Android APIs (ANativeWindow, AAudio, AInput).
 
 #=================== nlohmann-json ===================
 find_package(nlohmann_json QUIET)
@@ -71,7 +59,7 @@ if (NOT ${libzip_FOUND})
     list(APPEND ADDITIONAL_LIB_INCLUDES ${libzip_SOURCE_DIR}/lib ${libzip_BINARY_DIR})
 endif()
 
-target_link_libraries(ImGui PUBLIC SDL2::SDL2)
+target_link_libraries(ImGui PUBLIC android log)
 if(USE_OPENGLES)
     target_compile_definitions(ImGui PRIVATE IMGUI_IMPL_OPENGL_ES3)
     target_link_libraries(ImGui PUBLIC GLESv3)

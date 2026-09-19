@@ -7,15 +7,17 @@
 #include "fast/renderer3ds/pica_vulkan_device_profile.h"
 #include "fast/oot3d/pica_nri_pipeline_state.h"
 
-#include "fast/backends/gfx_sdl.h"
 #include "fast/interpreter.h"
-
+#if !defined(__ANDROID__)
+#include "fast/backends/gfx_sdl.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
-#if defined(_WIN32) || defined(__ANDROID__)
+#if defined(_WIN32)
 #include <SDL2/SDL_syswm.h>
 #endif
-#if defined(__ANDROID__)
+#else
+#include "fast/backends/gfx_window_manager_api.h"
+#include "fast/backends/gfx_android.h"
 #include <android/log.h>
 #endif
 #include <spdlog/spdlog.h>
@@ -65,11 +67,6 @@ void* ResolveNriNativeWindow(GfxWindowBackend* backend) {
 #elif defined(__ANDROID__)
     if (backend == nullptr || backend->GetNativeWindow() == nullptr)
         return nullptr;
-    SDL_SysWMinfo windowInfo{};
-    SDL_VERSION(&windowInfo.version);
-    if (SDL_GetWindowWMInfo(static_cast<SDL_Window*>(backend->GetNativeWindow()), &windowInfo) == SDL_TRUE) {
-        return windowInfo.info.android.window;
-    }
     return backend->GetNativeWindow();
 #else
     (void)backend;
@@ -785,7 +782,11 @@ void GfxRenderingAPIVulkan::Init() {
         throw std::runtime_error("Vulkan renderer was paired with a non-Vulkan SDL backend");
     }
     if (mWindowBackend->GetNativeWindow() == nullptr) {
+#if defined(__ANDROID__)
+        throw std::runtime_error("Android Vulkan native window is null");
+#else
         throw std::runtime_error(std::string("SDL Vulkan window creation failed: ") + SDL_GetError());
+#endif
     }
 
     mDiagnostics.ReloadFromEnvironment();
@@ -2505,7 +2506,11 @@ void GfxRenderingAPIVulkan::CreateLogicalDevice() {
                                             ? queueFamilyProperties[mGraphicsQueueFamily].queueCount
                                             : 0U;
     const char* presentDispatch = std::getenv("TRIAEVUM_VULKAN_PRESENT_DISPATCH");
+#if defined(__ANDROID__)
+    const char* videoDriver = "android";
+#else
     const char* videoDriver = SDL_GetCurrentVideoDriver();
+#endif
     const auto queuePlan = Oot3d::ResolveVulkanQueueTopology(
         mGraphicsQueueFamily, mPresentQueueFamily, graphicsQueueCount,
         Oot3d::ParseVulkanPresentDispatchMode(presentDispatch ? presentDispatch : ""), videoDriver ? videoDriver : "");

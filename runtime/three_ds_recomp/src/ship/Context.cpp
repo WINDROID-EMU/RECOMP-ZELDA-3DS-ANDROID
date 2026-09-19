@@ -251,8 +251,10 @@ bool Context::InitResourceManager(const std::vector<std::string>& archivePaths,
     }
 
     if (!allowEmptyPaths && !GetResourceManager()->IsLoaded()) {
+#if !defined(__ANDROID__)
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "OTR file not found",
                                  "Main OTR file not found. Please generate one", nullptr);
+#endif
         SPDLOG_ERROR("Main OTR file not found!");
 #ifdef __IOS__
         // We need this exit to close the app when we dismiss the dialog
@@ -566,14 +568,20 @@ std::string Context::GetAppDirectoryPath(const std::string& appName) {
     }
 #endif
 
-#if defined(__linux__)
+#if defined(__ANDROID__)
+    const char* storagePath = std::getenv("TRIAEVUM_STORAGE_PATH");
+    if (storagePath != nullptr && *storagePath != 0) {
+        return std::string(storagePath);
+    }
+    return "/sdcard/Android/data/org.triaevum.android/files";
+#elif defined(__linux__)
     char* fpath = std::getenv("SHIP_HOME");
     if (fpath != NULL) {
         return std::string(fpath);
     }
 #endif
 
-#ifdef NON_PORTABLE
+#if defined(NON_PORTABLE) && !defined(__ANDROID__)
     const std::string& effectiveAppName = appName.empty() ? GetInstance()->mShortName : appName;
     char* prefpath = SDL_GetPrefPath(NULL, effectiveAppName.c_str());
     if (prefpath != NULL) {

@@ -6,9 +6,13 @@
 #include "ship/controller/controldeck/ControlDeck.h"
 #include "ship/config/ConsoleVariable.h"
 #include "fast/interpreter.h"
+#if !defined(__ANDROID__)
 #include "fast/backends/gfx_sdl.h"
+#endif
 #include "fast/backends/gfx_dxgi.h"
+#ifdef ENABLE_OPENGL
 #include "fast/backends/gfx_opengl.h"
+#endif
 #include "fast/backends/gfx_metal.h"
 #include "fast/backends/gfx_direct3d_common.h"
 #include "fast/backends/gfx_direct3d11.h"
@@ -47,7 +51,9 @@ Fast3dWindow::Fast3dWindow(std::shared_ptr<Ship::Gui> gui, std::shared_ptr<FastM
         AddAvailableWindowBackend(WindowBackend::FAST3D_SDL_METAL);
     }
 #endif
+#if !defined(__ANDROID__)
     AddAvailableWindowBackend(WindowBackend::FAST3D_SDL_OPENGL);
+#endif
 }
 
 Fast3dWindow::Fast3dWindow(std::shared_ptr<Ship::Gui> gui)
@@ -159,7 +165,7 @@ void Fast3dWindow::InitWindowManager() {
             mRenderingApi = new GfxRenderingAPIDX11(static_cast<GfxWindowBackendDXGI*>(mWindowManagerApi));
             break;
 #endif
-#ifdef ENABLE_OPENGL
+#if defined(ENABLE_OPENGL) && !defined(__ANDROID__)
         case WindowBackend::FAST3D_SDL_OPENGL:
             mRenderingApi = new GfxRenderingAPIOGL();
             mWindowManagerApi = new GfxWindowBackendSDL2();

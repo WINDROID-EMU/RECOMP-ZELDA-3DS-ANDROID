@@ -17,7 +17,9 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     list(FILTER Source_Files__Audio EXCLUDE REGEX "audio/CoreAudioAudioPlayer.*")
 endif()
 
-if (NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
+if (CMAKE_SYSTEM_NAME STREQUAL "Android")
+    list(FILTER Source_Files__Audio EXCLUDE REGEX "audio/SDLAudioPlayer.*")
+else()
     list(FILTER Source_Files__Audio EXCLUDE REGEX "audio/AAudioAudioPlayer.*")
 endif()
 

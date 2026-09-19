@@ -21,6 +21,7 @@ float SDLButtonToAxisDirectionMapping::GetNormalizedAxisDirectionValue() {
         return 0.0f;
     }
 
+#if !defined(__ANDROID__)
     for (const auto& [instanceId, gamepad] : Context::GetRawInstance()
                                                  ->GetControlDeck()
                                                  ->GetConnectedPhysicalDeviceManager()
@@ -29,6 +30,7 @@ float SDLButtonToAxisDirectionMapping::GetNormalizedAxisDirectionValue() {
             return MAX_AXIS_RANGE;
         }
     }
+#endif
 
     return 0.0f;
 }

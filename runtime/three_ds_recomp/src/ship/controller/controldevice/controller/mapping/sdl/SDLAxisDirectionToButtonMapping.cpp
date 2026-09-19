@@ -32,6 +32,7 @@ void SDLAxisDirectionToButtonMapping::UpdatePad(CONTROLLERBUTTONS_T& padButtons)
                                       ->GetTriggerAxisThresholdPercentage();
     }
 
+#if !defined(__ANDROID__)
     for (const auto& [instanceId, gamepad] : Context::GetRawInstance()
                                                  ->GetControlDeck()
                                                  ->GetConnectedPhysicalDeviceManager()
@@ -44,6 +45,7 @@ void SDLAxisDirectionToButtonMapping::UpdatePad(CONTROLLERBUTTONS_T& padButtons)
             padButtons |= mBitmask;
         }
     }
+#endif
 }
 
 int8_t SDLAxisDirectionToButtonMapping::GetMappingType() {

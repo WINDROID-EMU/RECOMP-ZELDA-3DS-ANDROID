@@ -163,6 +163,12 @@ AxisDirectionMappingFactory::CreateDefaultSDLAxisDirectionMappings(uint8_t portI
 std::shared_ptr<ControllerAxisDirectionMapping>
 AxisDirectionMappingFactory::CreateAxisDirectionMappingFromSDLInput(uint8_t portIndex, StickIndex stickIndex,
                                                                     Direction direction) {
+#if defined(__ANDROID__)
+    (void)portIndex;
+    (void)stickIndex;
+    (void)direction;
+    return nullptr;
+#else
     std::shared_ptr<ControllerAxisDirectionMapping> mapping = nullptr;
 
     for (auto [instanceId, gamepad] : Context::GetRawInstance()
@@ -198,9 +204,14 @@ AxisDirectionMappingFactory::CreateAxisDirectionMappingFromSDLInput(uint8_t port
                                                                                axisDirection);
             break;
         }
+
+        if (mapping != nullptr) {
+            break;
+        }
     }
 
     return mapping;
+#endif
 }
 
 std::shared_ptr<ControllerAxisDirectionMapping>

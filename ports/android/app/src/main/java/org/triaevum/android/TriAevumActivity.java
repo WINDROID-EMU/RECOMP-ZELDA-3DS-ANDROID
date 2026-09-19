@@ -220,6 +220,109 @@ public final class TriAevumActivity extends Activity {
     }
 
     @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+        if (mInputTarget != null) {
+            int keyCode = event.getKeyCode();
+            if (keyCode == android.view.KeyEvent.KEYCODE_BACK) {
+                int source = event.getSource();
+                if ((source & android.view.InputDevice.SOURCE_GAMEPAD) != android.view.InputDevice.SOURCE_GAMEPAD &&
+                    (source & android.view.InputDevice.SOURCE_JOYSTICK) != android.view.InputDevice.SOURCE_JOYSTICK) {
+                    return super.dispatchKeyEvent(event);
+                }
+            }
+            int hidMask = getHidMaskForKeyCode(keyCode);
+            if (hidMask != 0) {
+                if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
+                    mInputTarget.button(hidMask, true);
+                    return true;
+                } else if (event.getAction() == android.view.KeyEvent.ACTION_UP) {
+                    mInputTarget.button(hidMask, false);
+                    return true;
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean onGenericMotionEvent(android.view.MotionEvent event) {
+        if (mInputTarget != null && ((event.getSource() & android.view.InputDevice.SOURCE_JOYSTICK) == android.view.InputDevice.SOURCE_JOYSTICK ||
+                                     (event.getSource() & android.view.InputDevice.SOURCE_GAMEPAD) == android.view.InputDevice.SOURCE_GAMEPAD)) {
+            if (event.getAction() == android.view.MotionEvent.ACTION_MOVE) {
+                float x = event.getAxisValue(android.view.MotionEvent.AXIS_X);
+                float y = event.getAxisValue(android.view.MotionEvent.AXIS_Y);
+                if (Math.abs(x) < 0.15f) x = 0.0f;
+                if (Math.abs(y) < 0.15f) y = 0.0f;
+                mInputTarget.circlePad(Math.max(-1.0f, Math.min(1.0f, x)), Math.max(-1.0f, Math.min(1.0f, -y)));
+
+                float rx = event.getAxisValue(android.view.MotionEvent.AXIS_Z);
+                float ry = event.getAxisValue(android.view.MotionEvent.AXIS_RZ);
+                if (rx == 0.0f && ry == 0.0f) {
+                    rx = event.getAxisValue(android.view.MotionEvent.AXIS_RX);
+                    ry = event.getAxisValue(android.view.MotionEvent.AXIS_RY);
+                }
+                if (Math.abs(rx) < 0.15f) rx = 0.0f;
+                if (Math.abs(ry) < 0.15f) ry = 0.0f;
+                mInputTarget.cStick(Math.max(-1.0f, Math.min(1.0f, rx)), Math.max(-1.0f, Math.min(1.0f, -ry)));
+
+                float hatX = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X);
+                float hatY = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y);
+                mInputTarget.button(1 << 5, hatX < -0.5f); // DPAD_LEFT
+                mInputTarget.button(1 << 4, hatX > 0.5f);  // DPAD_RIGHT
+                mInputTarget.button(1 << 6, hatY < -0.5f); // DPAD_UP
+                mInputTarget.button(1 << 7, hatY > 0.5f);  // DPAD_DOWN
+
+                float lTrigger = event.getAxisValue(android.view.MotionEvent.AXIS_LTRIGGER);
+                if (lTrigger == 0.0f) lTrigger = event.getAxisValue(android.view.MotionEvent.AXIS_BRAKE);
+                float rTrigger = event.getAxisValue(android.view.MotionEvent.AXIS_RTRIGGER);
+                if (rTrigger == 0.0f) rTrigger = event.getAxisValue(android.view.MotionEvent.AXIS_GAS);
+                if (lTrigger > 0.5f) mInputTarget.button(1 << 14, true);
+                if (rTrigger > 0.5f) mInputTarget.button(1 << 15, true);
+
+                return true;
+            }
+        }
+        return super.onGenericMotionEvent(event);
+    }
+
+    private static int getHidMaskForKeyCode(int keyCode) {
+        switch (keyCode) {
+            case android.view.KeyEvent.KEYCODE_BUTTON_A:
+                return 1 << 0;
+            case android.view.KeyEvent.KEYCODE_BUTTON_B:
+                return 1 << 1;
+            case android.view.KeyEvent.KEYCODE_BUTTON_SELECT:
+            case android.view.KeyEvent.KEYCODE_BACK:
+                return 1 << 2;
+            case android.view.KeyEvent.KEYCODE_BUTTON_START:
+            case android.view.KeyEvent.KEYCODE_MENU:
+                return 1 << 3;
+            case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
+                return 1 << 4;
+            case android.view.KeyEvent.KEYCODE_DPAD_LEFT:
+                return 1 << 5;
+            case android.view.KeyEvent.KEYCODE_DPAD_UP:
+                return 1 << 6;
+            case android.view.KeyEvent.KEYCODE_DPAD_DOWN:
+                return 1 << 7;
+            case android.view.KeyEvent.KEYCODE_BUTTON_R1:
+                return 1 << 8;
+            case android.view.KeyEvent.KEYCODE_BUTTON_L1:
+                return 1 << 9;
+            case android.view.KeyEvent.KEYCODE_BUTTON_X:
+                return 1 << 10;
+            case android.view.KeyEvent.KEYCODE_BUTTON_Y:
+                return 1 << 11;
+            case android.view.KeyEvent.KEYCODE_BUTTON_L2:
+                return 1 << 14;
+            case android.view.KeyEvent.KEYCODE_BUTTON_R2:
+                return 1 << 15;
+            default:
+                return 0;
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         // Clean process termination to prevent dirty static globals from persisting

@@ -4,7 +4,11 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#if !defined(__ANDROID__)
 #include <SDL2/SDL.h>
+#else
+#include "ship/controller/controldevice/controller/mapping/sdl/SDLMapping.h"
+#endif
 #include "ControllerAxisDirectionMapping.h"
 
 #ifndef CONTROLLERBUTTONS_T

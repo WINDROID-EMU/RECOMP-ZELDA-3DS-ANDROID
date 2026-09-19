@@ -23,8 +23,8 @@ float SDLAxisDirectionToAxisDirectionMapping::GetNormalizedAxisDirectionValue() 
         return 0.0f;
     }
 
-    // todo: i don't like making a vector here, not sure what a better solution is
     std::vector<float> normalizedValues = {};
+#if !defined(__ANDROID__)
     for (const auto& [instanceId, gamepad] : Context::GetRawInstance()
                                                  ->GetControlDeck()
                                                  ->GetConnectedPhysicalDeviceManager()
@@ -40,6 +40,7 @@ float SDLAxisDirectionToAxisDirectionMapping::GetNormalizedAxisDirectionValue() 
         // and use the absolute value of it
         normalizedValues.push_back(fabs(axisValue * MAX_AXIS_RANGE / MAX_SDL_RANGE));
     }
+#endif
 
     if (normalizedValues.size() == 0) {
         return 0.0f;
