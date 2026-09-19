@@ -53,6 +53,7 @@
 #include "oot3d_native_ui_lifecycle_bridge.h"
 #include "oot3d_native_ui_texture_provider.h"
 #include "oot3d_top_screen_ocarina_text_runtime.h"
+#include "oot3d_player_sprint_runtime.h"
 #include "oot3d_native_whole_aot_runtime.h"
 #ifdef OOT3D_NATIVE_DIRECT_AOT_PLUGIN
 #include "oot3d_native_direct_aot.h"
@@ -699,6 +700,7 @@ struct NativeCandidateDispatchState {
   Oot3dNativeGame::TopScreenExtendedInputFrame TopScreenInput;
   Oot3dNativeGame::TopScreenInputCadence TopScreenInputClock;
   uint32_t PreviousTopScreenButtons = 0U;
+  Oot3dNativeGame::PlayerSprintRuntime PlayerSprint;
   Oot3dNativeGame::NativeA32PolledButtonLatch StartButtonLatch;
   Oot3dNativeGame::TopScreenStartRoutingState TopScreenStartRouting;
   Oot3dNativeGame::TopScreenPauseSystemOpenState TopScreenPauseSystemOpen;
@@ -4662,6 +4664,7 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
     nativeCandidateDispatch.TopScreenInput = {};
     nativeCandidateDispatch.TopScreenInputClock.Reset();
     nativeCandidateDispatch.TopScreenGameplayActionRuntime = {};
+    nativeCandidateDispatch.PlayerSprint.Reset();
     nativeCandidateDispatch.PreviousTopScreenButtons = 0U;
     nativeCandidateDispatch.StartButtonLatch = {};
     nativeCandidateDispatch.TopScreenStartRouting = {};
@@ -5216,6 +5219,18 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
               std::max(maximumVblankDeadlineOvershootTicks,
                        clockResolution.OvershootTicks);
         }
+        if (nativeCandidateDispatch.PlayerSprint.IsSprinting()) {
+          const float cx = static_cast<float>(inputFrame.Hid.CirclePadX);
+          const float cy = static_cast<float>(inputFrame.Hid.CirclePadY);
+          const float mag = std::sqrt(cx * cx + cy * cy);
+          if (mag > 10.0f) {
+            const float scale = 154.0f / mag;
+            inputFrame.Hid.CirclePadX = std::clamp<int16_t>(
+                static_cast<int16_t>(std::lround(cx * scale)), -154, 154);
+            inputFrame.Hid.CirclePadY = std::clamp<int16_t>(
+                static_cast<int16_t>(std::lround(cy * scale)), -154, 154);
+          }
+        }
         const auto hidUpdate = hostServices.AdvanceHidToCurrentTick(
             process.Memory(), inputFrame.Hid);
         if (hidUpdate.Status ==
@@ -5231,6 +5246,22 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
               RunUntilGuestWait(process, launch.WholeAotBlockBudget);
           phaseTiming.GuestSeconds += SecondsSince(phaseStart);
           RequireRunnableGuest(processResult);
+
+          const bool aHeld =
+              (inputFrame.Hid.Buttons &
+               ThreeDsRecomp::Input::ButtonMask(ThreeDsRecomp::Input::Button::A)) != 0U;
+          const bool aPressed =
+              aHeld &&
+              ((nativeCandidateDispatch.PreviousTopScreenButtons &
+                ThreeDsRecomp::Input::ButtonMask(ThreeDsRecomp::Input::Button::A)) == 0U);
+          Oot3dNativeGame::ApplyGuestPlayerSprint(
+              process.Memory(),
+              nativeCandidateDispatch.PlayerSprint,
+              aHeld,
+              aPressed,
+              static_cast<float>(inputFrame.Hid.CirclePadX),
+              static_cast<float>(inputFrame.Hid.CirclePadY));
+          nativeCandidateDispatch.PreviousTopScreenButtons = inputFrame.Hid.Buttons;
         }
         const uint32_t dspAudioFrames =
             hostServices.TakePendingDspAudioFrames();

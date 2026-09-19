@@ -3084,6 +3084,7 @@ add_library(oot3d_native_game_runtime STATIC EXCLUDE_FROM_ALL
     tools/oot3d/native_game_runtime/oot3d_native_player_animation_catalog.cpp
     tools/oot3d/native_game_runtime/oot3d_native_root_motion.cpp
     tools/oot3d/native_game_runtime/oot3d_native_skel_anime.cpp
+    tools/oot3d/native_game_runtime/oot3d_player_sprint_runtime.cpp
 )
 target_include_directories(oot3d_native_game_runtime PUBLIC
     tools/oot3d/decomp_support/include
@@ -3166,6 +3167,17 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 endif()
 set_property(TARGET oot3d_native_actor_core_contract_tests PROPERTY FOLDER Tests)
 set_property(TARGET oot3d_native_actor_runtime_tests PROPERTY FOLDER Tests)
+
+add_executable(oot3d_player_sprint_runtime_tests EXCLUDE_FROM_ALL
+    tools/oot3d/native_game_runtime/oot3d_player_sprint_runtime_tests.cpp
+)
+target_link_libraries(oot3d_player_sprint_runtime_tests PRIVATE oot3d_native_game_runtime)
+target_compile_options(oot3d_player_sprint_runtime_tests PRIVATE "${WARNING_OVERRIDE}")
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_compile_definitions(oot3d_player_sprint_runtime_tests PRIVATE NOMINMAX)
+    set_property(TARGET oot3d_player_sprint_runtime_tests PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+set_property(TARGET oot3d_player_sprint_runtime_tests PROPERTY FOLDER Tests)
 
 add_executable(oot3d_native_a32_execution_tests EXCLUDE_FROM_ALL
     tools/oot3d/native_game_runtime/oot3d_native_a32_execution_tests.cpp
