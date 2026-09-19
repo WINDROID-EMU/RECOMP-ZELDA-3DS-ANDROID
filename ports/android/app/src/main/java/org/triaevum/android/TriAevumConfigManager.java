@@ -348,4 +348,37 @@ public final class TriAevumConfigManager {
         setMinimapVisible(true);
         setRenderDpadIcons(true);
     }
+
+    /**
+     * Ensures TriAevum.android.launch.json enables visual interpolation and 60 Hz presentation,
+     * allowing user selection in the config dialog to seamlessly toggle between 30 and 60 FPS.
+     */
+    public void ensureLaunchProfileOptimized() {
+        JSONObject profile = readJson("TriAevum.android.launch.json");
+        try {
+            org.json.JSONArray args = profile.optJSONArray("arguments");
+            if (args != null) {
+                boolean changed = false;
+                for (int i = 0; i < args.length() - 1; i++) {
+                    if ("--gameplay-timing".equals(args.getString(i))) {
+                        if (!"native30_interpolated".equals(args.getString(i + 1))) {
+                            args.put(i + 1, "native30_interpolated");
+                            changed = true;
+                        }
+                    } else if ("--presentation-rate".equals(args.getString(i))) {
+                        if (!"60".equals(args.getString(i + 1))) {
+                            args.put(i + 1, "60");
+                            changed = true;
+                        }
+                    }
+                }
+                if (changed) {
+                    writeJson("TriAevum.android.launch.json", profile);
+                    Log.i(TAG, "TriAevum.android.launch.json successfully updated for 60 FPS support");
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to optimize launch profile", e);
+        }
+    }
 }

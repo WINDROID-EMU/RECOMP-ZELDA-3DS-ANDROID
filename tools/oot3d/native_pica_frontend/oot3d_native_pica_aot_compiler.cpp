@@ -3,16 +3,20 @@
 #include "fast/oot3d/builtin_pass_shaders.h"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <limits>
 #include <map>
+#include <mutex>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -26,6 +30,7 @@ struct Options {
     std::filesystem::path Manifest;
     std::filesystem::path MergedInventory;
     std::filesystem::path RendererCache;
+    uint32_t Threads = 0;
 };
 
 void PrintUsage() {
@@ -33,7 +38,7 @@ void PrintUsage() {
         << "usage: oot3d_native_pica_aot_compiler "
            "--inventory <file> [--inventory <file> ...] "
            "--pack <file> --manifest <file> "
-           "[--merged-inventory <file>]\n"
+           "[--merged-inventory <file>] [--threads <count>]\n"
         << "or: --prepare-renderer-cache <directory> --manifest <file>\n";
 }
 
@@ -53,7 +58,13 @@ bool ParseOptions(int argc, char** argv, Options& options) {
             options.MergedInventory = value;
         else if (argument == "--prepare-renderer-cache")
             options.RendererCache = value;
-        else
+        else if (argument == "--threads") {
+            try {
+                options.Threads = static_cast<uint32_t>(std::stoul(value.string()));
+            } catch (...) {
+                return false;
+            }
+        } else
             return false;
     }
     if (!options.RendererCache.empty())
@@ -241,43 +252,137 @@ int main(int argc, char** argv) {
             WriteJsonAtomically(options.MergedInventory, merged);
         }
 
-        shaderc::Compiler compiler;
-        std::vector<PicaAotShaderBinary> binaries;
-        binaries.reserve(inputs.size());
-        nlohmann::json manifestEntries = nlohmann::json::array();
-        for (const auto& input : inputs) {
-            PicaAotShaderStage stage;
-            const std::string stageName = input.at("stage");
-            if (!ParsePicaAotShaderStage(stageName, stage))
+        PicaAotShaderPack existingPack;
+        bool hasCache = false;
+        std::string existingError;
+        if (std::filesystem::exists(options.Pack)) {
+            if (existingPack.Load(options.Pack, &existingError) &&
+                existingPack.DescriptorSchemaVersion() == schema) {
+                hasCache = true;
+            }
+        }
+
+        struct ShaderTask {
+            PicaAotShaderStage Stage = PicaAotShaderStage::Vertex;
+            std::string StageName;
+            std::string Source;
+            std::string SourceName;
+            PicaAotShaderSourceIdentity Identity;
+            std::vector<uint32_t> Spirv;
+            bool FromCache = false;
+        };
+
+        std::vector<ShaderTask> tasks(inputs.size());
+        size_t cachedCount = 0;
+        std::vector<size_t> compilationIndices;
+        compilationIndices.reserve(inputs.size());
+
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            const auto& input = inputs[i];
+            auto& task = tasks[i];
+            task.StageName = input.at("stage");
+            if (!ParsePicaAotShaderStage(task.StageName, task.Stage))
                 throw std::runtime_error("unknown shader stage: " +
-                                         stageName);
-            const std::string source = input.at("source");
-            const auto identity = IdentifyPicaAotShaderSource(source);
+                                         task.StageName);
+            task.Source = input.at("source");
+            task.Identity = IdentifyPicaAotShaderSource(task.Source);
             if (input.value("source_id", std::string{}) !=
-                    FormatPicaAotShaderId(identity.Id) ||
+                    FormatPicaAotShaderId(task.Identity.Id) ||
                 input.value("secondary_hash", std::string{}) !=
-                    FormatPicaAotShaderId(identity.SecondaryHash) ||
-                input.value("source_size", uint64_t{0}) != identity.Size) {
+                    FormatPicaAotShaderId(task.Identity.SecondaryHash) ||
+                input.value("source_size", uint64_t{0}) != task.Identity.Size) {
                 throw std::runtime_error(
                     "shader source identity does not match inventory");
             }
-            const std::string sourceName =
-                "pica_" + stageName + "_" +
-                FormatPicaAotShaderId(identity.Id) +
-                (stage == PicaAotShaderStage::Vertex ? ".vert" :
-                                                       ".frag");
-            auto spirv = CompileShader(compiler, source, stage, sourceName);
-            const uint64_t spirvHash = HashWords(spirv);
+            task.SourceName =
+                "pica_" + task.StageName + "_" +
+                FormatPicaAotShaderId(task.Identity.Id) +
+                (task.Stage == PicaAotShaderStage::Vertex ? ".vert" :
+                                                           ".frag");
+
+            if (hasCache) {
+                const auto cachedSpirv = existingPack.Find(task.Stage, task.Identity);
+                if (!cachedSpirv.empty()) {
+                    task.Spirv.assign(cachedSpirv.begin(), cachedSpirv.end());
+                    task.FromCache = true;
+                    ++cachedCount;
+                    continue;
+                }
+            }
+            compilationIndices.push_back(i);
+        }
+
+        const auto compileStart = std::chrono::steady_clock::now();
+        const uint32_t hardwareThreads = std::max(1u, std::thread::hardware_concurrency());
+        const uint32_t threadCount = options.Threads > 0
+            ? options.Threads
+            : std::min(hardwareThreads,
+                       static_cast<uint32_t>(compilationIndices.empty() ? 1u : compilationIndices.size()));
+
+        if (!compilationIndices.empty()) {
+            std::atomic<size_t> nextJob{0};
+            std::atomic<bool> compilationFailed{false};
+            std::string firstError;
+            std::mutex errorMutex;
+
+            auto worker = [&]() {
+                shaderc::Compiler compiler;
+                while (true) {
+                    if (compilationFailed.load(std::memory_order_relaxed))
+                        break;
+                    const size_t job = nextJob.fetch_add(1, std::memory_order_relaxed);
+                    if (job >= compilationIndices.size())
+                        break;
+                    const size_t taskIndex = compilationIndices[job];
+                    auto& task = tasks[taskIndex];
+                    try {
+                        task.Spirv = CompileShader(compiler, task.Source, task.Stage, task.SourceName);
+                    } catch (const std::exception& exception) {
+                        std::lock_guard<std::mutex> lock(errorMutex);
+                        if (!compilationFailed.load(std::memory_order_relaxed)) {
+                            compilationFailed.store(true, std::memory_order_relaxed);
+                            firstError = exception.what();
+                        }
+                        break;
+                    }
+                }
+            };
+
+            if (threadCount <= 1 || compilationIndices.size() <= 1) {
+                worker();
+            } else {
+                std::vector<std::thread> workers;
+                workers.reserve(threadCount);
+                for (uint32_t t = 0; t < threadCount; ++t)
+                    workers.emplace_back(worker);
+                for (auto& workerThread : workers) {
+                    if (workerThread.joinable())
+                        workerThread.join();
+                }
+            }
+
+            if (compilationFailed.load(std::memory_order_relaxed))
+                throw std::runtime_error(firstError);
+        }
+        const auto compileEnd = std::chrono::steady_clock::now();
+        const auto compileMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+            compileEnd - compileStart).count();
+
+        std::vector<PicaAotShaderBinary> binaries;
+        binaries.reserve(tasks.size());
+        nlohmann::json manifestEntries = nlohmann::json::array();
+        for (auto& task : tasks) {
+            const uint64_t spirvHash = HashWords(task.Spirv);
             manifestEntries.push_back({
-                {"stage", stageName},
-                {"source_id", FormatPicaAotShaderId(identity.Id)},
+                {"stage", task.StageName},
+                {"source_id", FormatPicaAotShaderId(task.Identity.Id)},
                 {"secondary_hash",
-                 FormatPicaAotShaderId(identity.SecondaryHash)},
-                {"source_size", identity.Size},
-                {"spirv_words", spirv.size()},
+                 FormatPicaAotShaderId(task.Identity.SecondaryHash)},
+                {"source_size", task.Identity.Size},
+                {"spirv_words", task.Spirv.size()},
                 {"spirv_hash", FormatPicaAotShaderId(spirvHash)},
             });
-            binaries.push_back({stage, identity, std::move(spirv)});
+            binaries.push_back({task.Stage, task.Identity, std::move(task.Spirv)});
         }
 
         std::string error;
@@ -322,8 +427,10 @@ int main(int argc, char** argv) {
         };
         WriteJsonAtomically(options.Manifest, manifest);
         std::cout << "PICA AOT shader pack: " << binaries.size()
-                  << " modules, schema " << schema << ", "
-                  << options.Pack.string() << '\n';
+                  << " modules (" << cachedCount << " cached, "
+                  << compilationIndices.size() << " compiled in "
+                  << compileMs << "ms across " << threadCount << " threads), schema "
+                  << schema << ", " << options.Pack.string() << '\n';
         return 0;
     } catch (const std::exception& exception) {
         std::cerr << "oot3d_native_pica_aot_compiler: "

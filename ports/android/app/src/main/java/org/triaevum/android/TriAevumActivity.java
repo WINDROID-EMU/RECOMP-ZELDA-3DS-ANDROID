@@ -43,6 +43,21 @@ public final class TriAevumActivity extends SDLActivity {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        // Suppress verbose Qualcomm Adreno / Gralloc probing errors in Logcat
+        try {
+            Class<?> sp = Class.forName("android.os.SystemProperties");
+            java.lang.reflect.Method set = sp.getMethod("set", String.class, String.class);
+            set.invoke(null, "log.tag.qdgralloc", "WARN");
+            set.invoke(null, "log.tag.GraphicBufferAllocator", "WARN");
+            set.invoke(null, "log.tag.Gralloc4", "WARN");
+            set.invoke(null, "log.tag.AHardwareBuffer", "WARN");
+        } catch (Throwable ignored) {}
+
+        // Ensure launch profile allows 60 FPS interpolation
+        try {
+            new TriAevumConfigManager(this).ensureLaunchProfileOptimized();
+        } catch (Throwable ignored) {}
+
         // Enable edge-to-edge layout across the entire physical display including camera cutouts
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             getWindow().getAttributes().layoutInDisplayCutoutMode =
