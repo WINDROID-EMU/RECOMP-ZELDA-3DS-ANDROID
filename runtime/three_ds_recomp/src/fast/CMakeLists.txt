@@ -39,6 +39,10 @@ if (CMAKE_SYSTEM_NAME STREQUAL "iOS")
     list(FILTER Source_Files__Graphic EXCLUDE REGEX "^backends/gfx_opengl.*")
 endif()
 
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
+    list(FILTER Source_Files__Graphic EXCLUDE REGEX "^backends/gfx_android.*")
+endif()
+
 if(NOT THREE_DS_RECOMP_ENABLE_VULKAN)
     list(FILTER Source_Files__Graphic EXCLUDE REGEX
         "^backends/(gfx_vulkan|oot3d_vulkan_(gpu_profiler|validation)).*")

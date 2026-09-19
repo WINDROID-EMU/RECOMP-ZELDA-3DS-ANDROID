@@ -17,6 +17,10 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     list(FILTER Source_Files__Audio EXCLUDE REGEX "audio/CoreAudioAudioPlayer.*")
 endif()
 
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
+    list(FILTER Source_Files__Audio EXCLUDE REGEX "audio/AAudioAudioPlayer.*")
+endif()
+
 source_group("audio" FILES ${Source_Files__Audio})
 target_sources(three_ds_recomp_runtime PRIVATE ${Source_Files__Audio})
 

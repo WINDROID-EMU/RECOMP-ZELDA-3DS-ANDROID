@@ -241,6 +241,7 @@ bool Fast3dGui::SupportsViewports() {
 }
 
 void Fast3dGui::HandleWindowEvents(Fast::WindowEvent event) {
+#if !defined(__ANDROID__)
     switch (mImpl.Backend) {
         case WindowBackend::FAST3D_SDL_OPENGL:
         case WindowBackend::FAST3D_SDL_METAL:
@@ -314,6 +315,9 @@ void Fast3dGui::HandleWindowEvents(Fast::WindowEvent event) {
         default:
             break;
     }
+#else
+    (void)event;
+#endif
 }
 
 void Fast3dGui::DrawMenu() {
@@ -361,7 +365,11 @@ void Fast3dGui::ImGuiWMInit() {
             break;
 #ifdef ENABLE_OOT3D_VULKAN
         case WindowBackend::FAST3D_SDL_OOT3D_VULKAN:
+#if !defined(__ANDROID__)
             ImGui_ImplSDL2_InitForVulkan(static_cast<SDL_Window*>(mImpl.Vulkan.Window));
+#else
+            ImGui::GetIO().BackendPlatformName = "imgui_impl_android_native";
+#endif
             break;
 #endif
 #if __APPLE__
@@ -392,7 +400,11 @@ void Fast3dGui::ImGuiWMShutdown() {
 #endif
 #ifdef ENABLE_OOT3D_VULKAN
         case WindowBackend::FAST3D_SDL_OOT3D_VULKAN:
+#if !defined(__ANDROID__)
             ImGui_ImplSDL2_Shutdown();
+#else
+            ImGui::GetIO().BackendPlatformName = nullptr;
+#endif
             break;
 #endif
 #if __APPLE__
@@ -518,6 +530,7 @@ void Fast3dGui::ImGuiBackendNewFrame() {
 }
 
 void Fast3dGui::SyncOot3dVulkanMousePosition() {
+#if !defined(__ANDROID__)
 #ifdef ENABLE_OOT3D_VULKAN
     if (mImpl.Backend != WindowBackend::FAST3D_SDL_OOT3D_VULKAN) {
         return;
@@ -533,9 +546,18 @@ void Fast3dGui::SyncOot3dVulkanMousePosition() {
         io.AddMousePosEvent(mousePosition.X, mousePosition.Y);
     }
 #endif
+#endif
 }
 
 void Fast3dGui::ImGuiWMNewFrame() {
+#if defined(__ANDROID__)
+    ImGuiIO& io = ImGui::GetIO();
+    auto context = Ship::Context::GetRawInstance();
+    if (context && context->GetWindow()) {
+        io.DisplaySize = ImVec2(static_cast<float>(context->GetWindow()->GetWidth()),
+                                static_cast<float>(context->GetWindow()->GetHeight()));
+    }
+#else
     switch (mImpl.Backend) {
         case WindowBackend::FAST3D_SDL_OPENGL:
         case WindowBackend::FAST3D_SDL_METAL:
@@ -564,6 +586,7 @@ void Fast3dGui::ImGuiWMNewFrame() {
         default:
             break;
     }
+#endif
 }
 
 void Fast3dGui::ImGuiRenderDrawData(ImDrawData* data) {

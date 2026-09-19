@@ -15,6 +15,7 @@ void SDLAddRemoveDeviceEventHandler::DrawElement() {
 }
 
 void SDLAddRemoveDeviceEventHandler::UpdateElement() {
+#if !defined(__ANDROID__)
     SDL_PumpEvents();
     SDL_Event event;
     while (SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_CONTROLLERDEVICEADDED, SDL_CONTROLLERDEVICEADDED) > 0) {
@@ -32,5 +33,6 @@ void SDLAddRemoveDeviceEventHandler::UpdateElement() {
             ->GetConnectedPhysicalDeviceManager()
             ->HandlePhysicalDeviceDisconnect(event.cdevice.which);
     }
+#endif
 }
 } // namespace Ship

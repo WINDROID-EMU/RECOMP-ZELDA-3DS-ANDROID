@@ -7,6 +7,7 @@
 static bool isShowingVirtualKeyboard = true;
 
 void Ship::Mobile::ImGuiProcessEvent(bool wantsTextInput) {
+#if !defined(__ANDROID__)
     ImGuiInputTextState* state = ImGui::GetInputTextState(ImGui::GetActiveID());
 
     if (wantsTextInput) {
@@ -22,5 +23,8 @@ void Ship::Mobile::ImGuiProcessEvent(bool wantsTextInput) {
             SDL_StopTextInput();
         }
     }
+#else
+    (void)wantsTextInput;
+#endif
 }
 #endif

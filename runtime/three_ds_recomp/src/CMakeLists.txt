@@ -173,6 +173,10 @@ if (USE_OPENGLES)
     endif()
 endif()
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Android")
+    target_link_libraries(three_ds_recomp_runtime PRIVATE aaudio android)
+endif()
+
 target_link_libraries(three_ds_recomp_runtime PUBLIC prism monocypher)
 
 if(THREE_DS_RECOMP_ENABLE_VULKAN)

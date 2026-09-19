@@ -31,6 +31,9 @@
 #if defined(_WIN32)
 #include "ship/audio/WasapiAudioPlayer.h"
 #endif
+#if defined(__ANDROID__)
+#include "ship/audio/AAudioAudioPlayer.h"
+#endif
 #include "ship/audio/SDLAudioPlayer.h"
 #ifdef __APPLE__
 #include "ship/utils/AppleFolderManager.h"

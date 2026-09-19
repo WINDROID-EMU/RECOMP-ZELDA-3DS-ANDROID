@@ -15,6 +15,9 @@
 #ifdef ENABLE_OOT3D_VULKAN
 #include "fast/backends/gfx_vulkan.h"
 #include "fast/oot3d/graphics_settings_runtime.h"
+#if defined(__ANDROID__)
+#include "fast/backends/gfx_android.h"
+#endif
 #endif
 #include "fast/backends/gfx_window_manager_api.h"
 
@@ -174,9 +177,12 @@ void Fast3dWindow::InitWindowManager() {
                 SPDLOG_ERROR("OOT3D Vulkan backend was selected without native-host opt-in");
                 break;
             }
+#if defined(__ANDROID__)
+            mWindowManagerApi = new GfxWindowBackendAndroid();
+#else
             mWindowManagerApi = new GfxWindowBackendSDL2();
-            mRenderingApi =
-                new GfxRenderingAPIVulkan(static_cast<GfxWindowBackendSDL2*>(mWindowManagerApi));
+#endif
+            mRenderingApi = new GfxRenderingAPIVulkan(mWindowManagerApi);
             break;
 #endif
         default:

@@ -10,12 +10,14 @@ import subprocess
 def stage(runtime: Path, title: Path, ndk: Path, output: Path) -> None:
     llvm = ndk / "toolchains/llvm/prebuilt/linux-x86_64"
     source = {
-        "libSDL2.so": runtime / "_deps/sdl2-build/libSDL2.so",
         "libTriAevum.so": runtime / "product/libTriAevum.so",
         "libtriaevum_title_bootstrap.so": runtime / "product/libtriaevum_title_bootstrap.so",
         "libtriaevum_title_aot.so": title,
         "libc++_shared.so": llvm / "sysroot/usr/lib/aarch64-linux-android/libc++_shared.so",
     }
+    sdl_so = runtime / "_deps/sdl2-build/libSDL2.so"
+    if sdl_so.is_file():
+        source["libSDL2.so"] = sdl_so
     for name, path in source.items():
         if not path.is_file():
             raise FileNotFoundError(f"{name}: {path}")

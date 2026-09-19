@@ -6,6 +6,10 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #endif
 
+#if defined(__ANDROID__) && !defined(VK_USE_PLATFORM_ANDROID_KHR)
+#define VK_USE_PLATFORM_ANDROID_KHR
+#endif
+
 #include "fast/backends/gfx_rendering_api.h"
 #include "fast/renderer/spirv_cache.h"
 #include "fast/backends/oot3d_vulkan_diagnostics.h"
@@ -66,6 +70,7 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <compare>
 #include <condition_variable>
 #include <cstdint>
@@ -83,7 +88,7 @@
 
 namespace Fast {
 
-class GfxWindowBackendSDL2;
+class GfxWindowBackend;
 
 struct VulkanShaderProgram {
     static constexpr uint32_t kAbsentAttribute = UINT32_MAX;
@@ -109,7 +114,7 @@ struct VulkanShaderProgram {
 
 class GfxRenderingAPIVulkan final : public GfxRenderingAPI, public Oot3d::TitleRenderBackend {
   public:
-    explicit GfxRenderingAPIVulkan(GfxWindowBackendSDL2* windowBackend);
+    explicit GfxRenderingAPIVulkan(GfxWindowBackend* windowBackend);
     ~GfxRenderingAPIVulkan() override;
 
     const char* GetName() override;
@@ -621,7 +626,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI, public Oot3d::TitleR
     void DrawTrianglesFromBuffer(VkBuffer vertexBuffer, VkDeviceSize vertexOffset, size_t bufVboLen,
                                  size_t bufVboNumTris);
 
-    GfxWindowBackendSDL2* mWindowBackend = nullptr;
+    GfxWindowBackend* mWindowBackend = nullptr;
     VkInstance mInstance = VK_NULL_HANDLE;
     VkSurfaceKHR mSurface = VK_NULL_HANDLE;
     VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
@@ -686,6 +691,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI, public Oot3d::TitleR
     bool mPresentWorkerStop = false;
     std::atomic_bool mPresentSwapchainDirty = false;
     std::atomic_bool mSwapchainSuboptimal = false;
+    std::chrono::steady_clock::time_point mLastSuboptimalSurfaceCheck{};
     std::atomic<int32_t> mPresentError = VK_SUCCESS;
     std::vector<VkFence> mImagesInFlight;
     VkDescriptorSetLayout mTextureDescriptorSetLayout = VK_NULL_HANDLE;
@@ -908,6 +914,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI, public Oot3d::TitleR
     uint32_t mNativePicaDepthWritingDrawsThisFrame = 0;
     Oot3d::SceneSurfaceRegistry mSceneSurfaces;
     Oot3d::ResourceStateTracker mResourceStates;
+    void* mLastNativeWindow = nullptr;
 };
 
 } // namespace Fast

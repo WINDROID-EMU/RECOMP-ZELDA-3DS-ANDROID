@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-#if defined(__SWITCH__) || defined(__ANDROID__)
+#if defined(__SWITCH__)
 #include <SDL.h>
 #endif
 
@@ -136,7 +136,7 @@ NativeGameArguments PrepareNativeGameArguments(int argc, char** argv) {
 
 } // namespace
 
-int main(int argc, char** argv) {
+int RunOot3dNativeGameMain(int argc, char** argv) {
     try {
 #if defined(__ANDROID__)
         InitializeAndroidGameHost();
@@ -262,6 +262,9 @@ int main(int argc, char** argv) {
         WriteSwitchBootStatus("failed", ex.what());
 #endif
         DestroyContextForDemo();
-        return 1;
     }
+}
+
+int main(int argc, char** argv) {
+    return RunOot3dNativeGameMain(argc, argv);
 }

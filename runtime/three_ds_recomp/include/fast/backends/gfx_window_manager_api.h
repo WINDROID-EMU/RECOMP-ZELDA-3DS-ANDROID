@@ -41,6 +41,11 @@ class GfxWindowBackend {
     virtual bool IsRunning() = 0;
     virtual void Destroy() = 0;
     virtual bool IsFullscreen() = 0;
+    virtual void* GetNativeWindow() const { return nullptr; }
+    virtual bool UsesVulkan() const { return true; }
+    virtual bool IsWindowedFullscreen() const { return false; }
+    virtual void SetWindowedFullscreen(bool) {}
+    virtual bool SetExclusiveFullscreenDisplayMode(uint32_t, uint32_t) { return false; }
 
   protected:
     void (*mOnFullscreenChanged)(bool isNowFullscreen);

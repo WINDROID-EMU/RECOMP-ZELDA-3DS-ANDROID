@@ -15,7 +15,11 @@
 namespace Oot3dNativeGame {
 namespace {
 
+#if defined(__ANDROID__)
+constexpr auto kMaximumSpinDuration = std::chrono::milliseconds(2);
+#else
 constexpr auto kMaximumSpinDuration = std::chrono::microseconds(500);
+#endif
 constexpr auto kMaximumRecoverableDebt = std::chrono::milliseconds(250);
 
 #ifdef _WIN32
@@ -33,6 +37,14 @@ NativePacerDeadlineAction ResolveNativePacerDeadlineAction(
     if (lateness.count() < 0 || presentationPeriod.count() <= 0) {
         return NativePacerDeadlineAction::Wait;
     }
+#if defined(__ANDROID__)
+    // On Android mobile displays with hardware VSync (60/120Hz), carrying debt
+    // across frames causes phase collisions and stutter against SurfaceFlinger.
+    // Resync immediately if lateness exceeds half of a presentation frame.
+    return lateness <= (presentationPeriod / 2)
+               ? NativePacerDeadlineAction::CarryDebt
+               : NativePacerDeadlineAction::Resync;
+#else
     const auto recoverablePeriods =
         std::max<uint32_t>(1U, maximumRecoverablePeriods);
     const auto maximumRecoverableLateness =
@@ -40,6 +52,7 @@ NativePacerDeadlineAction ResolveNativePacerDeadlineAction(
     return lateness <= maximumRecoverableLateness
                ? NativePacerDeadlineAction::CarryDebt
                : NativePacerDeadlineAction::Resync;
+#endif
 }
 
 NativeRealtimeRefreshPacer::NativeRealtimeRefreshPacer(

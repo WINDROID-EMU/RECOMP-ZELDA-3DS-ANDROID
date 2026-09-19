@@ -1,13 +1,18 @@
 #pragma once
 
-#include <SDL2/SDL.h>
+#if defined(__ANDROID__)
 
+#include <android/native_window.h>
+#include <atomic>
+#include <chrono>
 #include "gfx_window_manager_api.h"
+
 namespace Fast {
-class GfxWindowBackendSDL2 final : public GfxWindowBackend {
+
+class GfxWindowBackendAndroid final : public GfxWindowBackend {
   public:
-    GfxWindowBackendSDL2() = default;
-    ~GfxWindowBackendSDL2() override;
+    GfxWindowBackendAndroid();
+    ~GfxWindowBackendAndroid() override;
 
     void Init(const char* gameName, const char* apiName, bool startFullScreen, uint32_t width, uint32_t height,
               int32_t posX, int32_t posY) override;
@@ -18,7 +23,7 @@ class GfxWindowBackendSDL2 final : public GfxWindowBackend {
     void SetFullscreenChangedCallback(void (*onFullscreenChanged)(bool is_now_fullscreen)) override;
     void SetFullscreen(bool fullscreen) override;
     void GetActiveWindowRefreshRate(uint32_t* refreshRate) override;
-    void SetCursorVisibility(bool visability) override;
+    void SetCursorVisibility(bool visibility) override;
     void SetMousePos(int32_t posX, int32_t posY) override;
     void GetMousePos(int32_t* x, int32_t* y) override;
     void GetMouseDelta(int32_t* x, int32_t* y) override;
@@ -35,7 +40,7 @@ class GfxWindowBackendSDL2 final : public GfxWindowBackend {
     void SwapBuffersBegin() override;
     void SwapBuffersEnd() override;
     double GetTime() override;
-    int GetTargetFps();
+    int GetTargetFps() override;
     void SetTargetFps(int fps) override;
     void SetMaxFrameLatency(int latency) override;
     const char* GetKeyName(int scancode) override;
@@ -45,37 +50,35 @@ class GfxWindowBackendSDL2 final : public GfxWindowBackend {
     bool IsFullscreen() override;
     bool IsWindowedFullscreen() const override;
     void SetWindowedFullscreen(bool enabled) override;
-    bool SetExclusiveFullscreenDisplayMode(uint32_t width,
-                                           uint32_t height) override;
+    bool SetExclusiveFullscreenDisplayMode(uint32_t width, uint32_t height) override;
     void* GetNativeWindow() const override;
     bool UsesVulkan() const override;
 
-  private:
-    void SetFullscreenImpl(bool on, bool call_callback);
-    void HandleSingleEvent(SDL_Event& event);
-    int TranslateScancode(int scancode) const;
-    int UntranslateScancode(int translatedScancode) const;
-    void OnKeydown(int scancode) const;
-    void OnKeyup(int scancode) const;
-    void OnMouseButtonDown(int btn) const;
-    void OnMouseButtonUp(int btn) const;
-    void SyncFramerateWithTime() const;
+    static void NotifySurfaceCreated(ANativeWindow* window);
+    static void NotifySurfaceChanged(ANativeWindow* window, uint32_t width, uint32_t height);
+    static void NotifySurfaceDestroyed();
+    static void SetGlobalNativeWindow(ANativeWindow* window);
+    static ANativeWindow* GetGlobalNativeWindow();
+    static void SetGlobalDimensions(uint32_t width, uint32_t height);
+    static void SignalStop();
+    static bool IsSurfaceAvailable();
 
-    SDL_Window* mWnd = nullptr;
-    SDL_Rect mCursorClip;
-    SDL_GLContext mCtx = nullptr;
-    SDL_Renderer* mRenderer = nullptr;
-    bool mUsesVulkan = false;
-    int mSdlToLusTable[512];
-    float mMouseWheelX = 0.0f;
-    float mMouseWheelY = 0.0f;
-#ifdef __OpenBSD__
-    int mBsdTick; // store kern.clockrate's tick (microseconds) to adjust sleep timing
-#endif
-    // OTRTODO: These are redundant. Info can be queried from SDL.
-    int mWindowWidth = 640;
-    int mWindowHeight = 480;
-    bool mExclusiveDisplayModeConfigured = false;
-    void (*mOnAllKeysUp)();
+  private:
+    ANativeWindow* mNativeWindow = nullptr;
+    uint32_t mWidth = 1280;
+    uint32_t mHeight = 720;
+    int32_t mPosX = 0;
+    int32_t mPosY = 0;
+    bool mWindowedFullscreen = true;
+    std::chrono::steady_clock::time_point mStartTime;
+
+    bool (*mOnKeyDown)(int) = nullptr;
+    bool (*mOnKeyUp)(int) = nullptr;
+    bool (*mOnMouseButtonDown)(int) = nullptr;
+    bool (*mOnMouseButtonUp)(int) = nullptr;
+    void (*mOnFullscreenChanged)(bool) = nullptr;
 };
+
 } // namespace Fast
+
+#endif // defined(__ANDROID__)

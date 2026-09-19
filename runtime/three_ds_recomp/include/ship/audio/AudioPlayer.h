@@ -167,5 +167,9 @@ class AudioPlayer {
 #include "CoreAudioAudioPlayer.h"
 #endif
 
+#ifdef __ANDROID__
+#include "AAudioAudioPlayer.h"
+#endif
+
 #include "SDLAudioPlayer.h"
 #include "NullAudioPlayer.h"

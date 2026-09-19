@@ -4,6 +4,10 @@
 #include "ship/audio/CoreAudioAudioPlayer.h"
 #endif
 
+#ifdef __ANDROID__
+#include "ship/audio/AAudioAudioPlayer.h"
+#endif
+
 #include "ship/Context.h"
 #include "ship/config/Config.h"
 #include "ship/controller/controldeck/ControlDeck.h"
@@ -15,6 +19,14 @@ Audio::~Audio() {
 }
 
 void Audio::InitAudioPlayer() {
+#if defined(__ANDROID__)
+    mAudioBackend = AudioBackend::AAUDIO;
+    mAudioPlayer = std::make_shared<AAudioAudioPlayer>(this->mAudioSettings);
+    if (!mAudioPlayer->Init()) {
+        SPDLOG_ERROR("Failed to initialize AAudioAudioPlayer!");
+    }
+    return;
+#else
     switch (GetCurrentAudioBackend()) {
 #ifdef _WIN32
         case AudioBackend::WASAPI:
@@ -39,6 +51,7 @@ void Audio::InitAudioPlayer() {
         // Fallback to Null if the native system player does not work.
         SetCurrentAudioBackend(AudioBackend::NUL);
     }
+#endif
 }
 
 void Audio::Init() {
@@ -51,8 +64,12 @@ void Audio::Init() {
 #ifdef __APPLE__
     mAvailableAudioBackends->push_back(AudioBackend::COREAUDIO);
 #endif
+#ifdef __ANDROID__
+    mAvailableAudioBackends->push_back(AudioBackend::AAUDIO);
+#else
     mAvailableAudioBackends->push_back(AudioBackend::SDL);
     mAvailableAudioBackends->push_back(AudioBackend::NUL);
+#endif
 
     SetCurrentAudioBackend(GetSavedAudioBackend());
     SetAudioChannels(GetSavedAudioChannelsSetting());
@@ -67,6 +84,9 @@ AudioBackend Audio::GetCurrentAudioBackend() {
 }
 
 AudioBackend Audio::GetSavedAudioBackend() {
+#ifdef __ANDROID__
+    return AudioBackend::AAUDIO;
+#else
     std::string backendName = mConfig->GetString("Window.AudioBackend");
     if (backendName == "wasapi") {
         return AudioBackend::WASAPI;
@@ -81,6 +101,10 @@ AudioBackend Audio::GetSavedAudioBackend() {
 
     if (backendName == "coreaudio") {
         return AudioBackend::COREAUDIO;
+    }
+
+    if (backendName == "aaudio") {
+        return AudioBackend::AAUDIO;
     }
 
     if (backendName == "sdl") {
@@ -102,9 +126,13 @@ AudioBackend Audio::GetSavedAudioBackend() {
 #endif
 
     return AudioBackend::SDL;
+#endif
 }
 
 void Audio::SetCurrentAudioBackend(AudioBackend backend) {
+#ifdef __ANDROID__
+    backend = AudioBackend::AAUDIO;
+#endif
     mAudioBackend = backend;
 
     switch (backend) {
@@ -113,6 +141,9 @@ void Audio::SetCurrentAudioBackend(AudioBackend backend) {
             break;
         case AudioBackend::COREAUDIO:
             mConfig->SetString("Window.AudioBackend", "coreaudio");
+            break;
+        case AudioBackend::AAUDIO:
+            mConfig->SetString("Window.AudioBackend", "aaudio");
             break;
         case AudioBackend::SDL:
             mConfig->SetString("Window.AudioBackend", "sdl");

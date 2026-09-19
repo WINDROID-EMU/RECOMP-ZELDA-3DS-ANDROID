@@ -465,10 +465,16 @@ std::string Context::GetShortName() const {
 
 std::string Context::GetAppBundlePath() {
 #if defined(__ANDROID__)
-    const char* externaldir = SDL_AndroidGetExternalStoragePath();
-    if (externaldir != NULL) {
-        return externaldir;
+    const char* envDir = getenv("TRIAEVUM_STORAGE_PATH");
+    if (envDir && *envDir) {
+        return envDir;
     }
+    std::error_code ec;
+    auto current = std::filesystem::current_path(ec);
+    if (!ec && !current.empty() && current != "/") {
+        return current.string();
+    }
+    return "/sdcard/Android/data/org.triaevum.android/files";
 #endif
 
 #ifdef __IOS__
@@ -528,10 +534,16 @@ std::string Context::GetAppBundlePath() {
 
 std::string Context::GetAppDirectoryPath(const std::string& appName) {
 #if defined(__ANDROID__)
-    const char* externaldir = SDL_AndroidGetExternalStoragePath();
-    if (externaldir != NULL) {
-        return externaldir;
+    const char* envDir = getenv("TRIAEVUM_STORAGE_PATH");
+    if (envDir && *envDir) {
+        return envDir;
     }
+    std::error_code ec;
+    auto current = std::filesystem::current_path(ec);
+    if (!ec && !current.empty() && current != "/") {
+        return current.string();
+    }
+    return "/sdcard/Android/data/org.triaevum.android/files";
 #endif
 
 #ifdef __IOS__

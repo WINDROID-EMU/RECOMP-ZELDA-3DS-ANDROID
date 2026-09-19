@@ -18,7 +18,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".TriAevumActivity" android:exported="false"
+        <activity android:name=".TriAevumActivity" android:exported="true"
             android:launchMode="singleTask"
             android:screenOrientation="sensorLandscape"
             android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|navigation|density">

@@ -12,8 +12,11 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__ANDROID__)
 #include <SDL2/SDL_syswm.h>
+#endif
+#if defined(__ANDROID__)
+#include <android/log.h>
 #endif
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
@@ -50,7 +53,7 @@ constexpr size_t kOot3dCachedVertexBufferLimit = 1024;
 constexpr uint32_t kSpirvMagic = 0x07230203U;
 constexpr uint64_t kMaximumPipelineCacheBytes = 64ULL * 1024ULL * 1024ULL;
 
-void* ResolveNriNativeWindow(GfxWindowBackendSDL2* backend) {
+void* ResolveNriNativeWindow(GfxWindowBackend* backend) {
 #ifdef _WIN32
     if (backend == nullptr || backend->GetNativeWindow() == nullptr)
         return nullptr;
@@ -59,6 +62,15 @@ void* ResolveNriNativeWindow(GfxWindowBackendSDL2* backend) {
     if (SDL_GetWindowWMInfo(static_cast<SDL_Window*>(backend->GetNativeWindow()), &windowInfo) != SDL_TRUE)
         return nullptr;
     return windowInfo.info.win.window;
+#elif defined(__ANDROID__)
+    if (backend == nullptr || backend->GetNativeWindow() == nullptr)
+        return nullptr;
+    SDL_SysWMinfo windowInfo{};
+    SDL_VERSION(&windowInfo.version);
+    if (SDL_GetWindowWMInfo(static_cast<SDL_Window*>(backend->GetNativeWindow()), &windowInfo) == SDL_TRUE) {
+        return windowInfo.info.android.window;
+    }
+    return backend->GetNativeWindow();
 #else
     (void)backend;
     return nullptr;
@@ -77,6 +89,13 @@ std::filesystem::path VulkanShaderCacheDirectory() {
             throw std::runtime_error("TRIAEVUM_RENDERER_CACHE_DIR must be absolute");
         return directory;
     }
+#if defined(__ANDROID__)
+    const auto* storagePath = std::getenv("TRIAEVUM_STORAGE_PATH");
+    if (storagePath != nullptr && *storagePath != 0) {
+        return std::filesystem::path(storagePath) / "shader_cache";
+    }
+    return std::filesystem::current_path() / "shader_cache";
+#else
     char* prefPath = SDL_GetPrefPath(nullptr, "oot3d_native_vulkan");
     if (prefPath == nullptr) {
         return {};
@@ -84,6 +103,7 @@ std::filesystem::path VulkanShaderCacheDirectory() {
     const std::filesystem::path directory = std::filesystem::path(prefPath) / "shader_cache";
     SDL_free(prefPath);
     return directory;
+#endif
 }
 
 using Renderer3ds::LoadPipelineCacheData;
@@ -318,7 +338,7 @@ bool GfxRenderingAPIVulkan::QueueFamilies::Complete() const {
     return Graphics.has_value() && Present.has_value();
 }
 
-GfxRenderingAPIVulkan::GfxRenderingAPIVulkan(GfxWindowBackendSDL2* windowBackend)
+GfxRenderingAPIVulkan::GfxRenderingAPIVulkan(GfxWindowBackend* windowBackend)
     : mWindowBackend(windowBackend), mSceneSurfaces([this](const Oot3d::SceneSurface& surface) {
           if (surface.NativeImage != 0)
               mNriInterop.ForgetTexture(reinterpret_cast<VkImage>(surface.NativeImage));
@@ -1632,7 +1652,17 @@ void GfxRenderingAPIVulkan::StartFrame() {
         mSwapchainDirty = true;
     }
     if (mSwapchainSuboptimal.exchange(false) && !mSwapchainDirty) {
-        mSwapchainDirty = SwapchainSurfaceChanged();
+        uint32_t width = 0;
+        uint32_t height = 0;
+        int32_t x = 0;
+        int32_t y = 0;
+        mWindowBackend->GetDimensions(&width, &height, &x, &y);
+        const auto now = std::chrono::steady_clock::now();
+        const bool dimensionsChanged = (width != mSwapchainExtent.width || height != mSwapchainExtent.height);
+        if (dimensionsChanged || (now - mLastSuboptimalSurfaceCheck) >= std::chrono::seconds(2)) {
+            mLastSuboptimalSurfaceCheck = now;
+            mSwapchainDirty = SwapchainSurfaceChanged();
+        }
     }
     const auto presentError = static_cast<VkResult>(mPresentError.exchange(VK_SUCCESS));
     if (presentError != VK_SUCCESS) {
@@ -1648,6 +1678,22 @@ void GfxRenderingAPIVulkan::StartFrame() {
     if (std::abs(requestedInternalResolutionScale - mInternalResolutionScale) > 0.0005F) {
         ApplyInternalResolutionScale(requestedInternalResolutionScale);
     }
+#if defined(__ANDROID__)
+    void* currentNativeWindow = mWindowBackend->GetNativeWindow();
+    if (currentNativeWindow != mLastNativeWindow) {
+        __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                            "Vulkan Android native window changed: %p -> %p",
+                            mLastNativeWindow, currentNativeWindow);
+        mLastNativeWindow = currentNativeWindow;
+        mSurfaceLost = true;
+        mSwapchainDirty = true;
+    }
+    if (currentNativeWindow == nullptr) {
+        mSurfaceLost = true;
+        mSwapchainDirty = true;
+        return;
+    }
+#endif
     if (mSwapchainDirty) {
         RecreateSwapchain();
         if (mSwapchainDirty) {
@@ -1874,6 +1920,19 @@ void GfxRenderingAPIVulkan::FinishRender() {
         }
         mPresentRequestCondition.notify_one();
     } else {
+#if defined(__ANDROID__)
+        if (mWindowBackend->GetNativeWindow() == nullptr) {
+            mSwapchainDirty = true;
+            mSurfaceLost = true;
+            mDiagnostics.RecordNriSwapchainPresent(nriPresented);
+            mDiagnostics.RecordEffectGeometryProvider(mInteractiveGrassProviderExecution.Summary());
+            mDiagnostics.RecordRendererValidation(mValidationTelemetry.Snapshot());
+            mDiagnostics.EndFrame();
+            mFrameSubmitted = false;
+            mCurrentFrame = (mCurrentFrame + 1) % kFramesInFlight;
+            return;
+        }
+#endif
         VkPresentInfoKHR presentInfo{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
         presentInfo.waitSemaphoreCount = 1;
         presentInfo.pWaitSemaphores = &mRenderFinishedSemaphores[mCurrentImage];
@@ -2226,11 +2285,13 @@ void GfxRenderingAPIVulkan::SetCurrentPrimDepth(float depth) {
 }
 
 void GfxRenderingAPIVulkan::CreateInstance() {
-    auto* window = static_cast<SDL_Window*>(mWindowBackend->GetNativeWindow());
     std::vector<const char*> extensions;
-#ifdef _WIN32
+#if defined(_WIN32)
     extensions = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+#elif defined(__ANDROID__)
+    extensions = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_ANDROID_SURFACE_EXTENSION_NAME };
 #else
+    auto* window = static_cast<SDL_Window*>(mWindowBackend->GetNativeWindow());
     unsigned int extensionCount = 0;
     if (SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, nullptr) != SDL_TRUE) {
         throw std::runtime_error(std::string("SDL_Vulkan_GetInstanceExtensions failed: ") + SDL_GetError());
@@ -2289,8 +2350,8 @@ void GfxRenderingAPIVulkan::CreateInstance() {
 }
 
 void GfxRenderingAPIVulkan::CreateSurface() {
+#if defined(_WIN32)
     auto* window = static_cast<SDL_Window*>(mWindowBackend->GetNativeWindow());
-#ifdef _WIN32
     SDL_SysWMinfo windowInfo{};
     SDL_VERSION(&windowInfo.version);
     if (SDL_GetWindowWMInfo(window, &windowInfo) != SDL_TRUE) {
@@ -2300,7 +2361,25 @@ void GfxRenderingAPIVulkan::CreateSurface() {
     createInfo.hinstance = GetModuleHandleW(nullptr);
     createInfo.hwnd = windowInfo.info.win.window;
     CheckVk(vkCreateWin32SurfaceKHR(mInstance, &createInfo, nullptr, &mSurface), "vkCreateWin32SurfaceKHR");
+#elif defined(__ANDROID__)
+    void* rawWindow = mWindowBackend->GetNativeWindow();
+    if (rawWindow == nullptr) {
+        throw std::runtime_error("Android native window is null when creating Vulkan surface");
+    }
+    ANativeWindow* nativeWindow = static_cast<ANativeWindow*>(rawWindow);
+    VkAndroidSurfaceCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR };
+    createInfo.window = nativeWindow;
+    auto createAndroidSurface = reinterpret_cast<PFN_vkCreateAndroidSurfaceKHR>(
+        vkGetInstanceProcAddr(mInstance, "vkCreateAndroidSurfaceKHR"));
+    if (createAndroidSurface == nullptr) {
+        throw std::runtime_error("vkCreateAndroidSurfaceKHR function not found");
+    }
+    CheckVk(createAndroidSurface(mInstance, &createInfo, nullptr, &mSurface), "vkCreateAndroidSurfaceKHR");
+    __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                        "Vulkan Android native surface created successfully via vkCreateAndroidSurfaceKHR: %p (ANativeWindow=%p)",
+                        (void*)mSurface, (void*)nativeWindow);
 #else
+    auto* window = static_cast<SDL_Window*>(mWindowBackend->GetNativeWindow());
     if (SDL_Vulkan_CreateSurface(window, mInstance, &mSurface) != SDL_TRUE) {
         throw std::runtime_error(std::string("SDL_Vulkan_CreateSurface failed: ") + SDL_GetError());
     }
@@ -4472,6 +4551,11 @@ void GfxRenderingAPIVulkan::DestroySwapchainResources() {
 }
 
 bool GfxRenderingAPIVulkan::SwapchainSurfaceChanged() const {
+#if defined(__ANDROID__)
+    if (mSurface == VK_NULL_HANDLE || mWindowBackend->GetNativeWindow() == nullptr) {
+        return true;
+    }
+#endif
     const auto support = QuerySwapchainSupport(mPhysicalDevice);
     const auto extent = ChooseExtent(support.Capabilities);
     const auto format = ChooseSurfaceFormat(support.Formats);
@@ -4495,9 +4579,31 @@ void GfxRenderingAPIVulkan::RecreateSwapchain() {
         mSwapchainDirty = true;
         return;
     }
+#if defined(__ANDROID__)
+    void* nativeWin = mWindowBackend->GetNativeWindow();
+    if (nativeWin == nullptr) {
+        mSwapchainDirty = true;
+        mSurfaceLost = true;
+        return;
+    }
+    if (nativeWin != mLastNativeWindow) {
+        __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                            "RecreateSwapchain: native window changed %p -> %p, forcing RecreateSurface",
+                            mLastNativeWindow, nativeWin);
+        mLastNativeWindow = nativeWin;
+        mSurfaceLost = true;
+    }
+#endif
     WaitForAllPresents();
     StopPresentWorker();
-    CheckVk(vkDeviceWaitIdle(mDevice), "vkDeviceWaitIdle(recreate swapchain)");
+    try {
+        CheckVk(vkDeviceWaitIdle(mDevice), "vkDeviceWaitIdle(recreate swapchain)");
+    } catch (const std::exception& error) {
+        __android_log_print(ANDROID_LOG_WARN, "TriAevum", "vkDeviceWaitIdle deferred: %s", error.what());
+        mSwapchainDirty = true;
+        mSurfaceLost = true;
+        return;
+    }
     // Native PICA targets are offscreen scene resources, not swapchain
     // resources. Preserve them (and CACAO's depth bindings) across presentation
     // mode changes; their own reset path handles genuine scene invalidation.
@@ -4506,7 +4612,7 @@ void GfxRenderingAPIVulkan::RecreateSwapchain() {
         try {
             RecreateSurface();
         } catch (const std::exception& error) {
-            SPDLOG_WARN("Surface recreation deferred: {}", error.what());
+            __android_log_print(ANDROID_LOG_WARN, "TriAevum", "Surface recreation deferred: %s", error.what());
             mSwapchainDirty = true;
             mSurfaceLost = true;
             return;
@@ -4515,7 +4621,7 @@ void GfxRenderingAPIVulkan::RecreateSwapchain() {
     try {
         CreateSwapchainResources();
     } catch (const std::exception& error) {
-        SPDLOG_WARN("Swapchain creation deferred: {}", error.what());
+        __android_log_print(ANDROID_LOG_WARN, "TriAevum", "Swapchain creation deferred: %s", error.what());
         mSwapchainDirty = true;
         mSurfaceLost = true;
         return;
@@ -4553,6 +4659,9 @@ GfxRenderingAPIVulkan::QueueFamilies GfxRenderingAPIVulkan::FindQueueFamilies(Vk
 
 GfxRenderingAPIVulkan::SwapchainSupport GfxRenderingAPIVulkan::QuerySwapchainSupport(VkPhysicalDevice device) const {
     SwapchainSupport result;
+    if (mSurface == VK_NULL_HANDLE) {
+        return result;
+    }
     CheckVk(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, mSurface, &result.Capabilities),
             "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
     uint32_t formatCount = 0;

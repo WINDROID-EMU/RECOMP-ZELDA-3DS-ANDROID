@@ -1,52 +1,75 @@
 #include "android_host.h"
 
-#include <SDL.h>
+#include <android/log.h>
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <jni.h>
+#include <mutex>
 #include <sched.h>
 #include <stdexcept>
+#include <string>
 #include <unistd.h>
+#include <vector>
+
 #include <nlohmann/json.hpp>
 #include <ship/Context.h>
 #include <ship/config/Config.h>
-#include "fast/oot3d/graphics_settings_runtime.h"
+
+#include "fast/backends/gfx_android.h"
 #include "fast/oot3d/graphics_settings_persistence.h"
+#include "fast/oot3d/graphics_settings_runtime.h"
 
 static AndroidOverlayInputState gOverlayInputState;
+static std::string gAndroidStoragePath;
+static std::mutex gStorageMutex;
 
 AndroidOverlayInputState &GetAndroidOverlayInputState() {
   return gOverlayInputState;
 }
 
+void SetAndroidStoragePath(const std::string &path) {
+  std::lock_guard<std::mutex> lock(gStorageMutex);
+  gAndroidStoragePath = path;
+}
+
+const std::string &GetAndroidStoragePath() {
+  std::lock_guard<std::mutex> lock(gStorageMutex);
+  return gAndroidStoragePath;
+}
+
 void InitializeAndroidGameHost() {
-  // Keep the game loop running when a dialog (e.g. settings) steals focus.
-  // Without this, SDL blocks its event loop on onPause and the process is
-  // killed by Android's ANR watchdog when the menu is left open too long.
-  SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE, "0");
-  // Keep audio running while the config dialog is open.
-  SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE_PAUSEAUDIO, "0");
+  setenv("TRIAEVUM_VULKAN_PRESENT_DISPATCH", "graphics", 1);
 
-  SDL_setenv("SDL_AUDIODRIVER", "aaudio,openslES", 1);
-  SDL_setenv("TRIAEVUM_VULKAN_PRESENT_DISPATCH", "graphics", 1);
+  std::string root = GetAndroidStoragePath();
+  if (root.empty()) {
+    const char *envRoot = getenv("EXTERNAL_STORAGE");
+    if (envRoot && *envRoot) {
+      root = envRoot;
+    } else {
+      root = "/sdcard/Android/data/org.triaevum.android/files";
+    }
+  }
 
-  SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
-  const char *root = SDL_AndroidGetExternalStoragePath();
-  if (!root || !*root) {
-    throw std::runtime_error(
-        "Android application data directory is unavailable");
+  setenv("TRIAEVUM_STORAGE_PATH", root.c_str(), 1);
+
+  try {
+    std::filesystem::current_path(root);
+    std::filesystem::create_directories("logs");
+    if (!std::freopen("logs/native-stdout.log", "w", stdout) ||
+        !std::freopen("logs/native-stderr.log", "w", stderr)) {
+      __android_log_print(ANDROID_LOG_WARN, "TriAevum", "Cannot open Android runtime logs");
+    } else {
+      std::setvbuf(stdout, nullptr, _IOLBF, 0);
+      std::setvbuf(stderr, nullptr, _IONBF, 0);
+    }
+  } catch (const std::exception &e) {
+    __android_log_print(ANDROID_LOG_ERROR, "TriAevum", "Failed to setup game storage directories: %s", e.what());
   }
-  std::filesystem::current_path(root);
-  std::filesystem::create_directories("logs");
-  // Android does not preserve a console stream; retain diagnostics beside user
-  // data.
-  if (!std::freopen("logs/native-stdout.log", "w", stdout) ||
-      !std::freopen("logs/native-stderr.log", "w", stderr)) {
-    throw std::runtime_error("Cannot open Android runtime logs");
-  }
-  std::setvbuf(stdout, nullptr, _IOLBF, 0);
-  std::setvbuf(stderr, nullptr, _IONBF, 0);
-  SDL_Log("TriAevum game data: %s", root);
+
+  __android_log_print(ANDROID_LOG_INFO, "TriAevum", "TriAevum game data: %s", root.c_str());
 }
 
 void ShutdownAndroidGameHost() {
@@ -130,12 +153,97 @@ Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
       const auto loaded = Fast::Oot3d::LoadGraphicsSettingsConfig(root, runtime.Snapshot());
       if (loaded.Found && !loaded.UnsupportedFutureVersion) {
         runtime.Apply(loaded.Value, false);
-        SDL_Log("TriAevum: Live graphics settings reloaded and applied successfully");
+        __android_log_print(ANDROID_LOG_INFO, "TriAevum", "Live graphics settings reloaded and applied successfully");
       }
     }
   } catch (const std::exception &e) {
-    SDL_Log("TriAevum: Failed to reload live graphics settings: %s", e.what());
+    __android_log_print(ANDROID_LOG_ERROR, "TriAevum", "Failed to reload live graphics settings: %s", e.what());
   }
+}
+
+// Native activity lifecycle and surface management (replacing SDLActivity)
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_TriAevumActivity_nativeSetStoragePath(
+    JNIEnv *env, jclass /*clazz*/, jstring path) {
+  if (path != nullptr) {
+    const char *chars = env->GetStringUTFChars(path, nullptr);
+    if (chars != nullptr) {
+      SetAndroidStoragePath(chars);
+      setenv("TRIAEVUM_STORAGE_PATH", chars, 1);
+      env->ReleaseStringUTFChars(path, chars);
+    }
+  }
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_TriAevumActivity_nativeSurfaceCreated(
+    JNIEnv *env, jclass /*clazz*/, jobject surface) {
+  if (surface != nullptr) {
+    ANativeWindow *win = ANativeWindow_fromSurface(env, surface);
+    __android_log_print(ANDROID_LOG_INFO, "TriAevum", "nativeSurfaceCreated: ANativeWindow=%p", win);
+    Fast::GfxWindowBackendAndroid::NotifySurfaceCreated(win);
+  }
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_TriAevumActivity_nativeSurfaceChanged(
+    JNIEnv *env, jclass /*clazz*/, jobject surface, jint width, jint height) {
+  if (surface != nullptr) {
+    ANativeWindow *win = ANativeWindow_fromSurface(env, surface);
+    __android_log_print(ANDROID_LOG_INFO, "TriAevum", "nativeSurfaceChanged: ANativeWindow=%p, %dx%d", win, width, height);
+    Fast::GfxWindowBackendAndroid::NotifySurfaceChanged(win, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+  }
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_TriAevumActivity_nativeSurfaceDestroyed(
+    JNIEnv * /*env*/, jclass /*clazz*/) {
+  __android_log_print(ANDROID_LOG_INFO, "TriAevum", "nativeSurfaceDestroyed");
+  Fast::GfxWindowBackendAndroid::NotifySurfaceDestroyed();
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_TriAevumActivity_nativeOnPause(
+    JNIEnv * /*env*/, jclass /*clazz*/) {
+  __android_log_print(ANDROID_LOG_INFO, "TriAevum", "nativeOnPause");
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_TriAevumActivity_nativeOnResume(
+    JNIEnv * /*env*/, jclass /*clazz*/) {
+  __android_log_print(ANDROID_LOG_INFO, "TriAevum", "nativeOnResume");
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_TriAevumActivity_nativeMain(
+    JNIEnv *env, jclass /*clazz*/, jobjectArray args) {
+  std::vector<std::string> argStrings;
+  std::vector<char *> argv;
+
+  if (args != nullptr) {
+    jsize count = env->GetArrayLength(args);
+    argStrings.reserve(count);
+    for (jsize i = 0; i < count; ++i) {
+      jstring str = (jstring)env->GetObjectArrayElement(args, i);
+      if (str != nullptr) {
+        const char *utf = env->GetStringUTFChars(str, nullptr);
+        argStrings.emplace_back(utf ? utf : "");
+        env->ReleaseStringUTFChars(str, utf);
+        env->DeleteLocalRef(str);
+      }
+    }
+  }
+
+  argv.reserve(argStrings.size());
+  for (auto &s : argStrings) {
+    argv.push_back(s.data());
+  }
+
+  int argc = static_cast<int>(argv.size());
+  __android_log_print(ANDROID_LOG_INFO, "TriAevum", "Starting RunOot3dNativeGameMain with %d args", argc);
+  int result = RunOot3dNativeGameMain(argc, argv.data());
+  __android_log_print(ANDROID_LOG_INFO, "TriAevum", "RunOot3dNativeGameMain exited with code %d", result);
 }
 
 } // extern "C"

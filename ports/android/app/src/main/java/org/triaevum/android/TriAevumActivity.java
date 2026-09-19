@@ -1,45 +1,58 @@
 package org.triaevum.android;
 
-import org.libsdl.app.SDLActivity;
-import org.libsdl.app.SDLSurface;
-import org.json.JSONObject;
-import org.triaevum.android.controls.WindroidVirtualControllerView;
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.charset.StandardCharsets;
+import android.app.Activity;
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
 import android.util.Log;
+import android.view.Surface;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
+
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
-/** SDL owns Surface/lifecycle. Game, renderer and title loading retain their native owners. */
-public final class TriAevumActivity extends SDLActivity {
-    private WindroidVirtualControllerView mWindroidOverlay;
-    private AndroidNativeInputTarget mInputTarget;
+import org.json.JSONObject;
+import org.triaevum.android.controls.WindroidVirtualControllerView;
 
-    @Override protected SDLSurface createSDLSurface(Context context) {
-        int maximumShortEdge = 720;
-        File config = new File(getExternalFilesDir(null), "TriAevum.android.host.json");
-        if (config.isFile()) {
-            try {
-                maximumShortEdge = new JSONObject(new String(Files.readAllBytes(config.toPath()), StandardCharsets.UTF_8))
-                    .getInt("maximum_surface_short_edge");
-                if (maximumShortEdge < 0) throw new IllegalArgumentException("Negative surface limit");
-            } catch (Exception error) {
-                Log.w("TriAevum", "Invalid Android host config; using 720p surface limit", error);
-                maximumShortEdge = 720;
-            }
-        }
-        return new TriAevumSurface(context, maximumShortEdge);
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+
+/**
+ * Pure Android Activity hosting TriAevum.
+ * Replaces SDLActivity completely, managing lifecycle, native Vulkan surface,
+ * virtual overlay controls, and native game thread directly.
+ */
+public final class TriAevumActivity extends Activity {
+    private static final String TAG = "TriAevum";
+
+    static {
+        System.loadLibrary("triaevum_title_bootstrap");
+        System.loadLibrary("TriAevum");
     }
 
-    @Override protected void onCreate(Bundle state) {
+    // JNI Native bindings
+    public static native void nativeSetStoragePath(String path);
+    public static native void nativeSurfaceCreated(Surface surface);
+    public static native void nativeSurfaceChanged(Surface surface, int width, int height);
+    public static native void nativeSurfaceDestroyed();
+    public static native void nativeOnPause();
+    public static native void nativeOnResume();
+    public static native void nativeMain(String[] args);
+
+    private FrameLayout mLayout;
+    private TriAevumSurface mSurface;
+    private WindroidVirtualControllerView mWindroidOverlay;
+    private AndroidNativeInputTarget mInputTarget;
+    private Thread mGameThread;
+    private boolean mGameStarted = false;
+
+    @Override
+    protected void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
@@ -66,6 +79,22 @@ public final class TriAevumActivity extends SDLActivity {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         hideSystemBars();
 
+        File root = getExternalFilesDir(null);
+        if (root != null) {
+            nativeSetStoragePath(root.getAbsolutePath());
+        }
+
+        mLayout = new FrameLayout(this);
+        mLayout.setLayoutParams(new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // Create native Vulkan surface view
+        int maximumShortEdge = resolveMaximumShortEdge();
+        mSurface = new TriAevumSurface(this, maximumShortEdge);
+        mLayout.addView(mSurface, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // Create and bind virtual controller overlay
         try {
             mInputTarget = new AndroidNativeInputTarget();
             mWindroidOverlay = new WindroidVirtualControllerView(this);
@@ -82,36 +111,83 @@ public final class TriAevumActivity extends SDLActivity {
                 mWindroidOverlay.setHapticFeedbackEnabled(haptic);
                 AndroidNativeInputTarget.nativeSwapScreens(swapScreens);
             } catch (Throwable t) {
-                Log.w("TriAevum", "Failed to sync initial control settings", t);
+                Log.w(TAG, "Failed to sync initial control settings", t);
             }
 
-            // Open the Zenda-style settings dialog when the gear icon is tapped
+            // Open settings dialog when the gear icon is tapped
             mWindroidOverlay.setOnSettingsClickListener(() -> {
                 if (!isFinishing() && !isDestroyed()) {
                     try {
                         new TriAevumConfigDialog(this, mWindroidOverlay).show();
                     } catch (Exception err) {
-                        Log.e("TriAevum", "Failed to open settings dialog", err);
+                        Log.e(TAG, "Failed to open settings dialog", err);
                     }
                 }
             });
 
-            ViewGroup.LayoutParams lp = new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-            mLayout.addView(mWindroidOverlay, lp);
-            Log.i("TriAevum", "Windroid virtual controller overlay initialized successfully");
+            mLayout.addView(mWindroidOverlay, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            Log.i(TAG, "Windroid virtual controller overlay initialized successfully");
         } catch (Exception error) {
-            Log.e("TriAevum", "Failed to initialize Windroid virtual controller overlay", error);
+            Log.e(TAG, "Failed to initialize Windroid virtual controller overlay", error);
         }
 
+        setContentView(mLayout);
     }
 
-    @Override protected void onResume() {
+    void onSurfaceReady() {
+        ensureGameStarted();
+    }
+
+    private synchronized void ensureGameStarted() {
+        if (mGameStarted) return;
+        mGameStarted = true;
+
+        File root = getExternalFilesDir(null);
+        final String[] args = new String[] {
+            "TriAevum",
+            "--launch-profile", new File(root, "TriAevum.android.launch.json").getAbsolutePath(),
+            "--title-plugin", new File(getApplicationInfo().nativeLibraryDir,
+                "libtriaevum_title_aot.so").getAbsolutePath()
+        };
+
+        mGameThread = new Thread(() -> {
+            Log.i(TAG, "Launching native game loop...");
+            try {
+                nativeMain(args);
+            } catch (Throwable t) {
+                Log.e(TAG, "Native game loop terminated with exception", t);
+            }
+            Log.i(TAG, "Native game loop exited");
+        }, "TriAevumGameThread");
+        mGameThread.start();
+    }
+
+    private int resolveMaximumShortEdge() {
+        int maximumShortEdge = 720;
+        File config = new File(getExternalFilesDir(null), "TriAevum.android.host.json");
+        if (config.isFile()) {
+            try {
+                maximumShortEdge = new JSONObject(new String(Files.readAllBytes(config.toPath()), StandardCharsets.UTF_8))
+                    .getInt("maximum_surface_short_edge");
+                if (maximumShortEdge < 0) throw new IllegalArgumentException("Negative surface limit");
+            } catch (Exception error) {
+                Log.w(TAG, "Invalid Android host config; using 720p surface limit", error);
+                maximumShortEdge = 720;
+            }
+        }
+        return maximumShortEdge;
+    }
+
+    @Override
+    protected void onResume() {
         super.onResume();
         hideSystemBars();
+        nativeOnResume();
     }
 
-    @Override public void onWindowFocusChanged(boolean hasFocus) {
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             hideSystemBars();
@@ -128,12 +204,14 @@ public final class TriAevumActivity extends SDLActivity {
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
         } catch (Exception error) {
-            Log.w("TriAevum", "Failed to set immersive sticky fullscreen", error);
+            Log.w(TAG, "Failed to set immersive sticky fullscreen", error);
         }
     }
 
-    @Override protected void onPause() {
+    @Override
+    protected void onPause() {
         super.onPause();
+        nativeOnPause();
         if (mWindroidOverlay != null) {
             mWindroidOverlay.releaseAll();
         } else if (mInputTarget != null) {
@@ -141,23 +219,11 @@ public final class TriAevumActivity extends SDLActivity {
         }
     }
 
-    @Override protected void onDestroy() {
+    @Override
+    protected void onDestroy() {
         super.onDestroy();
         // Clean process termination to prevent dirty static globals from persisting
         // across consecutive app launches on Android Bionic.
         Process.killProcess(Process.myPid());
-    }
-
-    @Override protected String[] getLibraries() {
-        return new String[] { "SDL2", "triaevum_title_bootstrap", "TriAevum" };
-    }
-
-    @Override protected String[] getArguments() {
-        File root = getExternalFilesDir(null);
-        return new String[] {
-            "--launch-profile", new File(root, "TriAevum.android.launch.json").getAbsolutePath(),
-            "--title-plugin", new File(getApplicationInfo().nativeLibraryDir,
-                "libtriaevum_title_aot.so").getAbsolutePath()
-        };
     }
 }

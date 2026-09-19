@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <string>
 
 struct AndroidOverlayInputState {
   std::atomic<uint32_t> buttons{0};
@@ -19,3 +20,6 @@ AndroidOverlayInputState &GetAndroidOverlayInputState();
 
 void InitializeAndroidGameHost();
 void ShutdownAndroidGameHost();
+void SetAndroidStoragePath(const std::string &path);
+const std::string &GetAndroidStoragePath();
+int RunOot3dNativeGameMain(int argc, char** argv);
