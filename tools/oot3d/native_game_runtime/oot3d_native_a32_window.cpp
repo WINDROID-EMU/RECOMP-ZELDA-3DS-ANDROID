@@ -54,6 +54,7 @@
 #include "oot3d_native_ui_texture_provider.h"
 #include "oot3d_top_screen_ocarina_text_runtime.h"
 #include "oot3d_player_sprint_runtime.h"
+#include "oot3d_cutscene_dialog_skip_runtime.h"
 #include "oot3d_native_whole_aot_runtime.h"
 #ifdef OOT3D_NATIVE_DIRECT_AOT_PLUGIN
 #include "oot3d_native_direct_aot.h"
@@ -701,6 +702,7 @@ struct NativeCandidateDispatchState {
   Oot3dNativeGame::TopScreenInputCadence TopScreenInputClock;
   uint32_t PreviousTopScreenButtons = 0U;
   Oot3dNativeGame::PlayerSprintRuntime PlayerSprint;
+  Oot3dNativeGame::CutsceneDialogSkipRuntime CutsceneDialogSkip;
   Oot3dNativeGame::NativeA32PolledButtonLatch StartButtonLatch;
   Oot3dNativeGame::TopScreenStartRoutingState TopScreenStartRouting;
   Oot3dNativeGame::TopScreenPauseSystemOpenState TopScreenPauseSystemOpen;
@@ -4665,6 +4667,7 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
     nativeCandidateDispatch.TopScreenInputClock.Reset();
     nativeCandidateDispatch.TopScreenGameplayActionRuntime = {};
     nativeCandidateDispatch.PlayerSprint.Reset();
+    nativeCandidateDispatch.CutsceneDialogSkip.Reset();
     nativeCandidateDispatch.PreviousTopScreenButtons = 0U;
     nativeCandidateDispatch.StartButtonLatch = {};
     nativeCandidateDispatch.TopScreenStartRouting = {};
@@ -5231,6 +5234,14 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
                 static_cast<int16_t>(std::lround(cy * scale)), -154, 154);
           }
         }
+        const bool bHeld =
+            (inputFrame.Hid.Buttons &
+             ThreeDsRecomp::Input::ButtonMask(ThreeDsRecomp::Input::Button::B)) != 0U;
+        Oot3dNativeGame::ApplyGuestCutsceneDialogSkip(
+            process.Memory(),
+            nativeCandidateDispatch.CutsceneDialogSkip,
+            bHeld,
+            &inputFrame.Hid.Buttons);
         const auto hidUpdate = hostServices.AdvanceHidToCurrentTick(
             process.Memory(), inputFrame.Hid);
         if (hidUpdate.Status ==
