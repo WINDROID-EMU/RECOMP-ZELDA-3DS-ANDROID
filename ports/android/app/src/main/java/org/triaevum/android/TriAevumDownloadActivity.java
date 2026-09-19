@@ -111,8 +111,44 @@ public class TriAevumDownloadActivity extends Activity {
             }
         });
 
-        // Automatically start downloading
-        startDownload();
+        if (isGameDataInstalled()) {
+            setupReadyToStart();
+        } else {
+            startDownload();
+        }
+    }
+
+    private boolean isGameDataInstalled() {
+        File targetDir = getExternalFilesDir(null);
+        if (targetDir == null || !targetDir.exists()) return false;
+        File codeBin = new File(targetDir, "code.bin");
+        File romfsBin = new File(targetDir, "romfs.bin");
+        File manifest = new File(targetDir, "process-manifest.json");
+        return codeBin.exists() && codeBin.length() > 0 &&
+               romfsBin.exists() && romfsBin.length() > 100_000_000 &&
+               manifest.exists() && manifest.length() > 0;
+    }
+
+    private void setupReadyToStart() {
+        File targetDir = getExternalFilesDir(null);
+        if (targetDir != null) {
+            unpackBundledAssets(targetDir);
+            new File(targetDir, "resources").mkdirs();
+            new File(targetDir, "savedata").mkdirs();
+        }
+        mReadyToStart = true;
+        mIsDownloading = false;
+        mTvStatus.setText("Download e extração concluídos!");
+        mPbDownload.setProgress(100);
+        mTvPercent.setText("100%");
+        mLayoutProgressDetails.setVisibility(View.GONE);
+        mBtnAction.setVisibility(View.GONE);
+        mTvTouchToStart.setVisibility(View.VISIBLE);
+        AlphaAnimation pulse = new AlphaAnimation(0.25f, 1.0f);
+        pulse.setDuration(600);
+        pulse.setRepeatMode(Animation.REVERSE);
+        pulse.setRepeatCount(Animation.INFINITE);
+        mTvTouchToStart.startAnimation(pulse);
     }
 
     @Override
@@ -156,6 +192,11 @@ public class TriAevumDownloadActivity extends Activity {
                 return;
             }
             if (!targetDir.exists()) targetDir.mkdirs();
+
+            if (isGameDataInstalled()) {
+                mMainHandler.post(this::setupReadyToStart);
+                return;
+            }
 
             File tempDownloadFile = new File(targetDir, "zelda_oot3d_download.tmp");
 
