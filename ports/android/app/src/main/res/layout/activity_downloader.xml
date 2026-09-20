@@ -46,7 +46,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="Preparando para baixar os arquivos do jogo..."
+            android:text="Selecione sua ROM 3DS do jogo para começar"
             android:textColor="#C8D8E8"
             android:textSize="13sp" />
 
@@ -112,12 +112,12 @@
             android:background="@drawable/btn_gold"
             android:paddingStart="24dp"
             android:paddingEnd="24dp"
-            android:text="Tentar Novamente"
+            android:text="Selecionar ROM 3DS"
             android:textAllCaps="false"
             android:textColor="#0B0E14"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:visibility="gone" />
+            android:visibility="visible" />
 
     </LinearLayout>
 
