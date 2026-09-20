@@ -255,7 +255,36 @@ public final class TriAevumConfigManager {
     private JSONObject readTopscreenUi() {
         JSONObject obj = readJson("topscreen_ui.json");
         if (!obj.has("schema")) {
-            try { obj.put("schema", "oot3d_topscreen_ui_v2"); } catch (JSONException ignored) {}
+            try {
+                obj.put("schema", "oot3d_topscreen_ui_v2");
+                obj.put("hud_layout", "normal");
+                obj.put("hud_scale", 0.8);
+                obj.put("hud_margin_x", 4);
+                obj.put("hud_margin_y", 1);
+                obj.put("magic_bar_y", 0);
+                obj.put("minimap_visible", true);
+                obj.put("render_hud", true);
+                obj.put("render_dpad_icons", true);
+                obj.put("render_items_hint", true);
+                obj.put("select_action", "save_screen");
+                obj.put("exit_items_to_save_screen", true);
+                obj.put("camera_zoom_percent", 100);
+                obj.put("camera_fov_percent", 100);
+                org.json.JSONArray dpadChild = new org.json.JSONArray();
+                dpadChild.put("view").put("ocarina").put("item_zr").put("item_zl");
+                obj.put("dpad_child", dpadChild);
+                org.json.JSONArray dpadAdult = new org.json.JSONArray();
+                dpadAdult.put("view").put("ocarina").put("iron_boots").put("hover_boots");
+                obj.put("dpad_adult", dpadAdult);
+                obj.put("free_camera_enabled", false);
+                obj.put("free_camera_speed_level", 3);
+                obj.put("free_camera_smoothing", "default");
+                obj.put("free_camera_invert_x", false);
+                obj.put("free_camera_invert_y", false);
+                obj.put("c_stick_aim_speed_level", 3);
+                obj.put("c_stick_aim_invert_x", false);
+                obj.put("c_stick_aim_invert_y", false);
+            } catch (JSONException ignored) {}
         }
         return obj;
     }
@@ -463,6 +492,11 @@ public final class TriAevumConfigManager {
                 if (changed) {
                     writeJson("TriAevum.android.launch.json", profile);
                     Log.i(TAG, "TriAevum.android.launch.json successfully updated for 60 FPS and TopScreen UI support");
+                }
+                File topScreenFile = new File(mExternalDir, "topscreen_ui.json");
+                if (!topScreenFile.exists()) {
+                    writeTopscreenUi(readTopscreenUi());
+                    Log.i(TAG, "Default topscreen_ui.json created successfully");
                 }
             }
         } catch (Exception e) {

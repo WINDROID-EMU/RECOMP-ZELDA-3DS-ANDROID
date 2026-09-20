@@ -82,6 +82,7 @@ public final class TriAevumActivity extends Activity {
         File root = getExternalFilesDir(null);
         if (root != null) {
             nativeSetStoragePath(root.getAbsolutePath());
+            exportHudLayoutFromXml(root);
         }
 
         mLayout = new FrameLayout(this);
@@ -320,6 +321,92 @@ public final class TriAevumActivity extends Activity {
             default:
                 return 0;
         }
+    }
+
+    private void exportHudLayoutFromXml(File root) {
+        try {
+            android.view.View hudView = getLayoutInflater().inflate(R.layout.hud_gameplay_layout, null);
+            if (hudView == null) return;
+
+            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+            int screenWidth = Math.max(dm.widthPixels, dm.heightPixels);
+            int screenHeight = Math.min(dm.widthPixels, dm.heightPixels);
+
+            hudView.setLayoutParams(new android.widget.RelativeLayout.LayoutParams(screenWidth, screenHeight));
+            hudView.measure(
+                android.view.View.MeasureSpec.makeMeasureSpec(screenWidth, android.view.View.MeasureSpec.EXACTLY),
+                android.view.View.MeasureSpec.makeMeasureSpec(screenHeight, android.view.View.MeasureSpec.EXACTLY)
+            );
+            hudView.layout(0, 0, screenWidth, screenHeight);
+
+            // Compute scaling to 400x240 OoT3D top-screen canvas
+            float scale = (float) screenHeight / 240.0f;
+            float offsetX = ((float) screenWidth - 400.0f * scale) / 2.0f;
+            float offsetY = 0.0f;
+            if (offsetX < 0) {
+                scale = (float) screenWidth / 400.0f;
+                offsetX = 0.0f;
+                offsetY = ((float) screenHeight - 240.0f * scale) / 2.0f;
+            }
+
+            JSONObject hudJson = new JSONObject();
+            hudJson.put("version", 1);
+            hudJson.put("screen_width", screenWidth);
+            hudJson.put("screen_height", screenHeight);
+
+            exportViewToCanvas(hudView, R.id.hud_btn_a, "btn_a", hudJson, scale, offsetX, offsetY);
+            exportViewToCanvas(hudView, R.id.hud_btn_b, "btn_b", hudJson, scale, offsetX, offsetY);
+            exportViewToCanvas(hudView, R.id.hud_btn_x, "btn_x", hudJson, scale, offsetX, offsetY);
+            exportViewToCanvas(hudView, R.id.hud_btn_y, "btn_y", hudJson, scale, offsetX, offsetY);
+            exportViewToCanvas(hudView, R.id.hud_btn_zr, "btn_zr", hudJson, scale, offsetX, offsetY);
+            exportViewToCanvas(hudView, R.id.hud_btn_zl, "btn_zl", hudJson, scale, offsetX, offsetY);
+            exportViewToCanvas(hudView, R.id.hud_diamond_cluster, "diamond_cluster", hudJson, scale, offsetX, offsetY);
+            exportViewToCanvas(hudView, R.id.hud_top_left_status, "status", hudJson, scale, offsetX, offsetY);
+            exportViewToCanvas(hudView, R.id.hud_bottom_left_collectibles, "rupees", hudJson, scale, offsetX, offsetY);
+            exportViewToCanvas(hudView, R.id.hud_minimap_container, "minimap", hudJson, scale, offsetX, offsetY);
+
+            File targetFile = new File(root, "custom_hud_layout.json");
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(targetFile)) {
+                fos.write(hudJson.toString(2).getBytes(StandardCharsets.UTF_8));
+                fos.flush();
+            }
+            Log.i(TAG, "Exported custom HUD layout from XML to " + targetFile.getAbsolutePath() + ": " + hudJson.toString());
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed to export HUD layout from XML", t);
+        }
+    }
+
+    private void exportViewToCanvas(android.view.View root, int viewId, String key, JSONObject out,
+                                    float scale, float offsetX, float offsetY) {
+        android.view.View target = root.findViewById(viewId);
+        if (target == null) return;
+        float x = target.getLeft();
+        float y = target.getTop();
+        android.view.View parent = (android.view.View) target.getParent();
+        while (parent != null && parent != root) {
+            x += parent.getLeft();
+            y += parent.getTop();
+            parent = (parent.getParent() instanceof android.view.View) ? (android.view.View) parent.getParent() : null;
+        }
+        float w = target.getWidth() > 0 ? target.getWidth() : target.getMeasuredWidth();
+        float h = target.getHeight() > 0 ? target.getHeight() : target.getMeasuredHeight();
+
+        float rawCanvasX = (x - offsetX) / scale;
+        float rawCanvasY = (y - offsetY) / scale;
+        float canvasW = w / scale;
+        float canvasH = h / scale;
+
+        float canvasX = Math.max(0.0f, Math.min(400.0f - canvasW, rawCanvasX));
+        float canvasY = Math.max(0.0f, Math.min(240.0f - canvasH, rawCanvasY));
+
+        try {
+            JSONObject obj = new JSONObject();
+            obj.put("x", canvasX);
+            obj.put("y", canvasY);
+            obj.put("width", canvasW);
+            obj.put("height", canvasH);
+            out.put(key, obj);
+        } catch (Exception ignored) {}
     }
 
     @Override

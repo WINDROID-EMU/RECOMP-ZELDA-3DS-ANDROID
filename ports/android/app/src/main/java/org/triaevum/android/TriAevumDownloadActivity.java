@@ -3,6 +3,7 @@ package org.triaevum.android;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.AssetFileDescriptor;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -25,6 +26,7 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -41,7 +43,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * Downloads The Legend of Zelda: Ocarina of Time 3D assets automatically,
+ * Downloads or unpacks The Legend of Zelda: Ocarina of Time 3D assets automatically,
  * unpacks the native data structures, and starts the game seamlessly.
  */
 public class TriAevumDownloadActivity extends Activity {
@@ -74,6 +76,18 @@ public class TriAevumDownloadActivity extends Activity {
         return romfs.isFile() && romfs.length() > 10_000_000L && code.isFile() && exheader.isFile() && launch.isFile();
     }
 
+    private boolean hasEmbeddedGameRom() {
+        try {
+            String[] files = getAssets().list("game");
+            if (files != null) {
+                for (String f : files) {
+                    if ("romfs.bin".equals(f)) return true;
+                }
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -103,7 +117,13 @@ public class TriAevumDownloadActivity extends Activity {
         mBtnAction             = findViewById(R.id.btn_download_action);
         mLayoutProgressDetails = findViewById(R.id.layout_progress_details);
 
-        mBtnAction.setOnClickListener(v -> startDownload());
+        mBtnAction.setOnClickListener(v -> {
+            if (hasEmbeddedGameRom()) {
+                startEmbeddedInstall();
+            } else {
+                startDownload();
+            }
+        });
 
         mRootLayout.setOnClickListener(v -> {
             if (mReadyToStart) {
@@ -113,6 +133,8 @@ public class TriAevumDownloadActivity extends Activity {
 
         if (isGameDataInstalled()) {
             setupReadyToStart();
+        } else if (hasEmbeddedGameRom()) {
+            startEmbeddedInstall();
         } else {
             startDownload();
         }
@@ -138,7 +160,7 @@ public class TriAevumDownloadActivity extends Activity {
         }
         mReadyToStart = true;
         mIsDownloading = false;
-        mTvStatus.setText("Download e extração concluídos!");
+        mTvStatus.setText("Jogo pronto! Iniciando...");
         mPbDownload.setProgress(100);
         mTvPercent.setText("100%");
         mLayoutProgressDetails.setVisibility(View.GONE);
@@ -149,6 +171,99 @@ public class TriAevumDownloadActivity extends Activity {
         pulse.setRepeatMode(Animation.REVERSE);
         pulse.setRepeatCount(Animation.INFINITE);
         mTvTouchToStart.startAnimation(pulse);
+        mMainHandler.postDelayed(this::launchGame, 400);
+    }
+
+    private void startEmbeddedInstall() {
+        if (mIsDownloading) return;
+        mIsDownloading = true;
+        mBtnAction.setVisibility(View.GONE);
+        mTvTouchToStart.setVisibility(View.GONE);
+        mLayoutProgressDetails.setVisibility(View.VISIBLE);
+        mTvStatus.setText("Instalando arquivos do jogo...");
+        mPbDownload.setIndeterminate(false);
+        mPbDownload.setProgress(0);
+        mTvPercent.setText("0%");
+        mTvDetails.setText("Extraindo dados embutidos no APK...");
+
+        mExecutor.execute(() -> {
+            File targetDir = getExternalFilesDir(null);
+            if (targetDir == null) {
+                showError("Armazenamento externo indisponível");
+                return;
+            }
+            if (!targetDir.exists()) targetDir.mkdirs();
+
+            try {
+                String[] files = getAssets().list("game");
+                if (files == null || files.length == 0) {
+                    throw new IOException("Nenhum arquivo de jogo encontrado nos assets do APK");
+                }
+
+                long totalBytes = 0;
+                for (String filename : files) {
+                    try (AssetFileDescriptor afd = getAssets().openFd("game/" + filename)) {
+                        totalBytes += afd.getLength();
+                    } catch (Exception e) {
+                        try (InputStream is = getAssets().open("game/" + filename)) {
+                            totalBytes += is.available();
+                        } catch (Exception ignored) {}
+                    }
+                }
+                if (totalBytes <= 0) totalBytes = 481_000_000L;
+
+                final long finalTotalBytes = totalBytes;
+                long copiedBytes = 0;
+                byte[] buffer = new byte[1024 * 1024]; // 1MB fast stream buffer
+
+                for (String filename : files) {
+                    File dest = new File(targetDir, filename);
+                    try (InputStream in = getAssets().open("game/" + filename);
+                         OutputStream out = new FileOutputStream(dest)) {
+                        int read;
+                        while ((read = in.read(buffer)) > 0) {
+                            out.write(buffer, 0, read);
+                            copiedBytes += read;
+                            final long currentCopied = copiedBytes;
+                            final int percent = (int) Math.min(100, (currentCopied * 100) / finalTotalBytes);
+                            mMainHandler.post(() -> {
+                                mPbDownload.setProgress(percent);
+                                mTvPercent.setText(percent + "%");
+                                double currentMB = currentCopied / (1024.0 * 1024.0);
+                                double totalMB = finalTotalBytes / (1024.0 * 1024.0);
+                                mTvDetails.setText(String.format(Locale.US, "Instalando %s (%.1f MB / %.1f MB)",
+                                        filename, currentMB, totalMB));
+                            });
+                        }
+                        out.flush();
+                    }
+                }
+
+                new File(targetDir, "resources").mkdirs();
+                new File(targetDir, "savedata").mkdirs();
+
+                mMainHandler.post(() -> {
+                    mReadyToStart = true;
+                    mIsDownloading = false;
+                    mTvStatus.setText("Jogo instalado com sucesso! Iniciando...");
+                    mPbDownload.setProgress(100);
+                    mTvPercent.setText("100%");
+                    mLayoutProgressDetails.setVisibility(View.GONE);
+                    mTvTouchToStart.setVisibility(View.VISIBLE);
+                    AlphaAnimation pulse = new AlphaAnimation(0.25f, 1.0f);
+                    pulse.setDuration(600);
+                    pulse.setRepeatMode(Animation.REVERSE);
+                    pulse.setRepeatCount(Animation.INFINITE);
+                    mTvTouchToStart.startAnimation(pulse);
+
+                    mMainHandler.postDelayed(this::launchGame, 400);
+                });
+
+            } catch (Exception e) {
+                Log.e(TAG, "Embedded installation error", e);
+                showError("Erro na instalação: " + e.getMessage());
+            }
+        });
     }
 
     @Override

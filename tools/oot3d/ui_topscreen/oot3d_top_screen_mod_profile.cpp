@@ -9,11 +9,90 @@
 #include <array>
 #include <bit>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <utility>
 
+#include <nlohmann/json.hpp>
+
 namespace Oot3dNativeGame {
+
+namespace {
+
+static TopScreenCustomHudLayout sGlobalCustomHudLayout;
+static bool sHasExplicitCustomHudLayout = false;
+
+}  // namespace
+
+void SetTopScreenCustomHudLayout(const TopScreenCustomHudLayout &layout) noexcept {
+  sGlobalCustomHudLayout = layout;
+  sHasExplicitCustomHudLayout = true;
+}
+
+void ResetTopScreenCustomHudLayout() noexcept {
+  sGlobalCustomHudLayout = {};
+  sHasExplicitCustomHudLayout = false;
+}
+
+const TopScreenCustomHudLayout *GetTopScreenCustomHudLayout() noexcept {
+  if (sHasExplicitCustomHudLayout) {
+    return sGlobalCustomHudLayout.Loaded ? &sGlobalCustomHudLayout : nullptr;
+  }
+  static TopScreenCustomHudLayout sLayout;
+  static bool sChecked = false;
+  static std::filesystem::file_time_type sLastWriteTime{};
+
+  const char *storagePath = std::getenv("TRIAEVUM_STORAGE_PATH");
+  std::filesystem::path jsonPath;
+  if (storagePath != nullptr && *storagePath != '\0') {
+    jsonPath = std::filesystem::path(storagePath) / "custom_hud_layout.json";
+  } else {
+    jsonPath = "custom_hud_layout.json";
+  }
+
+  std::error_code ec;
+  if (std::filesystem::is_regular_file(jsonPath, ec)) {
+    auto mtime = std::filesystem::last_write_time(jsonPath, ec);
+    if (!sChecked || (!ec && mtime != sLastWriteTime)) {
+      sChecked = true;
+      sLastWriteTime = mtime;
+      std::ifstream f(jsonPath);
+      if (f.is_open()) {
+        try {
+          nlohmann::json j = nlohmann::json::parse(f);
+          auto parseElem = [](const nlohmann::json &parent, const char *key, TopScreenCustomHudElement &elem) {
+            if (parent.contains(key) && parent[key].is_object()) {
+              const auto &o = parent[key];
+              elem.X = o.value("x", 0.0F);
+              elem.Y = o.value("y", 0.0F);
+              elem.Width = o.value("width", 0.0F);
+              elem.Height = o.value("height", 0.0F);
+              elem.Valid = (elem.Width > 0.0F && elem.Height > 0.0F);
+            }
+          };
+          parseElem(j, "btn_a", sLayout.BtnA);
+          parseElem(j, "btn_b", sLayout.BtnB);
+          parseElem(j, "btn_x", sLayout.BtnX);
+          parseElem(j, "btn_y", sLayout.BtnY);
+          parseElem(j, "btn_zr", sLayout.BtnZr);
+          parseElem(j, "btn_zl", sLayout.BtnZl);
+          parseElem(j, "diamond_cluster", sLayout.DiamondCluster);
+          parseElem(j, "status", sLayout.Status);
+          parseElem(j, "rupees", sLayout.Rupees);
+          parseElem(j, "minimap", sLayout.Minimap);
+          sLayout.Loaded = true;
+        } catch (...) {}
+      }
+    }
+  } else {
+    sChecked = true;
+  }
+  return sLayout.Loaded ? &sLayout : nullptr;
+}
+
 namespace {
 
 constexpr float kNativeTopScreenWidth = 400.0F;
@@ -822,12 +901,15 @@ BuildTopScreenHealthGeometry(std::uint16_t health, std::uint16_t healthCapacity,
   const std::uint32_t visibleHearts =
       (static_cast<std::uint32_t>(healthCapacity) + 15U) / 16U;
   std::uint32_t remainingHealth = health;
+  const auto *custom = GetTopScreenCustomHudLayout();
+  const float originX = (custom != nullptr && custom->Status.Valid) ? custom->Status.X : 8.0F;
+  const float originY = (custom != nullptr && custom->Status.Valid) ? custom->Status.Y : 6.0F;
   for (std::size_t index = 0; index < result.Positions.size(); ++index) {
     const auto column = static_cast<float>(index % 10U);
     const auto row = static_cast<float>(index / 10U);
     result.Positions[index] =
         index < visibleHearts
-            ? TopScreenVec2{8.0F + column * 12.0F, 6.0F + row * 9.75F}
+            ? TopScreenVec2{originX + column * 12.0F, originY + row * 9.75F}
             : TopScreenVec2{400.0F, 400.0F};
     result.Sizes[index] = {9.0F, 9.0F};
     result.AtlasSizes[index] = {12.0F, 12.0F};
@@ -877,17 +959,22 @@ BuildTopScreenMagicMeterGeometry(const oot3d::ui::UiHudMagicContent &magic,
   result.AtlasSizes = {
       {{8.0F, 8.0F}, {1.0F, 8.0F}, {-8.0F, 8.0F}, {6.0F, 4.0F}}};
 
+  const auto *custom = GetTopScreenCustomHudLayout();
+  const float originX = (custom != nullptr && custom->Status.Valid) ? custom->Status.X - 3.0F : 5.0F;
+  const float originY = (custom != nullptr && custom->Status.Valid) ? custom->Status.Y : 6.0F;
   const auto capacityHearts =
       (static_cast<std::uint32_t>(healthCapacity) + 15U) / 16U;
-  const float y = capacityHearts > 10U ? 25.5F : 15.75F;
+  const float y = (custom != nullptr && custom->Status.Valid)
+                      ? originY + (capacityHearts > 10U ? 20.0F : 10.0F)
+                      : (capacityHearts > 10U ? 25.5F : 15.75F);
   const bool alternate = magic.double_magic_acquired.value;
-  result.Positions[0] = {5.0F, y};
+  result.Positions[0] = {originX, y};
   result.Sizes[0] = {6.0F, 6.0F};
-  result.Positions[1] = {11.0F, y};
+  result.Positions[1] = {originX + 6.0F, y};
   result.Sizes[1] = {alternate ? 111.0F : 49.5F, 6.0F};
-  result.Positions[2] = {alternate ? 122.0F : 60.5F, y};
+  result.Positions[2] = {originX + (alternate ? 117.0F : 55.5F), y};
   result.Sizes[2] = {6.0F, 6.0F};
-  result.Positions[3] = {6.5F, y + 1.5F};
+  result.Positions[3] = {originX + 1.5F, y + 1.5F};
   const float progressRange = (alternate ? 2.0F : 1.0F) * 48.0F;
   const float fullWidth = alternate ? 160.0F : 78.0F;
   result.Sizes[3] = {
@@ -905,6 +992,7 @@ TopScreenTouchClusterGeometry BuildTopScreenTouchClusterGeometry(
   // rectangles to PICA UVs after the producer has supplied top-origin pixels.
   constexpr std::array<TopScreenVec2, 4> kNativeCenters{
       {{358.0F, 20.0F}, {334.0F, 44.0F}, {382.0F, 44.0F}, {358.0F, 68.0F}}};
+  const auto *custom = GetTopScreenCustomHudLayout();
   TopScreenTouchClusterGeometry result;
   for (std::size_t index = 0; index < kNativeCenters.size(); ++index) {
     result.Positions[index] = {kNativeCenters[index].X - 16.0F,
@@ -918,8 +1006,32 @@ TopScreenTouchClusterGeometry BuildTopScreenTouchClusterGeometry(
                                                                  : nativeAlpha;
   }
 
-  result.Positions[4] = TopScreenVec2{262.0F, 2.0F};
-  result.Sizes[4] = {32.0F, 32.0F};
+  if (custom != nullptr) {
+    if (custom->BtnX.Valid) {
+      result.Positions[0] = {custom->BtnX.X, custom->BtnX.Y + nativeVerticalOffsets[0]};
+      result.Sizes[0] = {custom->BtnX.Width, custom->BtnX.Height};
+    }
+    if (custom->BtnY.Valid) {
+      result.Positions[1] = {custom->BtnY.X, custom->BtnY.Y + nativeVerticalOffsets[1]};
+      result.Sizes[1] = {custom->BtnY.Width, custom->BtnY.Height};
+    }
+    if (custom->BtnZr.Valid) {
+      result.Positions[2] = {custom->BtnZr.X, custom->BtnZr.Y + nativeVerticalOffsets[2]};
+      result.Sizes[2] = {custom->BtnZr.Width, custom->BtnZr.Height};
+    }
+    if (custom->BtnZl.Valid) {
+      result.Positions[3] = {custom->BtnZl.X, custom->BtnZl.Y + nativeVerticalOffsets[3]};
+      result.Sizes[3] = {custom->BtnZl.Width, custom->BtnZl.Height};
+    }
+  }
+
+  if (custom != nullptr && custom->BtnA.Valid) {
+    result.Positions[4] = TopScreenVec2{custom->BtnA.X, custom->BtnA.Y};
+    result.Sizes[4] = {custom->BtnA.Width, custom->BtnA.Height};
+  } else {
+    result.Positions[4] = TopScreenVec2{275.0F, 2.0F};
+    result.Sizes[4] = {32.0F, 32.0F};
+  }
   result.AtlasOrigins[4] = {386.0F, 201.0F};
   result.AtlasSizes[4] = {48.0F, 48.0F};
   result.Alpha[4] = 1.0F;
@@ -1510,15 +1622,31 @@ bool AppendTopScreenNativeItemIconCopies(
         region != nullptr ? static_cast<float>(region->SourceCenterX) : centerX;
     const float sourceCenterY =
         region != nullptr ? static_cast<float>(region->SourceCenterY) : centerY;
-    const float destinationCenterX =
+    const auto *custom = GetTopScreenCustomHudLayout();
+    float destinationCenterX =
         region != nullptr ? static_cast<float>(region->DestinationCenterX)
                           : 500.0F;
-    const float destinationY =
+    float destinationY =
         (region != nullptr ? static_cast<float>(region->DestinationCenterY)
                            : 300.0F) +
         (regionIndex < nativeVerticalOffsets.size()
              ? nativeVerticalOffsets[regionIndex]
              : 0.0F);
+    if (custom != nullptr && region != nullptr) {
+      if (regionIndex == 0U && custom->BtnZr.Valid) {
+        destinationCenterX = custom->BtnZr.X - 16.0F + (custom->BtnZr.Width - 32.0F) * 0.5F;
+        destinationY = custom->BtnZr.Y - 16.0F + (custom->BtnZr.Height - 32.0F) * 0.5F + nativeVerticalOffsets[0];
+      } else if (regionIndex == 1U && custom->BtnX.Valid) {
+        destinationCenterX = custom->BtnX.X - 11.0F + (custom->BtnX.Width - 32.0F) * 0.5F;
+        destinationY = custom->BtnX.Y - 11.0F + (custom->BtnX.Height - 32.0F) * 0.5F + nativeVerticalOffsets[1];
+      } else if (regionIndex == 2U && custom->BtnY.Valid) {
+        destinationCenterX = custom->BtnY.X - 11.0F + (custom->BtnY.Width - 32.0F) * 0.5F;
+        destinationY = custom->BtnY.Y - 11.0F + (custom->BtnY.Height - 32.0F) * 0.5F + nativeVerticalOffsets[2];
+      } else if (regionIndex == 3U && custom->BtnZl.Valid) {
+        destinationCenterX = custom->BtnZl.X - 16.0F + (custom->BtnZl.Width - 32.0F) * 0.5F;
+        destinationY = custom->BtnZl.Y - 16.0F + (custom->BtnZl.Height - 32.0F) * 0.5F + nativeVerticalOffsets[3];
+      }
+    }
     const float scale = region != nullptr ? region->Scale : 1.0F;
     std::array<TopScreenVec2, 4> transformed{};
     for (std::size_t vertex = 0; vertex < transformed.size(); ++vertex) {
@@ -1567,8 +1695,11 @@ bool AppendTopScreenNativeCounters(
     SetError(error, "cannot read native TopScreen rupee count");
     return false;
   }
+  const auto *custom = GetTopScreenCustomHudLayout();
+  const float rupeeX = (custom != nullptr && custom->Rupees.Valid) ? custom->Rupees.X : 24.0F;
+  const float rupeeY = (custom != nullptr && custom->Rupees.Valid) ? custom->Rupees.Y : 218.0F;
   (void)AppendTopScreenCounterDigits(0x005C9940U, kSaveContext + 0x48U, rupees,
-                                     4U, 24.0F, 218.0F, 0.85F, numberGlyphs,
+                                     4U, rupeeX, rupeeY, 0.85F, numberGlyphs,
                                      output);
 
   std::uint32_t playState = 0U;
@@ -1596,14 +1727,34 @@ bool AppendTopScreenNativeCounters(
   const auto keyCount = static_cast<std::int8_t>(keyCountRaw);
   if (stateType == 3U && stateSubtype == 2U && sceneId >= 3U &&
       sceneId <= 16U && keyCount >= 0) {
+    const float keyX = (custom != nullptr && custom->Rupees.Valid) ? custom->Rupees.X - 2.0F : 22.0F;
+    const float keyY = (custom != nullptr && custom->Rupees.Valid) ? custom->Rupees.Y - 20.0F : 198.0F;
     (void)AppendTopScreenCounterDigits(
         0x005C9940U, kSaveContext + 0xD4U + mapIndex,
-        static_cast<std::uint32_t>(keyCount), 4U, 22.0F, 198.0F, 0.85F,
+        static_cast<std::uint32_t>(keyCount), 4U, keyX, keyY, 0.85F,
         numberGlyphs, output);
   }
 
-  constexpr std::array<float, 4> kAmmoX{382.0F, 358.0F, 358.0F, 334.0F};
-  constexpr std::array<float, 4> kAmmoY{44.0F, 68.0F, 20.0F, 44.0F};
+  std::array<float, 4> kAmmoX{382.0F, 358.0F, 358.0F, 334.0F};
+  std::array<float, 4> kAmmoY{44.0F, 68.0F, 20.0F, 44.0F};
+  if (custom != nullptr) {
+    if (custom->BtnZr.Valid) {
+      kAmmoX[0] = custom->BtnZr.X + custom->BtnZr.Width * 0.5F;
+      kAmmoY[0] = custom->BtnZr.Y + custom->BtnZr.Height * 0.5F;
+    }
+    if (custom->BtnZl.Valid) {
+      kAmmoX[1] = custom->BtnZl.X + custom->BtnZl.Width * 0.5F;
+      kAmmoY[1] = custom->BtnZl.Y + custom->BtnZl.Height * 0.5F;
+    }
+    if (custom->BtnX.Valid) {
+      kAmmoX[2] = custom->BtnX.X + custom->BtnX.Width * 0.5F;
+      kAmmoY[2] = custom->BtnX.Y + custom->BtnX.Height * 0.5F;
+    }
+    if (custom->BtnY.Valid) {
+      kAmmoX[3] = custom->BtnY.X + custom->BtnY.Width * 0.5F;
+      kAmmoY[3] = custom->BtnY.Y + custom->BtnY.Height * 0.5F;
+    }
+  }
   constexpr std::array<std::uint8_t, 4> kOffsetLane{2U, 3U, 0U, 1U};
   std::uint32_t activeSlots = 0U;
   if (!memory.Read32(playState + 0x224U, &activeSlots)) {
@@ -1720,11 +1871,16 @@ TopScreenTouchLabelsGeometry BuildTopScreenTouchLabelsGeometry(
       layout == TopScreenHudLayout::Restoration
           ? 0.0F
           : std::clamp(nativeAlpha * 0.9F, 0.0F, 1.0F);
+  const auto *custom = GetTopScreenCustomHudLayout();
+  const float zrX = (custom != nullptr && custom->BtnZr.Valid) ? custom->BtnZr.X - 4.0F : 362.0F;
+  const float zrY = (custom != nullptr && custom->BtnZr.Valid) ? custom->BtnZr.Y + 5.0F : 33.0F;
+  const float zlX = (custom != nullptr && custom->BtnZl.Valid) ? custom->BtnZl.X - 4.0F : 338.0F;
+  const float zlY = (custom != nullptr && custom->BtnZl.Valid) ? custom->BtnZl.Y + 5.0F : 57.0F;
   TopScreenTouchLabelsGeometry result;
-  result.Quads[0] = {alpha != 0.0F,  {362.0F, nativeVerticalOffsets[2] + 33.0F},
+  result.Quads[0] = {alpha != 0.0F,  {zrX, nativeVerticalOffsets[2] + zrY},
                      {17.0F, 11.0F}, {440.0F, 190.0F},
                      {17.0F, 11.0F}, {1.0F, 1.0F, 1.0F, alpha}};
-  result.Quads[1] = {alpha != 0.0F,  {338.0F, nativeVerticalOffsets[3] + 57.0F},
+  result.Quads[1] = {alpha != 0.0F,  {zlX, nativeVerticalOffsets[3] + zlY},
                      {17.0F, 11.0F}, {440.0F, 201.0F},
                      {17.0F, 11.0F}, {1.0F, 1.0F, 1.0F, alpha}};
   return result;
@@ -1831,11 +1987,12 @@ TopScreenAuxiliaryTouchGeometry BuildTopScreenAuxiliaryTouchGeometry(
       inputs.AlternateHudRendererActive &&
       (inputs.NestedSceneOwnerActive || inputs.PauseState == 11U);
 
+  const auto *custom = GetTopScreenCustomHudLayout();
   TopScreenAuxiliaryTouchGeometry result;
   for (std::size_t index = 0U; index < 4U; ++index) {
     auto &quad = result.Quads[index];
     quad.Visible = auxiliaryAlpha != 0.0F &&
-                   (index < 2U || (index == 2U && conditionalVisible));
+                   (index < 2U || (index == 2U && (conditionalVisible || (custom != nullptr && custom->BtnA.Valid))));
     quad.Position = {500.0F, 300.0F};
     quad.Size = {16.0F, 16.0F};
     quad.AtlasOrigin = {158.0F, kAtlasY[index]};
@@ -1844,8 +2001,20 @@ TopScreenAuxiliaryTouchGeometry BuildTopScreenAuxiliaryTouchGeometry(
     if (index < 2U) {
       quad.Position = {kCentersX[index] - 20.0F,
                        kCentersY[index] - 14.0F + nativeVerticalOffsets[index]};
-    } else if (index == 2U && conditionalVisible) {
-      quad.Position = TopScreenVec2{270.0F, 10.0F};
+      if (custom != nullptr) {
+        if (index == 0U && custom->BtnX.Valid) {
+          quad.Position = {custom->BtnX.X + 2.0F, custom->BtnX.Y + 2.0F + nativeVerticalOffsets[0]};
+        } else if (index == 1U && custom->BtnY.Valid) {
+          quad.Position = {custom->BtnY.X + 2.0F, custom->BtnY.Y + 2.0F + nativeVerticalOffsets[1]};
+        }
+      }
+    } else if (index == 2U) {
+      if (custom != nullptr && custom->BtnA.Valid) {
+        quad.Position = TopScreenVec2{custom->BtnA.X + (custom->BtnA.Width - 16.0F) * 0.5F,
+                                     custom->BtnA.Y + 2.0F};
+      } else {
+        quad.Position = TopScreenVec2{283.0F, 4.0F};
+      }
       quad.AtlasOrigin.Y = 174.0F;
     }
   }
@@ -1988,28 +2157,44 @@ bool AppendTopScreenNativeTouchCopies(
     const bool restoration =
         config != nullptr &&
         config->HudLayout == TopScreenHudLayout::Restoration;
-    const float destinationX =
-        config != nullptr && contractIndex < 2U
-            ? 278.0F
-            : (restoration && contractIndex < 2U
-                   ? 339.0F
-                   : static_cast<float>(contract.DestinationX));
-    const float destinationY =
-        config != nullptr && contractIndex < 2U
-            ? 18.0F
-            : (restoration && contractIndex < 2U
-                   ? 55.0F
-                   : static_cast<float>(contract.DestinationY));
-    for (std::size_t vertex = 0; vertex < transformed.size(); ++vertex) {
-      transformed[vertex] = {
-          destinationX +
-              ((positions[vertex * 3U] + translation[0]) -
-               static_cast<float>(contract.SourceCenterX)) *
-                  contract.Scale,
-          destinationY +
-              ((positions[vertex * 3U + 1U] + translation[1]) -
-               static_cast<float>(contract.SourceCenterY)) *
-                  contract.Scale};
+    const bool customButtonA = config != nullptr && contractIndex < 2U;
+    const auto *custom = GetTopScreenCustomHudLayout();
+    const float destinationCenterX = (custom != nullptr && custom->BtnA.Valid)
+                                         ? custom->BtnA.X + custom->BtnA.Width * 0.5F
+                                         : 291.0F;
+    const float destinationCenterY = (custom != nullptr && custom->BtnA.Valid)
+                                         ? custom->BtnA.Y + custom->BtnA.Height * 0.5F
+                                         : 18.0F;
+    if (customButtonA) {
+      const float localCenterX = (positions[0] + positions[9]) * 0.5F;
+      const float localCenterY = (positions[1] + positions[10]) * 0.5F;
+      for (std::size_t vertex = 0; vertex < transformed.size(); ++vertex) {
+        transformed[vertex] = {
+            destinationCenterX +
+                (positions[vertex * 3U] - localCenterX) * contract.Scale,
+            destinationCenterY +
+                (positions[vertex * 3U + 1U] - localCenterY) * contract.Scale};
+      }
+    } else {
+      const float destinationX =
+          restoration && contractIndex < 2U
+              ? 339.0F
+              : static_cast<float>(contract.DestinationX);
+      const float destinationY =
+          restoration && contractIndex < 2U
+              ? 55.0F
+              : static_cast<float>(contract.DestinationY);
+      for (std::size_t vertex = 0; vertex < transformed.size(); ++vertex) {
+        transformed[vertex] = {
+            destinationX +
+                ((positions[vertex * 3U] + translation[0]) -
+                 static_cast<float>(contract.SourceCenterX)) *
+                    contract.Scale,
+            destinationY +
+                ((positions[vertex * 3U + 1U] + translation[1]) -
+                 static_cast<float>(contract.SourceCenterY)) *
+                    contract.Scale};
+      }
     }
     if (source >= 86U) {
       uvs[5] += 1.0F / 256.0F;

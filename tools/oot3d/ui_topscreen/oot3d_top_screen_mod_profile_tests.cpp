@@ -1107,7 +1107,7 @@ int main() {
               touchCluster.Positions[0].Y == 4.0F &&
               touchCluster.Positions[3].X == 342.0F &&
               touchCluster.Positions[3].Y == 55.0F &&
-              touchCluster.Positions[4].X == 262.0F &&
+              touchCluster.Positions[4].X == 275.0F &&
               touchCluster.Positions[4].Y == 2.0F &&
               touchCluster.Positions[5].X == 14.0F &&
               touchCluster.Positions[5].Y == 52.0F &&
@@ -1175,7 +1175,8 @@ int main() {
               auxiliaryGeometry.Quads[0].Position.X == 338.0F &&
               auxiliaryGeometry.Quads[0].Position.Y == 8.0F &&
               auxiliaryGeometry.Quads[2].Visible &&
-              auxiliaryGeometry.Quads[2].Position.X == 270.0F &&
+              auxiliaryGeometry.Quads[2].Position.X == 283.0F &&
+              auxiliaryGeometry.Quads[2].Position.Y == 4.0F &&
               auxiliaryGeometry.Quads[2].AtlasOrigin.Y == 174.0F &&
               !auxiliaryGeometry.Quads[3].Visible &&
               auxiliaryGeometry.Quads[4].Position.X == 22.0F &&
@@ -1197,14 +1198,14 @@ int main() {
               restorationTouchCluster.Alpha[1] == 0.5F &&
               restorationTouchCluster.Alpha[2] == 0.0F &&
               restorationTouchCluster.Alpha[3] == 0.0F &&
-              restorationTouchCluster.Positions[4].X == 262.0F &&
+              restorationTouchCluster.Positions[4].X == 275.0F &&
               restorationTouchCluster.Positions[4].Y == 2.0F,
           "Restoration touch-cluster geometry is incorrect");
   const auto restorationAuxiliary = BuildTopScreenAuxiliaryTouchGeometry(
       auxiliaryInputs, dynamicTouch.VerticalOffsets, dynamicTouch.Alpha,
       TopScreenHudLayout::Restoration);
-  Require(restorationAuxiliary.Quads[2].Position.X == 270.0F &&
-              restorationAuxiliary.Quads[2].Position.Y == 10.0F,
+  Require(restorationAuxiliary.Quads[2].Position.X == 283.0F &&
+              restorationAuxiliary.Quads[2].Position.Y == 4.0F,
           "Restoration auxiliary control geometry is incorrect");
   const auto restorationLabels = BuildTopScreenTouchLabelsGeometry(
       dynamicTouch.VerticalOffsets, dynamicTouch.Alpha,
@@ -1592,8 +1593,8 @@ int main() {
               nativeTouchMemory, heartTexture, restorationTouchCopies, nullptr,
               &error, &restorationCopyConfig) &&
               restorationTouchCopies.size() == 10U &&
-              restorationTouchCopies[0].destination.x == 278.0F &&
-              restorationTouchCopies[0].destination.y == 18.0F &&
+              restorationTouchCopies[0].destination.x == 286.0F &&
+              restorationTouchCopies[0].destination.y == 8.0F &&
               !restorationTouchCopies[0].visible &&
               restorationTouchCopies[2].destination.x == 4.0F,
           "Restoration native touch-copy transform is incorrect");
@@ -3265,6 +3266,30 @@ int main() {
               profileTexture->NativePicaFormat == 0U &&
               profileTexture->EncodedPayload == profileTexturePayload,
           "TopScreen 2.1.1 named profile CTXB contract is incorrect");
+
+  // Custom HUD Layout verification
+  TopScreenCustomHudLayout customLayout;
+  customLayout.Loaded = true;
+  customLayout.BtnA = {true, 250.0F, 10.0F, 36.0F, 36.0F};
+  customLayout.BtnX = {true, 300.0F, 30.0F, 28.0F, 28.0F};
+  customLayout.Status = {true, 15.0F, 12.0F, 100.0F, 20.0F};
+  SetTopScreenCustomHudLayout(customLayout);
+
+  const auto customCluster = BuildTopScreenTouchClusterGeometry({0.0F, 0.0F, 0.0F, 0.0F}, 1.0F, TopScreenHudLayout::Normal);
+  Require(customCluster.Positions[4].X == 250.0F && customCluster.Positions[4].Y == 10.0F &&
+          customCluster.Sizes[4].X == 36.0F && customCluster.Sizes[4].Y == 36.0F,
+          "TopScreen custom Button A geometry not applied");
+  Require(customCluster.Positions[0].X == 300.0F && customCluster.Positions[0].Y == 30.0F &&
+          customCluster.Sizes[0].X == 28.0F && customCluster.Sizes[0].Y == 28.0F,
+          "TopScreen custom Button X geometry not applied");
+
+  const auto customHealth = BuildTopScreenHealthGeometry(48, 48, false, 0);
+  Require(customHealth.Positions[0].X == 15.0F && customHealth.Positions[0].Y == 12.0F,
+          "TopScreen custom health position not applied");
+
+  ResetTopScreenCustomHudLayout();
+  Require(GetTopScreenCustomHudLayout() == nullptr,
+          "TopScreen custom HUD layout not reset properly");
 
   std::cout << "oot3d_top_screen_mod_profile_tests: ok\n";
   return 0;

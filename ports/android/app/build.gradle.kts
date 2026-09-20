@@ -33,6 +33,9 @@ android {
         if (nativeStage.isPresent) jniLibs.srcDir(nativeStage.get())
     }
     packaging { jniLibs.useLegacyPackaging = true }
+    androidResources {
+        noCompress += listOf("bin", "o3tu")
+    }
 }
 tasks.register("checkNativeStage") {
     onlyIf {

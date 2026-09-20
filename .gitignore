@@ -65,6 +65,7 @@ graphs/
 *.3dsx
 *.cia
 *.cxi
+ports/android/app/src/main/assets/game/*.bin
 
 # Local agent instructions
 AGENTE.MD

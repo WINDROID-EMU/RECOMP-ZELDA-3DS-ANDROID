@@ -198,6 +198,32 @@ struct TopScreenMagicMeterGeometry {
   std::array<TopScreenVec2, 4> AtlasSizes{};
 };
 
+struct TopScreenCustomHudElement {
+  bool Valid = false;
+  float X = 0.0F;
+  float Y = 0.0F;
+  float Width = 0.0F;
+  float Height = 0.0F;
+};
+
+struct TopScreenCustomHudLayout {
+  bool Loaded = false;
+  TopScreenCustomHudElement BtnA;
+  TopScreenCustomHudElement BtnB;
+  TopScreenCustomHudElement BtnX;
+  TopScreenCustomHudElement BtnY;
+  TopScreenCustomHudElement BtnZr;
+  TopScreenCustomHudElement BtnZl;
+  TopScreenCustomHudElement DiamondCluster;
+  TopScreenCustomHudElement Status;
+  TopScreenCustomHudElement Rupees;
+  TopScreenCustomHudElement Minimap;
+};
+
+const TopScreenCustomHudLayout *GetTopScreenCustomHudLayout() noexcept;
+void SetTopScreenCustomHudLayout(const TopScreenCustomHudLayout &layout) noexcept;
+void ResetTopScreenCustomHudLayout() noexcept;
+
 struct TopScreenTouchClusterGeometry {
   std::array<TopScreenVec2, 6> Positions{};
   std::array<TopScreenVec2, 6> Sizes{};

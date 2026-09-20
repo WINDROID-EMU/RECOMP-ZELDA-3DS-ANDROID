@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp"
+    android:height="28dp"
+    android:viewportWidth="20"
+    android:viewportHeight="28">
+    <!-- Green Rupee Gem Polygon -->
+    <path
+        android:fillColor="#00C853"
+        android:strokeColor="#B9F6CA"
+        android:strokeWidth="1.2"
+        android:pathData="M10,1 L18,7 L18,21 L10,27 L2,21 L2,7 Z" />
+    <path
+        android:fillColor="#69F0AE"
+        android:pathData="M10,3 L16,8 L10,25 L4,8 Z" />
+</vector>
