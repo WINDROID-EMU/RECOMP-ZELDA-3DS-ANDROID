@@ -69,6 +69,7 @@ public class TriAevumDownloadActivity extends Activity {
     private TextView mTvTouchToStart;
     private ProgressBar mPbDownload;
     private Button mBtnAction;
+    private Button mBtnChangeDirectory;
     private View mLayoutProgressDetails;
     private View mRootLayout;
 
@@ -87,27 +88,9 @@ public class TriAevumDownloadActivity extends Activity {
         return romfs.isFile() && romfs.length() > 10_000_000L && code.isFile() && exheader.isFile() && launch.isFile();
     }
 
-    private boolean hasEmbeddedGameRom() {
-        try {
-            String[] files = getAssets().list("game");
-            if (files != null) {
-                for (String f : files) {
-                    if ("romfs.bin".equals(f)) return true;
-                }
-            }
-        } catch (Exception ignored) {}
-        return false;
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // Fast path: if the game is already installed, launch immediately
-        if (isGameInstalled(this)) {
-            launchGame();
-            return;
-        }
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -126,15 +109,8 @@ public class TriAevumDownloadActivity extends Activity {
         mTvTouchToStart        = findViewById(R.id.tv_touch_to_start);
         mPbDownload            = findViewById(R.id.pb_download);
         mBtnAction             = findViewById(R.id.btn_download_action);
+        mBtnChangeDirectory    = findViewById(R.id.btn_change_directory);
         mLayoutProgressDetails = findViewById(R.id.layout_progress_details);
-
-        mBtnAction.setOnClickListener(v -> {
-            if (hasEmbeddedGameRom()) {
-                startEmbeddedInstall();
-            } else {
-                requestStoragePermissionAndPickRomDirectory();
-            }
-        });
 
         mRootLayout.setOnClickListener(v -> {
             if (mReadyToStart) {
@@ -142,28 +118,34 @@ public class TriAevumDownloadActivity extends Activity {
             }
         });
 
-        if (isGameDataInstalled()) {
-            setupReadyToStart();
-        } else if (hasEmbeddedGameRom()) {
-            startEmbeddedInstall();
-        } else {
-            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-            String savedDirUri = prefs.getString(PREF_ROM_DIR_URI, null);
-            if (savedDirUri != null) {
-                try {
-                    Uri treeUri = Uri.parse(savedDirUri);
-                    scanAndProcessRomDirectory(treeUri);
-                    return;
-                } catch (Exception e) {
-                    Log.w(TAG, "Falha ao ler URI da pasta salva: " + savedDirUri, e);
-                }
-            }
+        // Pede permissão de armazenamento de arquivo se necessário
+        checkAndRequestStoragePermission();
 
-            // Show directory selection button
-            mBtnAction.setVisibility(View.VISIBLE);
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String savedDirUri = prefs.getString(PREF_ROM_DIR_URI, null);
+
+        mLayoutProgressDetails.setVisibility(View.GONE);
+        mBtnAction.setVisibility(View.VISIBLE);
+
+        if (savedDirUri != null && isGameInstalled(this)) {
+            mReadyToStart = true;
+            mBtnAction.setText("Iniciar Jogo");
+            mBtnAction.setOnClickListener(v -> launchGame());
+            mBtnChangeDirectory.setVisibility(View.VISIBLE);
+            mBtnChangeDirectory.setOnClickListener(v -> pickRomDirectory());
+            mTvStatus.setText("ROM pronta. Toque em 'Iniciar Jogo' ou 'Trocar Pasta'.");
+            mTvTouchToStart.setVisibility(View.VISIBLE);
+            AlphaAnimation pulse = new AlphaAnimation(0.25f, 1.0f);
+            pulse.setDuration(600);
+            pulse.setRepeatMode(Animation.REVERSE);
+            pulse.setRepeatCount(Animation.INFINITE);
+            mTvTouchToStart.startAnimation(pulse);
+        } else {
             mBtnAction.setText("Selecionar Pasta da ROM");
             mTvStatus.setText("Selecione o diretório onde estão os arquivos da ROM para começar");
-            mLayoutProgressDetails.setVisibility(View.GONE);
+            mBtnAction.setOnClickListener(v -> requestStoragePermissionAndPickRomDirectory());
+            mBtnChangeDirectory.setVisibility(View.GONE);
+            mTvTouchToStart.setVisibility(View.GONE);
         }
     }
 
@@ -187,110 +169,23 @@ public class TriAevumDownloadActivity extends Activity {
         }
         mReadyToStart = true;
         mIsDownloading = false;
-        mTvStatus.setText("Jogo pronto! Iniciando...");
+        mTvStatus.setText("ROM pronta para jogar!");
         mPbDownload.setProgress(100);
         mTvPercent.setText("100%");
         mLayoutProgressDetails.setVisibility(View.GONE);
-        mBtnAction.setVisibility(View.GONE);
+        mBtnAction.setVisibility(View.VISIBLE);
+        mBtnAction.setText("Iniciar Jogo");
+        mBtnAction.setOnClickListener(v -> launchGame());
+        if (mBtnChangeDirectory != null) {
+            mBtnChangeDirectory.setVisibility(View.VISIBLE);
+            mBtnChangeDirectory.setOnClickListener(v -> pickRomDirectory());
+        }
         mTvTouchToStart.setVisibility(View.VISIBLE);
         AlphaAnimation pulse = new AlphaAnimation(0.25f, 1.0f);
         pulse.setDuration(600);
         pulse.setRepeatMode(Animation.REVERSE);
         pulse.setRepeatCount(Animation.INFINITE);
         mTvTouchToStart.startAnimation(pulse);
-        mMainHandler.postDelayed(this::launchGame, 400);
-    }
-
-    private void startEmbeddedInstall() {
-        if (mIsDownloading) return;
-        mIsDownloading = true;
-        mBtnAction.setVisibility(View.GONE);
-        mTvTouchToStart.setVisibility(View.GONE);
-        mLayoutProgressDetails.setVisibility(View.VISIBLE);
-        mTvStatus.setText("Instalando arquivos do jogo...");
-        mPbDownload.setIndeterminate(false);
-        mPbDownload.setProgress(0);
-        mTvPercent.setText("0%");
-        mTvDetails.setText("Extraindo dados embutidos no APK...");
-
-        mExecutor.execute(() -> {
-            File targetDir = getExternalFilesDir(null);
-            if (targetDir == null) {
-                showError("Armazenamento externo indisponível");
-                return;
-            }
-            if (!targetDir.exists()) targetDir.mkdirs();
-
-            try {
-                String[] files = getAssets().list("game");
-                if (files == null || files.length == 0) {
-                    throw new IOException("Nenhum arquivo de jogo encontrado nos assets do APK");
-                }
-
-                long totalBytes = 0;
-                for (String filename : files) {
-                    try (AssetFileDescriptor afd = getAssets().openFd("game/" + filename)) {
-                        totalBytes += afd.getLength();
-                    } catch (Exception e) {
-                        try (InputStream is = getAssets().open("game/" + filename)) {
-                            totalBytes += is.available();
-                        } catch (Exception ignored) {}
-                    }
-                }
-                if (totalBytes <= 0) totalBytes = 481_000_000L;
-
-                final long finalTotalBytes = totalBytes;
-                long copiedBytes = 0;
-                byte[] buffer = new byte[1024 * 1024]; // 1MB fast stream buffer
-
-                for (String filename : files) {
-                    File dest = new File(targetDir, filename);
-                    try (InputStream in = getAssets().open("game/" + filename);
-                         OutputStream out = new FileOutputStream(dest)) {
-                        int read;
-                        while ((read = in.read(buffer)) > 0) {
-                            out.write(buffer, 0, read);
-                            copiedBytes += read;
-                            final long currentCopied = copiedBytes;
-                            final int percent = (int) Math.min(100, (currentCopied * 100) / finalTotalBytes);
-                            mMainHandler.post(() -> {
-                                mPbDownload.setProgress(percent);
-                                mTvPercent.setText(percent + "%");
-                                double currentMB = currentCopied / (1024.0 * 1024.0);
-                                double totalMB = finalTotalBytes / (1024.0 * 1024.0);
-                                mTvDetails.setText(String.format(Locale.US, "Instalando %s (%.1f MB / %.1f MB)",
-                                        filename, currentMB, totalMB));
-                            });
-                        }
-                        out.flush();
-                    }
-                }
-
-                new File(targetDir, "resources").mkdirs();
-                new File(targetDir, "savedata").mkdirs();
-
-                mMainHandler.post(() -> {
-                    mReadyToStart = true;
-                    mIsDownloading = false;
-                    mTvStatus.setText("Jogo instalado com sucesso! Iniciando...");
-                    mPbDownload.setProgress(100);
-                    mTvPercent.setText("100%");
-                    mLayoutProgressDetails.setVisibility(View.GONE);
-                    mTvTouchToStart.setVisibility(View.VISIBLE);
-                    AlphaAnimation pulse = new AlphaAnimation(0.25f, 1.0f);
-                    pulse.setDuration(600);
-                    pulse.setRepeatMode(Animation.REVERSE);
-                    pulse.setRepeatCount(Animation.INFINITE);
-                    mTvTouchToStart.startAnimation(pulse);
-
-                    mMainHandler.postDelayed(this::launchGame, 400);
-                });
-
-            } catch (Exception e) {
-                Log.e(TAG, "Embedded installation error", e);
-                showError("Erro na instalação: " + e.getMessage());
-            }
-        });
     }
 
     @Override
@@ -318,12 +213,39 @@ public class TriAevumDownloadActivity extends Activity {
         finish();
     }
 
+    private void checkAndRequestStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                try {
+                    Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                    startActivityForResult(intent, REQUEST_CODE_STORAGE_PERMISSION);
+                } catch (Exception e) {
+                    try {
+                        Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                        startActivityForResult(intent, REQUEST_CODE_STORAGE_PERMISSION);
+                    } catch (Exception ignored) {}
+                }
+            }
+        } else {
+            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{
+                    android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                }, REQUEST_CODE_STORAGE_PERMISSION);
+            }
+        }
+    }
+
     private void requestStoragePermissionAndPickRomDirectory() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+ uses scoped storage; ACTION_OPEN_DOCUMENT_TREE does not require legacy storage permissions
-            pickRomDirectory();
+            if (!Environment.isExternalStorageManager()) {
+                checkAndRequestStoragePermission();
+            } else {
+                pickRomDirectory();
+            }
         } else {
-            // Android 10 and below need storage permissions
             if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
                 checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{
@@ -359,6 +281,10 @@ public class TriAevumDownloadActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_STORAGE_PERMISSION) {
+            pickRomDirectory();
+            return;
+        }
         if (requestCode == REQUEST_CODE_PICK_ROM_DIR && resultCode == RESULT_OK && data != null) {
             Uri uri = data.getData();
             if (uri != null) {
@@ -555,21 +481,7 @@ public class TriAevumDownloadActivity extends Activity {
         new File(targetDir, "resources").mkdirs();
         new File(targetDir, "savedata").mkdirs();
 
-        mMainHandler.post(() -> {
-            mReadyToStart = true;
-            mIsDownloading = false;
-            mTvStatus.setText("Arquivos carregados com sucesso! Iniciando...");
-            mPbDownload.setProgress(100);
-            mTvPercent.setText("100%");
-            mLayoutProgressDetails.setVisibility(View.GONE);
-            mTvTouchToStart.setVisibility(View.VISIBLE);
-            AlphaAnimation pulse = new AlphaAnimation(0.25f, 1.0f);
-            pulse.setDuration(600);
-            pulse.setRepeatMode(Animation.REVERSE);
-            pulse.setRepeatCount(Animation.INFINITE);
-            mTvTouchToStart.startAnimation(pulse);
-            mMainHandler.postDelayed(this::launchGame, 400);
-        });
+        mMainHandler.post(this::setupReadyToStart);
     }
 
     private void processRomContainerFile(DocumentFile romContainerFile, File targetDir) throws Exception {
@@ -602,21 +514,7 @@ public class TriAevumDownloadActivity extends Activity {
         new File(targetDir, "resources").mkdirs();
         new File(targetDir, "savedata").mkdirs();
 
-        mMainHandler.post(() -> {
-            mReadyToStart = true;
-            mIsDownloading = false;
-            mTvStatus.setText("ROM convertida com sucesso! Iniciando...");
-            mPbDownload.setProgress(100);
-            mTvPercent.setText("100%");
-            mLayoutProgressDetails.setVisibility(View.GONE);
-            mTvTouchToStart.setVisibility(View.VISIBLE);
-            AlphaAnimation pulse = new AlphaAnimation(0.25f, 1.0f);
-            pulse.setDuration(600);
-            pulse.setRepeatMode(Animation.REVERSE);
-            pulse.setRepeatCount(Animation.INFINITE);
-            mTvTouchToStart.startAnimation(pulse);
-            mMainHandler.postDelayed(this::launchGame, 400);
-        });
+        mMainHandler.post(this::setupReadyToStart);
     }
 
     private void copyDocumentToFile(DocumentFile source, File destination, String label, long totalExpectedBytes, long[] bytesOffsetSoFar) throws IOException {
@@ -721,23 +619,7 @@ public class TriAevumDownloadActivity extends Activity {
                 new File(targetDir, "resources").mkdirs();
                 new File(targetDir, "savedata").mkdirs();
 
-                // 4. Success! Show "TOQUE NA TELA PARA INICIAR"
-                mMainHandler.post(() -> {
-                    mReadyToStart = true;
-                    mIsDownloading = false;
-                    mTvStatus.setText("Download e extração concluídos com sucesso!");
-                    mPbDownload.setProgress(100);
-                    mTvPercent.setText("100%");
-                    mLayoutProgressDetails.setVisibility(View.GONE);
-
-                    // Glowing pulse animation on "TOQUE NA TELA PARA INICIAR"
-                    mTvTouchToStart.setVisibility(View.VISIBLE);
-                    AlphaAnimation pulse = new AlphaAnimation(0.25f, 1.0f);
-                    pulse.setDuration(600);
-                    pulse.setRepeatMode(Animation.REVERSE);
-                    pulse.setRepeatCount(Animation.INFINITE);
-                    mTvTouchToStart.startAnimation(pulse);
-                });
+                mMainHandler.post(this::setupReadyToStart);
 
             } catch (Exception e) {
                 Log.e(TAG, "Download/Extraction error", e);
@@ -756,6 +638,8 @@ public class TriAevumDownloadActivity extends Activity {
             mTvDetails.setText("Toque no botão abaixo para selecionar a pasta com os arquivos da ROM.");
             mBtnAction.setVisibility(View.VISIBLE);
             mBtnAction.setText("Selecionar Pasta da ROM");
+            mBtnAction.setOnClickListener(v -> requestStoragePermissionAndPickRomDirectory());
+            if (mBtnChangeDirectory != null) mBtnChangeDirectory.setVisibility(View.GONE);
         });
     }
 
