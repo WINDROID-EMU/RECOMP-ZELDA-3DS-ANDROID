@@ -114,7 +114,7 @@ public class TriAevumDownloadActivity extends Activity {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String savedDirUri = prefs.getString(PREF_ROM_DIR_URI, null);
 
-        if (savedDirUri != null && isGameInstalled(this)) {
+        if (isGameInstalled(this)) {
             mReadyToStart = true;
             mBtnAction.setText("Iniciar Jogo");
             mBtnAction.setOnClickListener(v -> launchGame());
