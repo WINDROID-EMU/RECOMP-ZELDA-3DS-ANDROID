@@ -52,7 +52,6 @@ public class TriAevumDownloadActivity extends Activity {
     private static final String PREFS_NAME = "org.triaevum.android_preferences";
     private static final String PREF_ROM_DIR_URI = "selected_rom_directory_uri";
 
-
     private TextView mTvStatus;
     private TextView mTvPercent;
     private TextView mTvDetails;
@@ -74,8 +73,9 @@ public class TriAevumDownloadActivity extends Activity {
         File romfs = new File(root, "romfs.bin");
         File code = new File(root, "code.bin");
         File manifest = new File(root, "process-manifest.json");
-        return romfs.isFile() && romfs.length() > 100_000_000L && code.isFile() && code.length() > 0
-               && manifest.isFile() && manifest.length() > 0;
+        return romfs.isFile() && romfs.length() > 100_000_000L
+                && code.isFile() && code.length() > 0
+                && manifest.isFile() && manifest.length() > 0;
     }
 
     @Override
@@ -108,14 +108,11 @@ public class TriAevumDownloadActivity extends Activity {
             }
         });
 
-        // Pede permissão de armazenamento de arquivo se necessário
-        checkAndRequestStoragePermission();
+        mLayoutProgressDetails.setVisibility(View.GONE);
+        mBtnAction.setVisibility(View.VISIBLE);
 
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String savedDirUri = prefs.getString(PREF_ROM_DIR_URI, null);
-
-        mLayoutProgressDetails.setVisibility(View.GONE);
-        mBtnAction.setVisibility(View.VISIBLE);
 
         if (savedDirUri != null && isGameInstalled(this)) {
             mReadyToStart = true;
@@ -138,7 +135,6 @@ public class TriAevumDownloadActivity extends Activity {
             mTvTouchToStart.setVisibility(View.GONE);
         }
     }
-
 
     private void setupReadyToStart() {
         File targetDir = getExternalFilesDir(null);
@@ -187,11 +183,11 @@ public class TriAevumDownloadActivity extends Activity {
     }
 
     private synchronized void launchGame() {
-        // Verificar novamente se o jogo está instalado antes de iniciar
+        // Re-verificar se o jogo está instalado antes de iniciar
         if (!isGameInstalled(this)) {
             mReadyToStart = false;
             mMainHandler.post(() -> {
-                mTvStatus.setText("Arquivos do jogo não encontrados. Por favor, selecione a pasta da ROM novamente.");
+                mTvStatus.setText("Arquivos do jogo não encontrados. Selecione a pasta da ROM novamente.");
                 mBtnAction.setVisibility(View.VISIBLE);
                 mBtnAction.setText("Selecionar Pasta da ROM");
                 mBtnAction.setOnClickListener(v -> requestStoragePermissionAndPickRomDirectory());
@@ -276,6 +272,7 @@ public class TriAevumDownloadActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_STORAGE_PERMISSION) {
+            // Voltou das configurações de permissão — tentar abrir o seletor de pasta
             pickRomDirectory();
             return;
         }
@@ -289,7 +286,7 @@ public class TriAevumDownloadActivity extends Activity {
                     Log.w(TAG, "Falha ao obter permissão persistente para a pasta", e);
                 }
 
-                // Salva o diretório selecionado nas SharedPreferences
+                // Salvar o diretório selecionado nas SharedPreferences
                 getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     .edit()
                     .putString(PREF_ROM_DIR_URI, uri.toString())
@@ -468,7 +465,7 @@ public class TriAevumDownloadActivity extends Activity {
             Log.w(TAG, "Aviso ao normalizar RomFS", e);
         }
 
-        // 4. Descompactar bundled assets que faltam (ex: launch config, overrides, manifest)
+        // 4. Descompactar bundled assets (launch config, overrides, manifest)
         unpackBundledAssets(targetDir);
 
         // 5. Criar diretórios obrigatórios
@@ -540,7 +537,6 @@ public class TriAevumDownloadActivity extends Activity {
         }
     }
 
-
     private void showError(String msg) {
         mIsDownloading = false;
         mMainHandler.post(() -> {
@@ -555,7 +551,6 @@ public class TriAevumDownloadActivity extends Activity {
             if (mBtnChangeDirectory != null) mBtnChangeDirectory.setVisibility(View.GONE);
         });
     }
-
 
     private static boolean isZipFile(File file) {
         try (InputStream is = new FileInputStream(file)) {
@@ -595,7 +590,12 @@ public class TriAevumDownloadActivity extends Activity {
             if (files != null) {
                 for (String filename : files) {
                     File dest = new File(targetDir, filename);
-                    if (!dest.exists()) {
+                    // Sempre sobrescrever arquivos críticos de configuração
+                    // para garantir que versões antigas sejam atualizadas
+                    boolean alwaysOverwrite = filename.equals("process-manifest.json")
+                            || filename.equals("TriAevum.android.launch.json")
+                            || filename.equals("topscreen_ui.json");
+                    if (!dest.exists() || alwaysOverwrite) {
                         try (InputStream in = getAssets().open("game/" + filename);
                              OutputStream out = new FileOutputStream(dest)) {
                             byte[] buf = new byte[8192];
