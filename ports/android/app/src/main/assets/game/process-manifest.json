@@ -7,10 +7,10 @@
     "code_bin_sha256": "ef210566e1d9d16879a746dfb063fcbad232f0171d860de906531ecc526cc020",
     "code_bin_size": 4567040,
     "romfs_image_path": "romfs.bin",
-    "romfs_image_file_size": 473526272,
+    "romfs_image_file_size": 473522176,
     "romfs_image_sha256": "dd6def65af151d40fcbba7202c36bbdd8ed5b5b431373dc6a8c89bfd708af690",
     "romfs_service_offset": 0,
-    "romfs_service_size": 473526272,
+    "romfs_service_size": 473522176,
     "layout_authority": "CTR ExHeader; page/BSS/stack/TLS semantics verified against Azahar NCCH loader"
   },
   "process": {
