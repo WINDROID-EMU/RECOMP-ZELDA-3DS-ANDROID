@@ -918,10 +918,7 @@ TopScreenTouchClusterGeometry BuildTopScreenTouchClusterGeometry(
                                                                  : nativeAlpha;
   }
 
-  result.Positions[4] =
-      layout == TopScreenHudLayout::Restoration
-          ? TopScreenVec2{342.0F, 52.0F}
-          : TopScreenVec2{232.0F, 8.0F};
+  result.Positions[4] = TopScreenVec2{262.0F, 2.0F};
   result.Sizes[4] = {32.0F, 32.0F};
   result.AtlasOrigins[4] = {386.0F, 201.0F};
   result.AtlasSizes[4] = {48.0F, 48.0F};
@@ -1848,10 +1845,7 @@ TopScreenAuxiliaryTouchGeometry BuildTopScreenAuxiliaryTouchGeometry(
       quad.Position = {kCentersX[index] - 20.0F,
                        kCentersY[index] - 14.0F + nativeVerticalOffsets[index]};
     } else if (index == 2U && conditionalVisible) {
-      quad.Position =
-          layout == TopScreenHudLayout::Restoration
-              ? TopScreenVec2{337.0F, 54.0F}
-              : TopScreenVec2{227.0F, 10.0F};
+      quad.Position = TopScreenVec2{270.0F, 10.0F};
       quad.AtlasOrigin.Y = 174.0F;
     }
   }
@@ -1995,13 +1989,17 @@ bool AppendTopScreenNativeTouchCopies(
         config != nullptr &&
         config->HudLayout == TopScreenHudLayout::Restoration;
     const float destinationX =
-        restoration && contractIndex < 2U
-            ? 339.0F
-            : static_cast<float>(contract.DestinationX);
+        config != nullptr && contractIndex < 2U
+            ? 278.0F
+            : (restoration && contractIndex < 2U
+                   ? 339.0F
+                   : static_cast<float>(contract.DestinationX));
     const float destinationY =
-        restoration && contractIndex < 2U
-            ? 55.0F
-            : static_cast<float>(contract.DestinationY);
+        config != nullptr && contractIndex < 2U
+            ? 18.0F
+            : (restoration && contractIndex < 2U
+                   ? 55.0F
+                   : static_cast<float>(contract.DestinationY));
     for (std::size_t vertex = 0; vertex < transformed.size(); ++vertex) {
       transformed[vertex] = {
           destinationX +
@@ -2037,6 +2035,13 @@ bool AppendTopScreenNativeTouchCopies(
     if ((contractIndex < 2U &&
          ((touchState >= 7U && touchState <= 9U) || touchState > 11U)) ||
         (source == 27U && !source27Visible)) {
+      primitive.color.alpha = 0.0F;
+    }
+    // In gameplay HUD presentation with TopScreen profile, the circular silver
+    // backdrop from TopScreenTouchClusterGeometry (Positions[4]) provides the
+    // button frame matching Button B. Suppress the legacy 3DS bottom-screen oval
+    // backdrop (quad 34) so Button A remains circular and identical to Button B.
+    if (source == 34U && config != nullptr) {
       primitive.color.alpha = 0.0F;
     }
     primitive.layer = 13U;
@@ -3023,9 +3028,9 @@ ResolveTopScreenPauseTargetCommand(const TopScreenPauseTargetCommand &command,
   } else if (command.NativeCommand == 0x401U) {
     result.BindTopTarget = true;
     result.FramebufferBindingOffset = 0x38U;
-    result.ViewportY = 40U;
+    result.ViewportY = 0U;
     result.ViewportWidth = command.HalfHeightMode ? 240U : 480U;
-    result.ViewportHeight = 320U;
+    result.ViewportHeight = 400U;
   }
   return result;
 }
@@ -3034,9 +3039,9 @@ TopScreenPauseTargetPlan ResolveTopScreenPausePageRedrawTargetCommand(
     const TopScreenPauseTargetCommand &command) noexcept {
   auto result = ResolveTopScreenPauseTargetCommand(command, true);
   if (result.BindTopTarget && command.NativeCommand == 0x400U) {
-    result.ViewportY = 40U;
+    result.ViewportY = 0U;
     result.ViewportWidth = 480U;
-    result.ViewportHeight = 320U;
+    result.ViewportHeight = 400U;
   }
   return result;
 }

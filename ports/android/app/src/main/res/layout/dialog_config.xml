@@ -442,6 +442,22 @@
                             android:textStyle="bold"
                             android:layout_marginBottom="10dp" />
 
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Estilo de Layout do HUD"
+                            android:textColor="#8B9BB4"
+                            android:textSize="11sp"
+                            android:layout_marginBottom="4dp" />
+                        <Spinner
+                            android:id="@+id/sp_hud_layout"
+                            android:layout_width="match_parent"
+                            android:layout_height="38dp"
+                            android:background="@drawable/btn_dark"
+                            android:paddingLeft="10dp"
+                            android:paddingRight="10dp"
+                            android:layout_marginBottom="10dp" />
+
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:id="@+id/tv_hud_scale_label"
                             android:text="Escala HUD: 80%"
@@ -449,6 +465,26 @@
                         <SeekBar android:id="@+id/sb_hud_scale"
                             android:layout_width="match_parent" android:layout_height="wrap_content"
                             android:max="10" android:progress="3"
+                            android:progressTint="#FFD700" android:thumbTint="#FFC107"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:id="@+id/tv_hud_margin_x_label"
+                            android:text="Margem Horizontal (X): 4"
+                            android:textColor="#8B9BB4" android:textSize="11sp" android:layout_marginBottom="4dp" />
+                        <SeekBar android:id="@+id/sb_hud_margin_x"
+                            android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:max="19" android:progress="7"
+                            android:progressTint="#FFD700" android:thumbTint="#FFC107"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:id="@+id/tv_hud_margin_y_label"
+                            android:text="Margem Vertical (Y): 1"
+                            android:textColor="#8B9BB4" android:textSize="11sp" android:layout_marginBottom="4dp" />
+                        <SeekBar android:id="@+id/sb_hud_margin_y"
+                            android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:max="19" android:progress="4"
                             android:progressTint="#FFD700" android:thumbTint="#FFC107"
                             android:layout_marginBottom="10dp" />
 
@@ -463,11 +499,21 @@
                         </LinearLayout>
 
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:orientation="horizontal">
+                            android:orientation="horizontal" android:layout_marginBottom="6dp">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content"
                                 android:layout_weight="1" android:text="Ícones no D-Pad"
                                 android:textColor="#C8D8E8" android:textSize="12sp" android:layout_gravity="center_vertical" />
                             <CheckBox android:id="@+id/cb_dpad_icons"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:buttonTint="#FFD700" />
+                        </LinearLayout>
+
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:text="Dicas de Itens no Inventário"
+                                android:textColor="#C8D8E8" android:textSize="12sp" android:layout_gravity="center_vertical" />
+                            <CheckBox android:id="@+id/cb_items_hint"
                                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                                 android:buttonTint="#FFD700" />
                         </LinearLayout>

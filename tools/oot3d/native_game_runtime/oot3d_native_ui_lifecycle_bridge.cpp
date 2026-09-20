@@ -435,7 +435,9 @@ Oot3dNativeUiLifecycleBridge::BuildTopScreenPresentation(
                               : (mTopScreenPauseEdgeGeometry.has_value()
                                      ? &*mTopScreenPauseEdgeGeometry
                                      : nullptr);
-  if (pauseEdge != nullptr) {
+  // The pause menu now uses the full 400x240 viewport (0..400) without pillarboxing.
+  // Suppress the artificial gray pillarbox edge strips so they don't cover items.
+  if (false && pauseEdge != nullptr) {
     if (const auto itemPage = NativePauseSharedTextureIdentity(
             oot3d::ui::UiPauseSharedTextureSlot::ItemPage);
         itemPage.has_value()) {

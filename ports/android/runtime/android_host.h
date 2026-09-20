@@ -16,6 +16,10 @@ struct AndroidOverlayInputState {
   std::atomic<bool> swapScreens{false};
 };
 
+namespace Oot3dNativeGame {
+class TopScreenUiConfigRuntime;
+}
+
 AndroidOverlayInputState &GetAndroidOverlayInputState();
 
 void InitializeAndroidGameHost();
@@ -23,3 +27,7 @@ void ShutdownAndroidGameHost();
 void SetAndroidStoragePath(const std::string &path);
 const std::string &GetAndroidStoragePath();
 int RunOot3dNativeGameMain(int argc, char** argv);
+
+void RegisterAndroidTopScreenConfigRuntime(
+    std::shared_ptr<Oot3dNativeGame::TopScreenUiConfigRuntime> runtime);
+void NotifyAndroidTopScreenConfigChanged();

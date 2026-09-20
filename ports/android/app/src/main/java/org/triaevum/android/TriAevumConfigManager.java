@@ -7,6 +7,8 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
@@ -41,11 +43,17 @@ public final class TriAevumConfigManager {
     public static final String[] SURFACE_RES_LABELS = { "720p (Padrão)", "1080p (Nativo Moto G100)", "Sem Limite" };
     public static final int[]    SURFACE_RES_VALUES = { 720,              1080,                        0           };
 
+    // ------- topscreen_ui.json ---
+    public static final String[] HUD_LAYOUT_LABELS  = { "Normal (Padrão)", "Restoration (MM3D)" };
+    public static final String[] HUD_LAYOUT_VALUES  = { "normal",          "restoration"        };
+
     // -------------------------------------------------------------------------
 
+    private final Context mContext;
     private final File mExternalDir;
 
     public TriAevumConfigManager(Context context) {
+        mContext = context;
         mExternalDir = context.getExternalFilesDir(null);
     }
 
@@ -245,11 +253,56 @@ public final class TriAevumConfigManager {
     // =========================================================================
 
     private JSONObject readTopscreenUi() {
-        return readJson("topscreen_ui.json");
+        JSONObject obj = readJson("topscreen_ui.json");
+        if (!obj.has("schema")) {
+            try { obj.put("schema", "oot3d_topscreen_ui_v2"); } catch (JSONException ignored) {}
+        }
+        return obj;
     }
 
     private void writeTopscreenUi(JSONObject obj) {
+        try { obj.put("schema", "oot3d_topscreen_ui_v2"); } catch (JSONException ignored) {}
         writeJson("topscreen_ui.json", obj);
+    }
+
+    public String getHudLayout() {
+        return readTopscreenUi().optString("hud_layout", "normal");
+    }
+
+    public void setHudLayout(String layout) {
+        JSONObject obj = readTopscreenUi();
+        try { obj.put("hud_layout", layout); } catch (JSONException ignored) {}
+        writeTopscreenUi(obj);
+    }
+
+    public int getHudMarginX() {
+        return readTopscreenUi().optInt("hud_margin_x", 4);
+    }
+
+    public void setHudMarginX(int margin) {
+        JSONObject obj = readTopscreenUi();
+        try { obj.put("hud_margin_x", margin); } catch (JSONException ignored) {}
+        writeTopscreenUi(obj);
+    }
+
+    public int getHudMarginY() {
+        return readTopscreenUi().optInt("hud_margin_y", 1);
+    }
+
+    public void setHudMarginY(int margin) {
+        JSONObject obj = readTopscreenUi();
+        try { obj.put("hud_margin_y", margin); } catch (JSONException ignored) {}
+        writeTopscreenUi(obj);
+    }
+
+    public boolean isRenderItemsHint() {
+        return readTopscreenUi().optBoolean("render_items_hint", true);
+    }
+
+    public void setRenderItemsHint(boolean v) {
+        JSONObject obj = readTopscreenUi();
+        try { obj.put("render_items_hint", v); } catch (JSONException ignored) {}
+        writeTopscreenUi(obj);
     }
 
     public boolean isFreeCameraEnabled() {
@@ -340,6 +393,10 @@ public final class TriAevumConfigManager {
         setVSync(true);
         setCustomTexturesEnabled(false);
         // Topscreen
+        setHudLayout("normal");
+        setHudMarginX(4);
+        setHudMarginY(1);
+        setRenderItemsHint(true);
         setFreeCameraEnabled(true);
         setFreeCameraSpeedLevel(3);
         setFreeCameraInvertX(false);
@@ -351,14 +408,31 @@ public final class TriAevumConfigManager {
 
     /**
      * Ensures TriAevum.android.launch.json enables visual interpolation and 60 Hz presentation,
-     * allowing user selection in the config dialog to seamlessly toggle between 30 and 60 FPS.
+     * as well as --topscreen-config and --topscreen-texture-overrides for seamless single-screen UI layout customization.
      */
     public void ensureLaunchProfileOptimized() {
+        File atlasFile = new File(mContext.getExternalFilesDir(null), "atlas_overrides.o3tu");
+        if (!atlasFile.exists()) {
+            try (InputStream in = mContext.getAssets().open("game/atlas_overrides.o3tu");
+                 OutputStream out = new FileOutputStream(atlasFile)) {
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) > 0) {
+                    out.write(buf, 0, len);
+                }
+                Log.i(TAG, "Unpacked bundled atlas_overrides.o3tu to external files directory");
+            } catch (Exception e) {
+                Log.d(TAG, "No bundled atlas_overrides.o3tu asset or could not unpack: " + e.getMessage());
+            }
+        }
+
         JSONObject profile = readJson("TriAevum.android.launch.json");
         try {
             org.json.JSONArray args = profile.optJSONArray("arguments");
             if (args != null) {
                 boolean changed = false;
+                boolean hasTopScreenConfig = false;
+                boolean hasTextureOverrides = false;
                 for (int i = 0; i < args.length() - 1; i++) {
                     if ("--gameplay-timing".equals(args.getString(i))) {
                         if (!"native30_interpolated".equals(args.getString(i + 1))) {
@@ -370,11 +444,25 @@ public final class TriAevumConfigManager {
                             args.put(i + 1, "60");
                             changed = true;
                         }
+                    } else if ("--topscreen-config".equals(args.getString(i))) {
+                        hasTopScreenConfig = true;
+                    } else if ("--topscreen-texture-overrides".equals(args.getString(i))) {
+                        hasTextureOverrides = true;
                     }
+                }
+                if (!hasTopScreenConfig) {
+                    args.put("--topscreen-config");
+                    args.put("${profile_dir}/topscreen_ui.json");
+                    changed = true;
+                }
+                if (!hasTextureOverrides && atlasFile.exists()) {
+                    args.put("--topscreen-texture-overrides");
+                    args.put("${profile_dir}/atlas_overrides.o3tu");
+                    changed = true;
                 }
                 if (changed) {
                     writeJson("TriAevum.android.launch.json", profile);
-                    Log.i(TAG, "TriAevum.android.launch.json successfully updated for 60 FPS support");
+                    Log.i(TAG, "TriAevum.android.launch.json successfully updated for 60 FPS and TopScreen UI support");
                 }
             }
         } catch (Exception e) {

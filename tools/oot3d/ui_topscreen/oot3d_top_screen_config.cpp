@@ -184,11 +184,14 @@ bool DecodeTopScreenUiConfig(const nlohmann::json &document,
     return false;
   }
 
-  if (!document.contains("schema") || !document.at("schema").is_string()) {
-    SetError(error, "TopScreen UI config schema is missing");
-    return false;
+  std::string schema = std::string(kTopScreenUiConfigSchema);
+  if (document.contains("schema")) {
+    if (!document.at("schema").is_string()) {
+      SetError(error, "TopScreen UI config schema must be a string");
+      return false;
+    }
+    schema = document.at("schema").get<std::string>();
   }
-  const auto schema = document.at("schema").get<std::string>();
   if (schema == kTopScreenUiLegacyConfigSchema) {
     return DecodeLegacyTopScreenUiConfig(document, config, error);
   }

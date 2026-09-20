@@ -64,10 +64,16 @@ public final class TriAevumConfigDialog extends Dialog {
     private TextView mTvCamSpeedLabel;
     private CheckBox mCbCamInvertX;
     private CheckBox mCbCamInvertY;
+    private Spinner  mSpHudLayout;
     private SeekBar  mSbHudScale;
     private TextView mTvHudScaleLabel;
+    private SeekBar  mSbHudMarginX;
+    private TextView mTvHudMarginXLabel;
+    private SeekBar  mSbHudMarginY;
+    private TextView mTvHudMarginYLabel;
     private CheckBox mCbMinimap;
     private CheckBox mCbDpadIcons;
+    private CheckBox mCbItemsHint;
 
     // Controles
     private CheckBox mCbShowOverlay;
@@ -144,15 +150,21 @@ public final class TriAevumConfigDialog extends Dialog {
         mCbCustomTextures = findViewById(R.id.cb_custom_textures);
 
         // Câmera / HUD
-        mCbFreeCamera    = findViewById(R.id.cb_free_camera);
-        mSbCamSpeed      = findViewById(R.id.sb_cam_speed);
-        mTvCamSpeedLabel = findViewById(R.id.tv_cam_speed_label);
-        mCbCamInvertX    = findViewById(R.id.cb_cam_invert_x);
-        mCbCamInvertY    = findViewById(R.id.cb_cam_invert_y);
-        mSbHudScale      = findViewById(R.id.sb_hud_scale);
-        mTvHudScaleLabel = findViewById(R.id.tv_hud_scale_label);
-        mCbMinimap       = findViewById(R.id.cb_minimap);
-        mCbDpadIcons     = findViewById(R.id.cb_dpad_icons);
+        mCbFreeCamera      = findViewById(R.id.cb_free_camera);
+        mSbCamSpeed        = findViewById(R.id.sb_cam_speed);
+        mTvCamSpeedLabel   = findViewById(R.id.tv_cam_speed_label);
+        mCbCamInvertX      = findViewById(R.id.cb_cam_invert_x);
+        mCbCamInvertY      = findViewById(R.id.cb_cam_invert_y);
+        mSpHudLayout       = findViewById(R.id.sp_hud_layout);
+        mSbHudScale        = findViewById(R.id.sb_hud_scale);
+        mTvHudScaleLabel   = findViewById(R.id.tv_hud_scale_label);
+        mSbHudMarginX      = findViewById(R.id.sb_hud_margin_x);
+        mTvHudMarginXLabel = findViewById(R.id.tv_hud_margin_x_label);
+        mSbHudMarginY      = findViewById(R.id.sb_hud_margin_y);
+        mTvHudMarginYLabel = findViewById(R.id.tv_hud_margin_y_label);
+        mCbMinimap         = findViewById(R.id.cb_minimap);
+        mCbDpadIcons       = findViewById(R.id.cb_dpad_icons);
+        mCbItemsHint       = findViewById(R.id.cb_items_hint);
 
         // Controles
         mCbShowOverlay       = findViewById(R.id.cb_show_overlay);
@@ -238,21 +250,45 @@ public final class TriAevumConfigDialog extends Dialog {
         mCbCamInvertX.setChecked(mConfig.isFreeCameraInvertX());
         mCbCamInvertY.setChecked(mConfig.isFreeCameraInvertY());
 
+        // HUD Layout
+        setupSpinner(mSpHudLayout, TriAevumConfigManager.HUD_LAYOUT_LABELS, null);
+        String hudLayout = mConfig.getHudLayout();
+        for (int i = 0; i < TriAevumConfigManager.HUD_LAYOUT_VALUES.length; i++) {
+            if (TriAevumConfigManager.HUD_LAYOUT_VALUES[i].equalsIgnoreCase(hudLayout)) {
+                mSpHudLayout.setSelection(i);
+                break;
+            }
+        }
+
         float hudScale = mConfig.getHudScale();
         int hudPct = Math.round(hudScale * 100);
         // map 0.5-1.5 → seekbar 0-10
         int hudProg = Math.round((hudScale - 0.5f) / 0.1f);
         mSbHudScale.setProgress(Math.max(0, Math.min(10, hudProg)));
         mTvHudScaleLabel.setText("Escala HUD: " + hudPct + "%");
+
+        // Margins (-3..16 -> seekbar 0..19)
+        int marginX = mConfig.getHudMarginX();
+        int marginY = mConfig.getHudMarginY();
+        mSbHudMarginX.setProgress(Math.max(0, Math.min(19, marginX + 3)));
+        mTvHudMarginXLabel.setText("Margem X (Horizontal): " + marginX);
+        mSbHudMarginY.setProgress(Math.max(0, Math.min(19, marginY + 3)));
+        mTvHudMarginYLabel.setText("Margem Y (Vertical): " + marginY);
+
         mCbMinimap.setChecked(mConfig.isMinimapVisible());
         mCbDpadIcons.setChecked(mConfig.isRenderDpadIcons());
+        mCbItemsHint.setChecked(mConfig.isRenderItemsHint());
         Log.d(TAG, "  freeCamera=" + mConfig.isFreeCameraEnabled()
             + " speed=" + mConfig.getFreeCameraSpeedLevel()
             + " invertX=" + mConfig.isFreeCameraInvertX()
             + " invertY=" + mConfig.isFreeCameraInvertY()
+            + " hudLayout=" + mConfig.getHudLayout()
+            + " hudMarginX=" + marginX
+            + " hudMarginY=" + marginY
             + " hudScale=" + mConfig.getHudScale()
             + " minimap=" + mConfig.isMinimapVisible()
-            + " dpadIcons=" + mConfig.isRenderDpadIcons());
+            + " dpadIcons=" + mConfig.isRenderDpadIcons()
+            + " itemsHint=" + mConfig.isRenderItemsHint());
 
         // Controls — read directly from SharedPreferences (same keys as EmulationMenuSettings)
         boolean showOverlay = (mOverlay != null) ? mOverlay.isShowControls() : mPrefs.getBoolean("EmulationMenuSettings_ShowOverlay", true);
@@ -291,6 +327,24 @@ public final class TriAevumConfigDialog extends Dialog {
             @Override public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
                 float scale = 0.5f + progress * 0.1f;
                 mTvHudScaleLabel.setText("Escala HUD: " + Math.round(scale * 100) + "%");
+            }
+            @Override public void onStartTrackingTouch(SeekBar sb) {}
+            @Override public void onStopTrackingTouch(SeekBar sb) {}
+        });
+
+        mSbHudMarginX.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+                int val = progress - 3;
+                mTvHudMarginXLabel.setText("Margem X (Horizontal): " + val);
+            }
+            @Override public void onStartTrackingTouch(SeekBar sb) {}
+            @Override public void onStopTrackingTouch(SeekBar sb) {}
+        });
+
+        mSbHudMarginY.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+                int val = progress - 3;
+                mTvHudMarginYLabel.setText("Margem Y (Vertical): " + val);
             }
             @Override public void onStartTrackingTouch(SeekBar sb) {}
             @Override public void onStopTrackingTouch(SeekBar sb) {}
@@ -439,11 +493,26 @@ public final class TriAevumConfigDialog extends Dialog {
         mConfig.setFreeCameraSpeedLevel(mSbCamSpeed.getProgress() + 1);
         mConfig.setFreeCameraInvertX(mCbCamInvertX.isChecked());
         mConfig.setFreeCameraInvertY(mCbCamInvertY.isChecked());
+        int hudLayoutIdx = mSpHudLayout.getSelectedItemPosition();
+        if (hudLayoutIdx >= 0 && hudLayoutIdx < TriAevumConfigManager.HUD_LAYOUT_VALUES.length) {
+            String hl = TriAevumConfigManager.HUD_LAYOUT_VALUES[hudLayoutIdx];
+            Log.d(TAG, "  SET hudLayout -> " + hl);
+            mConfig.setHudLayout(hl);
+        }
+
         float hudScale = 0.5f + mSbHudScale.getProgress() * 0.1f;
         Log.d(TAG, "  SET hudScale -> " + hudScale);
         mConfig.setHudScale(hudScale);
+
+        int mx = mSbHudMarginX.getProgress() - 3;
+        int my = mSbHudMarginY.getProgress() - 3;
+        Log.d(TAG, "  SET hudMarginX -> " + mx + ", hudMarginY -> " + my);
+        mConfig.setHudMarginX(mx);
+        mConfig.setHudMarginY(my);
+
         mConfig.setMinimapVisible(mCbMinimap.isChecked());
         mConfig.setRenderDpadIcons(mCbDpadIcons.isChecked());
+        mConfig.setRenderItemsHint(mCbItemsHint.isChecked());
 
         // Controles — write directly to SharedPreferences (same keys as EmulationMenuSettings)
         boolean showOverlay = mCbShowOverlay.isChecked();

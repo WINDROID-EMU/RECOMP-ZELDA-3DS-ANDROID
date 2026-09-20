@@ -14,7 +14,7 @@ int main() {
         assert(scene.ViewportWidth == (half ? 240U : 480U));
         assert(scene.ViewportY == 0 && scene.ViewportHeight == 400);
         assert(menu.ViewportWidth == scene.ViewportWidth);
-        assert(menu.ViewportY == 40 && menu.ViewportHeight == 320);
+        assert(menu.ViewportY == 0 && menu.ViewportHeight == 400);
         assert(!ResolveTopScreenFrontendTargetCommand({true, 0x400, half}, false).Handled);
         assert(!ResolveTopScreenFrontendTargetCommand({false, 0x401, half}, true).Handled);
         assert(!ResolveTopScreenFrontendTargetCommand({true, 0x410, half}, true).Handled);

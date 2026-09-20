@@ -1107,8 +1107,8 @@ int main() {
               touchCluster.Positions[0].Y == 4.0F &&
               touchCluster.Positions[3].X == 342.0F &&
               touchCluster.Positions[3].Y == 55.0F &&
-              touchCluster.Positions[4].X == 232.0F &&
-              touchCluster.Positions[4].Y == 8.0F &&
+              touchCluster.Positions[4].X == 262.0F &&
+              touchCluster.Positions[4].Y == 2.0F &&
               touchCluster.Positions[5].X == 14.0F &&
               touchCluster.Positions[5].Y == 52.0F &&
               touchCluster.AtlasOrigins[0].X == 386.0F &&
@@ -1175,7 +1175,7 @@ int main() {
               auxiliaryGeometry.Quads[0].Position.X == 338.0F &&
               auxiliaryGeometry.Quads[0].Position.Y == 8.0F &&
               auxiliaryGeometry.Quads[2].Visible &&
-              auxiliaryGeometry.Quads[2].Position.X == 227.0F &&
+              auxiliaryGeometry.Quads[2].Position.X == 270.0F &&
               auxiliaryGeometry.Quads[2].AtlasOrigin.Y == 174.0F &&
               !auxiliaryGeometry.Quads[3].Visible &&
               auxiliaryGeometry.Quads[4].Position.X == 22.0F &&
@@ -1197,14 +1197,14 @@ int main() {
               restorationTouchCluster.Alpha[1] == 0.5F &&
               restorationTouchCluster.Alpha[2] == 0.0F &&
               restorationTouchCluster.Alpha[3] == 0.0F &&
-              restorationTouchCluster.Positions[4].X == 342.0F &&
-              restorationTouchCluster.Positions[4].Y == 52.0F,
+              restorationTouchCluster.Positions[4].X == 262.0F &&
+              restorationTouchCluster.Positions[4].Y == 2.0F,
           "Restoration touch-cluster geometry is incorrect");
   const auto restorationAuxiliary = BuildTopScreenAuxiliaryTouchGeometry(
       auxiliaryInputs, dynamicTouch.VerticalOffsets, dynamicTouch.Alpha,
       TopScreenHudLayout::Restoration);
-  Require(restorationAuxiliary.Quads[2].Position.X == 337.0F &&
-              restorationAuxiliary.Quads[2].Position.Y == 54.0F,
+  Require(restorationAuxiliary.Quads[2].Position.X == 270.0F &&
+              restorationAuxiliary.Quads[2].Position.Y == 10.0F,
           "Restoration auxiliary control geometry is incorrect");
   const auto restorationLabels = BuildTopScreenTouchLabelsGeometry(
       dynamicTouch.VerticalOffsets, dynamicTouch.Alpha,
@@ -1592,8 +1592,9 @@ int main() {
               nativeTouchMemory, heartTexture, restorationTouchCopies, nullptr,
               &error, &restorationCopyConfig) &&
               restorationTouchCopies.size() == 10U &&
-              restorationTouchCopies[0].destination.x == 339.0F &&
-              restorationTouchCopies[0].destination.y == 55.0F &&
+              restorationTouchCopies[0].destination.x == 278.0F &&
+              restorationTouchCopies[0].destination.y == 18.0F &&
+              !restorationTouchCopies[0].visible &&
               restorationTouchCopies[2].destination.x == 4.0F,
           "Restoration native touch-copy transform is incorrect");
 
@@ -2300,17 +2301,17 @@ int main() {
               topTarget.ViewportY == 0U && topTarget.ViewportWidth == 240U &&
               topTarget.ViewportHeight == 320U &&
               tallTarget.FramebufferBindingOffset == 0x38U &&
-              tallTarget.ViewportY == 40U && tallTarget.ViewportWidth == 480U &&
-              tallTarget.ViewportHeight == 320U &&
-              halfTarget.ViewportY == 40U && halfTarget.ViewportWidth == 240U &&
-              halfTarget.ViewportHeight == 320U && passthroughTarget.Handled &&
+              tallTarget.ViewportY == 0U && tallTarget.ViewportWidth == 480U &&
+              tallTarget.ViewportHeight == 400U &&
+              halfTarget.ViewportY == 0U && halfTarget.ViewportWidth == 240U &&
+              halfTarget.ViewportHeight == 400U && passthroughTarget.Handled &&
               !passthroughTarget.BindTopTarget &&
               passthroughTarget.StoredCommand == 0x123U &&
               pageRedrawTarget.BindTopTarget &&
               pageRedrawTarget.FramebufferBindingOffset == 0x3CU &&
-              pageRedrawTarget.ViewportY == 40U &&
+              pageRedrawTarget.ViewportY == 0U &&
               pageRedrawTarget.ViewportWidth == 480U &&
-              pageRedrawTarget.ViewportHeight == 320U,
+              pageRedrawTarget.ViewportHeight == 400U,
           "TopScreen pause target command contract is incorrect");
 
   NativeA32Memory suppressionMemory;

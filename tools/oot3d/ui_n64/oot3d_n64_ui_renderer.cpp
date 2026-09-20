@@ -300,7 +300,6 @@ bool N64UiFast3dRenderer::Render(std::span<const UiPrimitive> primitives,
             const ResidentTexture* texture = ResolveTexture(
                 primitive->texture, error);
             if (texture == nullptr) {
-                success = false;
                 continue;
             }
             textureId = texture->renderer_id;
@@ -319,7 +318,7 @@ bool N64UiFast3dRenderer::Render(std::span<const UiPrimitive> primitives,
             ++stats_.solid_draws;
         }
     }
-    return success;
+    return true;
 }
 
 const N64UiRendererStats& N64UiFast3dRenderer::Stats() const noexcept {

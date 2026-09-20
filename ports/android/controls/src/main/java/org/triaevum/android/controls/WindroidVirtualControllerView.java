@@ -769,7 +769,9 @@ public class WindroidVirtualControllerView extends View {
                 if (!hit) {
                     touchscreenPointerId = pointerId;
                     if (inputTarget != null) {
-                        inputTarget.touchPixels(px, py, true);
+                        float normX = (getWidth() > 0) ? Math.max(0.0f, Math.min(1.0f, px / (float) getWidth())) : 0.0f;
+                        float normY = (getHeight() > 0) ? Math.max(0.0f, Math.min(1.0f, py / (float) getHeight())) : 0.0f;
+                        inputTarget.touchPixels(normX, normY, true);
                     }
                 }
 
@@ -796,7 +798,9 @@ public class WindroidVirtualControllerView extends View {
                         dpad.dpadStatus = newStatus;
                     } else if (touchscreenPointerId == pId) {
                         if (inputTarget != null) {
-                            inputTarget.moveTouchPixels(curX, curY);
+                            float normX = (getWidth() > 0) ? Math.max(0.0f, Math.min(1.0f, curX / (float) getWidth())) : 0.0f;
+                            float normY = (getHeight() > 0) ? Math.max(0.0f, Math.min(1.0f, curY / (float) getHeight())) : 0.0f;
+                            inputTarget.moveTouchPixels(normX, normY);
                         }
                     }
                 }

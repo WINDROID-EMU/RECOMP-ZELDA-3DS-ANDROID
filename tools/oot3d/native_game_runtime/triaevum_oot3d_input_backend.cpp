@@ -298,8 +298,17 @@ bool TriAevumOot3dInputBackend::Poll(Fast::Fast3dWindow &window,
   if (androidInput.touchPressed.load(std::memory_order_relaxed)) {
     const float tx = androidInput.touchX.load(std::memory_order_relaxed);
     const float ty = androidInput.touchY.load(std::memory_order_relaxed);
+    int32_t pointerX = 0;
+    int32_t pointerY = 0;
+    if (tx <= 1.0f && ty <= 1.0f) {
+      pointerX = static_cast<int32_t>(std::clamp(tx, 0.0f, 1.0f) * static_cast<float>(window.GetWidth()));
+      pointerY = static_cast<int32_t>(std::clamp(ty, 0.0f, 1.0f) * static_cast<float>(window.GetHeight()));
+    } else {
+      pointerX = static_cast<int32_t>(tx);
+      pointerY = static_cast<int32_t>(ty);
+    }
     const auto overlayTouch = MapHostPointerToNativeA32Touch(
-        static_cast<int32_t>(tx), static_cast<int32_t>(ty), window.GetWidth(),
+        pointerX, pointerY, window.GetWidth(),
         window.GetHeight(), true,
         swapScreensActive ? NativeA32TouchPresentation::NativeLowerScreen320x240
                           : NativeA32TouchPresentation::TopScreen400x240);

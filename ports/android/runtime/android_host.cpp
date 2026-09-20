@@ -21,10 +21,38 @@
 #include "fast/backends/gfx_android.h"
 #include "fast/oot3d/graphics_settings_persistence.h"
 #include "fast/oot3d/graphics_settings_runtime.h"
+#include "oot3d_top_screen_config.h"
 
 static AndroidOverlayInputState gOverlayInputState;
 static std::string gAndroidStoragePath;
 static std::mutex gStorageMutex;
+static std::mutex gTopScreenConfigMutex;
+static std::weak_ptr<Oot3dNativeGame::TopScreenUiConfigRuntime> gAndroidTopScreenConfigRuntime;
+
+void RegisterAndroidTopScreenConfigRuntime(
+    std::shared_ptr<Oot3dNativeGame::TopScreenUiConfigRuntime> runtime) {
+  std::lock_guard<std::mutex> lock(gTopScreenConfigMutex);
+  gAndroidTopScreenConfigRuntime = runtime;
+  __android_log_print(ANDROID_LOG_INFO, "TriAevum", "Registered TopScreenUiConfigRuntime with Android host");
+}
+
+void NotifyAndroidTopScreenConfigChanged() {
+  std::shared_ptr<Oot3dNativeGame::TopScreenUiConfigRuntime> runtime;
+  {
+    std::lock_guard<std::mutex> lock(gTopScreenConfigMutex);
+    runtime = gAndroidTopScreenConfigRuntime.lock();
+  }
+  if (runtime) {
+    std::string error;
+    if (runtime->Reload(&error)) {
+      __android_log_print(ANDROID_LOG_INFO, "TriAevum", "TopScreenUiConfigRuntime reloaded successfully via Android host");
+    } else {
+      __android_log_print(ANDROID_LOG_WARN, "TriAevum", "TopScreenUiConfigRuntime reload failed: %s", error.c_str());
+    }
+  } else {
+    __android_log_print(ANDROID_LOG_INFO, "TriAevum", "NotifyAndroidTopScreenConfigChanged: No active runtime registered");
+  }
+}
 
 AndroidOverlayInputState &GetAndroidOverlayInputState() {
   return gOverlayInputState;
@@ -159,6 +187,8 @@ Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
   } catch (const std::exception &e) {
     __android_log_print(ANDROID_LOG_ERROR, "TriAevum", "Failed to reload live graphics settings: %s", e.what());
   }
+
+  NotifyAndroidTopScreenConfigChanged();
 }
 
 // Native activity lifecycle and surface management (replacing SDLActivity)

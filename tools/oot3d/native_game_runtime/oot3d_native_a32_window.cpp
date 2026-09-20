@@ -1013,9 +1013,9 @@ bool ExecuteTopScreenUiSourcePortBlock(
       }
       dispatch.TopScreenOverlayViewportDrawPhase = 1U;
       state.r[0] = 0U;
-      state.r[1] = 40U;
+      state.r[1] = 0U;
       state.r[2] = 480U;
-      state.r[3] = 320U;
+      state.r[3] = 400U;
       return branchFromCallsite(kGlViewportEntry, pc);
     }
     if (dispatch.TopScreenOverlayViewportDrawPhase == 1U) {
@@ -1154,9 +1154,9 @@ bool ExecuteTopScreenUiSourcePortBlock(
       dispatch.TopScreenViewportDrawArgument = state.r[0];
       dispatch.TopScreenViewportDrawPhase = 1U;
       state.r[0] = 0U;
-      state.r[1] = 40U;
+      state.r[1] = 0U;
       state.r[2] = 480U;
-      state.r[3] = 320U;
+      state.r[3] = 400U;
       return branch(kGlViewportEntry, pc);
     }
     if (dispatch.TopScreenViewportDrawPhase == 1U) {
@@ -2965,8 +2965,17 @@ PollNativeA32Input(Fast::Fast3dWindow &window,
   if (androidInput.touchPressed.load(std::memory_order_relaxed)) {
     const float tx = androidInput.touchX.load(std::memory_order_relaxed);
     const float ty = androidInput.touchY.load(std::memory_order_relaxed);
+    int32_t pointerX = 0;
+    int32_t pointerY = 0;
+    if (tx <= 1.0f && ty <= 1.0f) {
+      pointerX = static_cast<int32_t>(std::clamp(tx, 0.0f, 1.0f) * static_cast<float>(window.GetWidth()));
+      pointerY = static_cast<int32_t>(std::clamp(ty, 0.0f, 1.0f) * static_cast<float>(window.GetHeight()));
+    } else {
+      pointerX = static_cast<int32_t>(tx);
+      pointerY = static_cast<int32_t>(ty);
+    }
     const auto overlayTouch = Oot3dNativeGame::MapHostPointerToNativeA32Touch(
-        static_cast<int32_t>(tx), static_cast<int32_t>(ty), window.GetWidth(),
+        pointerX, pointerY, window.GetWidth(),
         window.GetHeight(), true,
         (swapScreensActive || !topScreenUiProfile)
             ? Oot3dNativeGame::NativeA32TouchPresentation::NativeLowerScreen320x240
@@ -3143,7 +3152,7 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
   Oot3dNativeGame::TopScreenUiConfig activeTopScreenConfig =
       topScreenConfigRuntime->Snapshot().Config;
 #if defined(__ANDROID__)
-  activeTopScreenConfig.FreeCameraEnabled = true;
+  RegisterAndroidTopScreenConfigRuntime(topScreenConfigRuntime);
 #endif
 #if defined(__SWITCH__)
   gSwitchUiProfile = Oot3dNativeGame::Oot3dUiProfileName(launch.UiProfile);
@@ -3812,9 +3821,6 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
       return;
     }
     activeTopScreenConfig = snapshot.Config;
-#if defined(__ANDROID__)
-    activeTopScreenConfig.FreeCameraEnabled = true;
-#endif
     appliedTopScreenConfigRevision = snapshot.Revision;
     uiLifecycleBridge.SetTopScreenConfig(activeTopScreenConfig);
     widescreenProjection.TopScreenConfig = activeTopScreenConfig;

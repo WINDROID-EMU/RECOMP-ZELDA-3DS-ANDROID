@@ -21,8 +21,8 @@ inline TopScreenPauseTargetPlan ResolveTopScreenFrontendTargetCommand(
     plan.StoredCommand = command.NativeCommand;
     plan.FramebufferBindingOffset = 0x38U;
     plan.ViewportWidth = command.HalfHeightMode ? 240U : 480U;
-    plan.ViewportY = command.NativeCommand == 0x401U ? 40U : 0U;
-    plan.ViewportHeight = command.NativeCommand == 0x401U ? 320U : 400U;
+    plan.ViewportY = 0U;
+    plan.ViewportHeight = 400U;
     return plan;
 }
 
