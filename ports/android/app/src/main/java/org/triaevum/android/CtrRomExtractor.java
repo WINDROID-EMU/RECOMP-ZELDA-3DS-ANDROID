@@ -184,7 +184,7 @@ public final class CtrRomExtractor {
         }
     }
 
-    private static byte[] adaptUsaCodeToEur(Context context, byte[] usaCode) throws IOException {
+    static byte[] adaptUsaCodeToEur(Context context, byte[] usaCode) throws IOException {
         try (InputStream is = context.getAssets().open("adapters/oot3d_usa_code_copies.bin")) {
             DataInputStream dis = new DataInputStream(is);
             int count = Integer.reverseBytes(dis.readInt()); // uint32 LE
@@ -440,7 +440,7 @@ public final class CtrRomExtractor {
         return output;
     }
 
-    private static String sha256Hex(byte[] data) {
+    static String sha256Hex(byte[] data) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest(data);
