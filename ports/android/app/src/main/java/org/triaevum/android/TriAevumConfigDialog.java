@@ -81,6 +81,7 @@ public final class TriAevumConfigDialog extends Dialog {
     private TextView mTvOpacityLabel;
     private CheckBox mCbHaptic;
     private CheckBox mCbSwapScreens;
+    private CheckBox mCbTouchScreen;
     private CheckBox mCbJoystickRelCenter;
     private CheckBox mCbDpadSlide;
 
@@ -172,6 +173,7 @@ public final class TriAevumConfigDialog extends Dialog {
         mTvOpacityLabel      = findViewById(R.id.tv_opacity_label);
         mCbHaptic            = findViewById(R.id.cb_haptic);
         mCbSwapScreens       = findViewById(R.id.cb_swap_screens);
+        mCbTouchScreen       = findViewById(R.id.cb_touch_screen);
         mCbJoystickRelCenter = findViewById(R.id.cb_joystick_rel_center);
         mCbDpadSlide         = findViewById(R.id.cb_dpad_slide);
     }
@@ -294,17 +296,20 @@ public final class TriAevumConfigDialog extends Dialog {
         boolean showOverlay = (mOverlay != null) ? mOverlay.isShowControls() : mPrefs.getBoolean("EmulationMenuSettings_ShowOverlay", true);
         boolean haptic      = (mOverlay != null) ? mOverlay.isHapticFeedbackEnabled() : mPrefs.getBoolean("EmulationMenuSettings_HapticFeedback", true);
         boolean swapScr     = mPrefs.getBoolean("EmulationMenuSettings_SwapScreens", false);
+        boolean touchScreen = (mOverlay != null) ? mOverlay.isTouchEnabled() : mPrefs.getBoolean("EmulationMenuSettings_TouchEnabled", false);
         boolean joyRel      = mPrefs.getBoolean("EmulationMenuSettings_JoystickRelCenter", true);
         boolean dpadSlide   = mPrefs.getBoolean("EmulationMenuSettings_DpadSlideEnable", true);
         Log.d(TAG, "  [prefs=" + PREFS_NAME + "]"
             + " showOverlay=" + showOverlay
             + " haptic=" + haptic
             + " swapScreens=" + swapScr
+            + " touchScreen=" + touchScreen
             + " joystickRelCenter=" + joyRel
             + " dpadSlide=" + dpadSlide);
         mCbShowOverlay.setChecked(showOverlay);
         mCbHaptic.setChecked(haptic);
         mCbSwapScreens.setChecked(swapScr);
+        mCbTouchScreen.setChecked(touchScreen);
         mCbJoystickRelCenter.setChecked(joyRel);
         mCbDpadSlide.setChecked(dpadSlide);
 
@@ -420,18 +425,21 @@ public final class TriAevumConfigDialog extends Dialog {
                 .putBoolean("EmulationMenuSettings_ShowOverlay", true)
                 .putBoolean("EmulationMenuSettings_HapticFeedback", true)
                 .putBoolean("EmulationMenuSettings_SwapScreens", false)
+                .putBoolean("EmulationMenuSettings_TouchEnabled", false)
                 .putBoolean("EmulationMenuSettings_JoystickRelCenter", true)
                 .putBoolean("EmulationMenuSettings_DpadSlideEnable", true)
                 .apply();
             if (mOverlay != null) {
                 mOverlay.setShowControls(true);
                 mOverlay.setHapticFeedbackEnabled(true);
+                mOverlay.setTouchEnabled(false);
                 mOverlay.setOverlayOpacityPercent(100);
             }
             try {
                 AndroidNativeInputTarget.nativeSwapScreens(false);
+                AndroidNativeInputTarget.nativeSetTouchEnabled(false);
             } catch (Throwable t) {
-                Log.w(TAG, "Failed to reset nativeSwapScreens", t);
+                Log.w(TAG, "Failed to reset native control settings", t);
             }
             loadFromConfig();
             Toast.makeText(getContext(), "Padrões restaurados e aplicados.", Toast.LENGTH_SHORT).show();
@@ -518,18 +526,21 @@ public final class TriAevumConfigDialog extends Dialog {
         boolean showOverlay = mCbShowOverlay.isChecked();
         boolean haptic = mCbHaptic.isChecked();
         boolean swapScr = mCbSwapScreens.isChecked();
+        boolean touchScreen = mCbTouchScreen.isChecked();
         boolean joyRel = mCbJoystickRelCenter.isChecked();
         boolean dpadSlide = mCbDpadSlide.isChecked();
 
-        Log.d(TAG, "  SET prefs showOverlay=" + showOverlay
+        Log.d(TAG, "  saving controls: showOverlay=" + showOverlay
             + " haptic=" + haptic
             + " swapScreens=" + swapScr
+            + " touchScreen=" + touchScreen
             + " joystickRelCenter=" + joyRel
             + " dpadSlide=" + dpadSlide);
         mPrefs.edit()
             .putBoolean("EmulationMenuSettings_ShowOverlay", showOverlay)
             .putBoolean("EmulationMenuSettings_HapticFeedback", haptic)
             .putBoolean("EmulationMenuSettings_SwapScreens", swapScr)
+            .putBoolean("EmulationMenuSettings_TouchEnabled", touchScreen)
             .putBoolean("EmulationMenuSettings_JoystickRelCenter", joyRel)
             .putBoolean("EmulationMenuSettings_DpadSlideEnable", dpadSlide)
             .apply();
@@ -537,12 +548,14 @@ public final class TriAevumConfigDialog extends Dialog {
         if (mOverlay != null) {
             mOverlay.setShowControls(showOverlay);
             mOverlay.setHapticFeedbackEnabled(haptic);
+            mOverlay.setTouchEnabled(touchScreen);
             mOverlay.setOverlayOpacityPercent(mSbOpacity.getProgress());
         }
         try {
             AndroidNativeInputTarget.nativeSwapScreens(swapScr);
+            AndroidNativeInputTarget.nativeSetTouchEnabled(touchScreen);
         } catch (Throwable t) {
-            Log.w(TAG, "Failed to apply nativeSwapScreens", t);
+            Log.w(TAG, "Failed to apply native control settings", t);
         }
         Log.d(TAG, "--- saveToConfig END ---");
     }

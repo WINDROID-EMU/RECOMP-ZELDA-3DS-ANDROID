@@ -596,6 +596,16 @@
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                             android:orientation="horizontal" android:layout_marginBottom="5dp">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:text="Toque na Tela Inferior (Touchscreen)"
+                                android:textColor="#C8D8E8" android:textSize="12sp" android:layout_gravity="center_vertical" />
+                            <CheckBox android:id="@+id/cb_touch_screen"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:buttonTint="#FFD700" />
+                        </LinearLayout>
+
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:orientation="horizontal" android:layout_marginBottom="5dp">
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
                                 android:layout_weight="1" android:text="Centro Relativo do Analógico"
                                 android:textColor="#C8D8E8" android:textSize="12sp" android:layout_gravity="center_vertical" />
                             <CheckBox android:id="@+id/cb_joystick_rel_center"

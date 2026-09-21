@@ -145,9 +145,23 @@ JNIEXPORT void JNICALL
 Java_org_triaevum_android_AndroidNativeInputTarget_nativeTouch(
     JNIEnv * /*env*/, jclass /*clazz*/, jfloat x, jfloat y, jboolean pressed) {
   auto &state = GetAndroidOverlayInputState();
+  if (!state.touchEnabled.load(std::memory_order_relaxed)) {
+    state.touchPressed.store(false, std::memory_order_relaxed);
+    return;
+  }
   state.touchX.store(x, std::memory_order_relaxed);
   state.touchY.store(y, std::memory_order_relaxed);
   state.touchPressed.store(pressed, std::memory_order_relaxed);
+}
+
+JNIEXPORT void JNICALL
+Java_org_triaevum_android_AndroidNativeInputTarget_nativeSetTouchEnabled(
+    JNIEnv * /*env*/, jclass /*clazz*/, jboolean enabled) {
+  auto &state = GetAndroidOverlayInputState();
+  state.touchEnabled.store(enabled, std::memory_order_relaxed);
+  if (!enabled) {
+    state.touchPressed.store(false, std::memory_order_relaxed);
+  }
 }
 
 JNIEXPORT void JNICALL

@@ -144,7 +144,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
 
             val hasActiveOverlay = hasActiveButtons || hasActiveDpad || hasActiveJoystick
 
-            if (preferences.getBoolean("isTouchEnabled", true) && !hasActiveOverlay) {
+            if (preferences.getBoolean("isTouchEnabled", false) && !hasActiveOverlay) {
                 if (isActionMove) {
                     OverlayHost.onTouchMoved(xPosition.toFloat(), yPosition.toFloat())
                     continue
@@ -244,7 +244,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
                 invalidate()
             }
 
-            if (preferences.getBoolean("isTouchEnabled", true) &&
+            if (preferences.getBoolean("isTouchEnabled", false) &&
                 isActionDown &&
                 !anyOverlayStateChanged
             ) {

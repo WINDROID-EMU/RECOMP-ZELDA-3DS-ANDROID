@@ -108,9 +108,12 @@ public final class TriAevumActivity extends Activity {
                 boolean showOverlay = prefs.getBoolean("EmulationMenuSettings_ShowOverlay", true);
                 boolean haptic = prefs.getBoolean("EmulationMenuSettings_HapticFeedback", true);
                 boolean swapScreens = prefs.getBoolean("EmulationMenuSettings_SwapScreens", false);
+                boolean touchEnabled = prefs.getBoolean("EmulationMenuSettings_TouchEnabled", false);
                 mWindroidOverlay.setShowControls(showOverlay);
                 mWindroidOverlay.setHapticFeedbackEnabled(haptic);
+                mWindroidOverlay.setTouchEnabled(touchEnabled);
                 AndroidNativeInputTarget.nativeSwapScreens(swapScreens);
+                AndroidNativeInputTarget.nativeSetTouchEnabled(touchEnabled);
             } catch (Throwable t) {
                 Log.w(TAG, "Failed to sync initial control settings", t);
             }

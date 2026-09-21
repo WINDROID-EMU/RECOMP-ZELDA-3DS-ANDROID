@@ -138,8 +138,27 @@ public class WindroidVirtualControllerView extends View {
 
     private static final String PREF_SHOW_OVERLAY = "EmulationMenuSettings_ShowOverlay";
     private static final String PREF_HAPTIC = "EmulationMenuSettings_HapticFeedback";
+    private static final String PREF_TOUCH_ENABLED = "EmulationMenuSettings_TouchEnabled";
     private boolean mShowControls = true;
     private boolean mHapticFeedbackEnabled = true;
+    private boolean mTouchEnabled = false;
+
+    public boolean isTouchEnabled() {
+        return mTouchEnabled;
+    }
+
+    public void setTouchEnabled(boolean enabled) {
+        mTouchEnabled = enabled;
+        if (!enabled && touchscreenPointerId != -1) {
+            touchscreenPointerId = -1;
+            if (inputTarget != null) {
+                inputTarget.touchPixels(0F, 0F, false);
+            }
+        }
+        if (preferences != null) {
+            preferences.edit().putBoolean(PREF_TOUCH_ENABLED, enabled).apply();
+        }
+    }
 
     /** Returns the current overlay opacity (20-100). */
     public int getOverlayOpacityPercent() {
@@ -225,6 +244,7 @@ public class WindroidVirtualControllerView extends View {
             mOverlayOpacityPercent = preferences.getInt(PREF_OPACITY, 100);
             mShowControls = preferences.getBoolean(PREF_SHOW_OVERLAY, true);
             mHapticFeedbackEnabled = preferences.getBoolean(PREF_HAPTIC, true);
+            mTouchEnabled = preferences.getBoolean(PREF_TOUCH_ENABLED, false);
         } catch (Exception ignored) {}
 
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -766,7 +786,7 @@ public class WindroidVirtualControllerView extends View {
                 }
 
                 // 5. Native 3DS touchscreen passthrough for touches outside virtual controls (or when controls are hidden)
-                if (!hit) {
+                if (!hit && mTouchEnabled) {
                     touchscreenPointerId = pointerId;
                     if (inputTarget != null) {
                         float normX = (getWidth() > 0) ? Math.max(0.0f, Math.min(1.0f, px / (float) getWidth())) : 0.0f;
@@ -796,7 +816,7 @@ public class WindroidVirtualControllerView extends View {
                         int newStatus = getAxisStatus(posX / dpad.radius, posY / dpad.radius, 0.25F);
                         updateDpadHid(dpad.dpadStatus, newStatus);
                         dpad.dpadStatus = newStatus;
-                    } else if (touchscreenPointerId == pId) {
+                    } else if (touchscreenPointerId == pId && mTouchEnabled) {
                         if (inputTarget != null) {
                             float normX = (getWidth() > 0) ? Math.max(0.0f, Math.min(1.0f, curX / (float) getWidth())) : 0.0f;
                             float normY = (getHeight() > 0) ? Math.max(0.0f, Math.min(1.0f, curY / (float) getHeight())) : 0.0f;

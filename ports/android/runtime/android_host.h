@@ -13,6 +13,7 @@ struct AndroidOverlayInputState {
   std::atomic<float> touchX{0.0f};
   std::atomic<float> touchY{0.0f};
   std::atomic<bool> touchPressed{false};
+  std::atomic<bool> touchEnabled{false};
   std::atomic<bool> swapScreens{false};
 };
 

@@ -8,6 +8,7 @@ class AndroidNativeInputTarget : Native3dsInputTarget {
         @JvmStatic external fun nativeCirclePad(x: Float, y: Float)
         @JvmStatic external fun nativeCStick(x: Float, y: Float)
         @JvmStatic external fun nativeTouch(x: Float, y: Float, pressed: Boolean)
+        @JvmStatic external fun nativeSetTouchEnabled(enabled: Boolean)
         @JvmStatic external fun nativeSwapScreens(enabled: Boolean)
         @JvmStatic external fun nativeReleaseAll()
     }

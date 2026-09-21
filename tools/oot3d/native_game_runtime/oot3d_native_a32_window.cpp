@@ -2962,7 +2962,8 @@ PollNativeA32Input(Fast::Fast3dWindow &window,
 
   const bool swapScreensActive =
       androidInput.swapScreens.load(std::memory_order_relaxed);
-  if (androidInput.touchPressed.load(std::memory_order_relaxed)) {
+  if (androidInput.touchEnabled.load(std::memory_order_relaxed) &&
+      androidInput.touchPressed.load(std::memory_order_relaxed)) {
     const float tx = androidInput.touchX.load(std::memory_order_relaxed);
     const float ty = androidInput.touchY.load(std::memory_order_relaxed);
     int32_t pointerX = 0;
