@@ -153,14 +153,14 @@ int main() {
         }
     }
 
-    // Teste 5: Diálogo exibindo texto (máquina de escrever) -> Zera temporizadores instantaneamente
+    // Teste 5: Diálogo exibindo texto (máquina de escrever) -> Não corrompe MessageContext e suprime B
     {
         MockMemoryBus bus;
         bus.Write32(kPauseRoot + 0x0CU, kPlayStateAddr);
         // msgMode = 0x06 (MSGMODE_TEXT_DISPLAYING)
         bus.Write8(kMsgCtx + 0x0FA0U, 0x06U);
-        bus.Write16(kMsgCtx + 0x0F38U, 15U); // stateTimer
-        bus.Write16(kMsgCtx + 0x0FA4U, 8U);  // textDelayTimer
+        bus.Write16(kMsgCtx + 0x0F38U, 15U); // textboxState (não deve ser corrompido)
+        bus.Write16(kMsgCtx + 0x0FA4U, 8U);  // textboxNextState (não deve ser corrompido)
 
         CutsceneDialogSkipRuntime skip;
         uint32_t buttons = 1U << 1; // B segurado
@@ -174,12 +174,12 @@ int main() {
         Require(st.IsActive, "Deve estar ativo");
         Require(st.Target == CutsceneDialogSkipTarget::Dialog, "Target deve ser Dialog");
 
-        uint16_t stateTimer = 999;
-        uint16_t textDelay = 999;
-        bus.Read16(kMsgCtx + 0x0F38U, &stateTimer);
-        bus.Read16(kMsgCtx + 0x0FA4U, &textDelay);
-        Require(stateTimer == 0, "stateTimer deve ser zerado para adiantar texto");
-        Require(textDelay == 0, "textDelayTimer deve ser zerado para adiantar texto");
+        uint16_t state = 0;
+        uint16_t nextState = 0;
+        bus.Read16(kMsgCtx + 0x0F38U, &state);
+        bus.Read16(kMsgCtx + 0x0FA4U, &nextState);
+        Require(state == 15, "textboxState deve ser preservado para nao quebrar maquina de estados");
+        Require(nextState == 8, "textboxNextState deve ser preservado para nao quebrar maquina de estados");
         Require((buttons & (1U << 1)) == 0, "Botao B deve ser suprimido durante dialogo");
     }
 
@@ -211,12 +211,18 @@ int main() {
         Require((buttons & (1U << 1)) == 0, "Bit de B deve ser mascarado");
     }
 
-    // Teste 7: Diálogo de Escolha (Sim/Não - Kaepora Gaebora / Owl) -> NÃO pular
+    // Teste 7: Diálogo de Escolha (Sim/Não - Kaepora Gaebora / Owl) -> Pausar skip e não avançar cutscene
     {
         MockMemoryBus bus;
         bus.Write32(kPauseRoot + 0x0CU, kPlayStateAddr);
         bus.Write8(kMsgCtx + 0x0FA0U, 0x07U);
         bus.Write8(kMsgCtx + 0x000EU, 0x04U); // secondaryState = TEXT_STATE_CHOICE
+
+        // Também simula cutscene ativa concorrente
+        bus.Write32(kCsCtx + 0x04U, 0x00800000U);
+        bus.Write8(kCsCtx + 0x08U, 1U);
+        bus.Write16(kCsCtx + 0x18U, 100U);
+        bus.Write16(kCsCtx + 0x20U, 50U);
 
         CutsceneDialogSkipRuntime skip;
         for (int i = 0; i < 5; ++i) skip.Update(true, dt);
@@ -224,6 +230,12 @@ int main() {
         uint32_t buttons = 1U << 1;
         auto st = ApplyGuestCutsceneDialogSkip(bus, skip, true, &buttons, dt);
         Require(st.Target != CutsceneDialogSkipTarget::Dialog, "Caixa de escolha nao deve ser pulada");
+        Require(st.Target != CutsceneDialogSkipTarget::Cutscene, "Cutscene nao deve avancar enquanto escolha estiver ativa");
+        Require((buttons & (1U << 0)) == 0, "Botao A nao deve ser sintetizado em caixa de escolha");
+
+        uint16_t csFrame = 0;
+        bus.Read16(kCsCtx + 0x20U, &csFrame);
+        Require(csFrame == 50, "curFrame da cutscene nao deve ter se movido durante escolha");
     }
 
     // Teste 8: Cutscene ativa -> Avança quadros por tick (~10x velocidade)
@@ -250,7 +262,7 @@ int main() {
         Require((buttons & (1U << 1)) == 0, "Botao B deve ser mascarado");
     }
 
-    // Teste 9: Cutscene próxima do fim -> Cobre até endFrame - 1 sem passar do limite
+    // Teste 9: Cutscene próxima do fim -> Alcança endFrame + 1 para disparar encerramento nativo
     {
         MockMemoryBus bus;
         bus.Write32(kPauseRoot + 0x0CU, kPlayStateAddr);
@@ -264,11 +276,54 @@ int main() {
 
         uint32_t buttons = 1U << 1;
         auto st = ApplyGuestCutsceneDialogSkip(bus, skip, true, &buttons, dt);
-        Require(st.CutsceneFramesAdvanced == 4, "Deve avancar apenas 4 quadros (de 95 para 99)");
+        Require(st.CutsceneFramesAdvanced == 6, "Deve avancar de 95 para 101 (endFrame + 1)");
 
         uint16_t newCurFrame = 0;
         bus.Read16(kCsCtx + 0x20U, &newCurFrame);
-        Require(newCurFrame == 99, "curFrame deve limitar em endFrame - 1 (99)");
+        Require(newCurFrame == 101, "curFrame deve atingir endFrame + 1 (101) para disparar csCtx.state = 3");
+    }
+
+    // Teste 10: Diálogo ativo em cutscene -> Prioriza avanço do diálogo sem pular cutscene
+    {
+        MockMemoryBus bus;
+        bus.Write32(kPauseRoot + 0x0CU, kPlayStateAddr);
+        bus.Write8(kMsgCtx + 0x0FA0U, 0x07U);     // msgMode = MSGMODE_TEXT_AWAIT_INPUT
+        bus.Write32(kCsCtx + 0x04U, 0x00800000U); // cutscene ativa
+        bus.Write8(kCsCtx + 0x08U, 1U);
+        bus.Write16(kCsCtx + 0x18U, 300U);
+        bus.Write16(kCsCtx + 0x20U, 40U);
+
+        CutsceneDialogSkipRuntime skip;
+        for (int i = 0; i < 5; ++i) skip.Update(true, dt);
+
+        uint32_t buttons = 1U << 1;
+        auto st = ApplyGuestCutsceneDialogSkip(bus, skip, true, &buttons, dt);
+        Require(st.Target == CutsceneDialogSkipTarget::Dialog, "Target deve ser Dialog, nao Cutscene");
+
+        uint16_t csFrame = 0;
+        bus.Read16(kCsCtx + 0x20U, &csFrame);
+        Require(csFrame == 40, "curFrame da cutscene nao deve saltar enquanto o dialogo estiver ativo");
+    }
+
+    // Teste 11: Cutscene unskippable (csState = 4) -> Não avança
+    {
+        MockMemoryBus bus;
+        bus.Write32(kPauseRoot + 0x0CU, kPlayStateAddr);
+        bus.Write32(kCsCtx + 0x04U, 0x00800000U);
+        bus.Write8(kCsCtx + 0x08U, 4U);    // csState = 4 (CS_STATE_RUN_UNSKIPPABLE)
+        bus.Write16(kCsCtx + 0x18U, 100U);
+        bus.Write16(kCsCtx + 0x20U, 10U);
+
+        CutsceneDialogSkipRuntime skip;
+        for (int i = 0; i < 5; ++i) skip.Update(true, dt);
+
+        uint32_t buttons = 1U << 1;
+        auto st = ApplyGuestCutsceneDialogSkip(bus, skip, true, &buttons, dt);
+        Require(st.Target != CutsceneDialogSkipTarget::Cutscene, "Cutscene unskippable nao deve avancar");
+
+        uint16_t csFrame = 0;
+        bus.Read16(kCsCtx + 0x20U, &csFrame);
+        Require(csFrame == 10, "curFrame nao deve mudar em cutscene unskippable");
     }
 
     std::cout << "All CutsceneDialogSkipRuntime tests passed successfully!\n";

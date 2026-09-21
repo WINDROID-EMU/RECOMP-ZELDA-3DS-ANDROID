@@ -298,6 +298,193 @@ int main() {
         Require(status.State == PlayerSprintState::Idle, "Must transition to Idle upon jumping");
     }
 
+    // Teste 8: Subindo / escalando escadas, vinhas ou beiradas (Climbing)
+    {
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+        constexpr uint32_t kState1ClimbingLadder = 0x00000200U;
+        constexpr uint32_t kState1ClimbingLedge = 0x00002000U;
+        constexpr uint32_t kState1ClimbingStart = 0x00200000U;
+
+        // 1. Tentar iniciar sprint enquanto sobe escada
+        auto status = sprint.Update(true, true, 0.0f, 100.0f, kState1ClimbingLadder, 0, 0, 5.0f, dt, true);
+        Require(status.State == PlayerSprintState::Idle, "Cannot enter roll-waiting while climbing ladder");
+        Require(!status.IsSprinting, "Cannot sprint while climbing ladder");
+        Require(status.IsClimbingOrHanging, "IsClimbingOrHanging flag must be reported");
+
+        // 2. Tentar iniciar sprint enquanto sobe degrau / borda (ledge climb)
+        status = sprint.Update(true, true, 0.0f, 100.0f, kState1ClimbingLedge, 0, 0, 5.0f, dt, true);
+        Require(status.State == PlayerSprintState::Idle, "Cannot enter roll-waiting while climbing ledge");
+
+        // 3. Tentar iniciar sprint ao engajar em escalada (climbing start)
+        status = sprint.Update(true, true, 0.0f, 100.0f, kState1ClimbingStart, 0, 0, 5.0f, dt, true);
+        Require(status.State == PlayerSprintState::Idle, "Cannot enter roll-waiting at climbing start");
+
+        // 4. Iniciar sprint no chão e depois engajar em escalada: cancela imediatamente sem velocidade residual
+        sprint.Update(true, true, 0.0f, 100.0f, 0, 0, 0, 5.0f, dt, true);
+        for (int frame = 0; frame < 24; ++frame) {
+            sprint.Update(true, false, 0.0f, 100.0f, 0, 0, 0, 5.0f, dt, true);
+        }
+        Require(sprint.IsSprinting(), "Sprint should be active before climbing ladder");
+
+        status = sprint.Update(true, false, 0.0f, 100.0f, kState1ClimbingLadder, 0, 0, 5.0f, dt, true);
+        Require(status.State == PlayerSprintState::Idle, "Engaging in ladder climb must immediately cancel sprint to Idle");
+        Require(!status.IsSprinting, "Cannot be sprinting while climbing ladder");
+        Require(status.SpeedMultiplier == 1.0f, "Speed multiplier must drop immediately to 1.0f with no ramp-down on ladder");
+    }
+
+    // Teste 9: Se pendurar em beiradas ou grades do teto (Hanging)
+    {
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+        constexpr uint32_t kState1HangingOffLedge = 0x00000400U;
+        constexpr uint32_t kState1HangingFromCeiling = 0x00040000U;
+
+        // 1. Tentar iniciar sprint enquanto pendurado na beirada
+        auto status = sprint.Update(true, true, 0.0f, 100.0f, kState1HangingOffLedge, 0, 0, 0.0f, dt, false);
+        Require(status.State == PlayerSprintState::Idle, "Cannot trigger sprint while hanging off ledge");
+        Require(!status.IsSprinting, "Cannot sprint while hanging off ledge");
+        Require(status.IsClimbingOrHanging, "IsClimbingOrHanging must be true when hanging off ledge");
+
+        // 2. Tentar iniciar sprint enquanto pendurado no teto / grade
+        status = sprint.Update(true, true, 0.0f, 100.0f, kState1HangingFromCeiling, 0, 0, 0.0f, dt, false);
+        Require(status.State == PlayerSprintState::Idle, "Cannot trigger sprint while hanging from ceiling");
+
+        // 3. Estava correndo e Link se pendura na borda: cancela sprint na hora
+        sprint.Update(true, true, 0.0f, 100.0f, 0, 0, 0, 5.0f, dt, true);
+        for (int frame = 0; frame < 24; ++frame) {
+            sprint.Update(true, false, 0.0f, 100.0f, 0, 0, 0, 5.0f, dt, true);
+        }
+        Require(sprint.IsSprinting(), "Link should be sprinting");
+
+        status = sprint.Update(true, false, 0.0f, 100.0f, kState1HangingOffLedge, 0, 0, 0.0f, dt, false);
+        Require(!status.IsSprinting, "Sprint must immediately cancel upon hanging off ledge");
+        Require(status.SpeedMultiplier == 1.0f, "Speed multiplier must immediately drop to 1.0f upon hanging off ledge");
+    }
+
+    // Teste 10: Puxando algo (Pulling)
+    {
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+        constexpr uint32_t kState1StartPullingPushing = 0x00000002U;
+
+        // 1. Não pode iniciar corrida ao puxar objeto
+        auto status = sprint.Update(true, true, 0.0f, -100.0f, kState1StartPullingPushing, 0, 0, 2.0f, dt, true);
+        Require(status.State == PlayerSprintState::Idle, "Cannot trigger sprint while initiating pull");
+        Require(!status.IsSprinting, "Cannot sprint while pulling");
+
+        // 2. Estava correndo e agarra objeto para puxar: cancela na hora
+        sprint.Update(true, true, 0.0f, 100.0f, 0, 0, 0, 5.0f, dt, true);
+        for (int frame = 0; frame < 24; ++frame) {
+            sprint.Update(true, false, 0.0f, 100.0f, 0, 0, 0, 5.0f, dt, true);
+        }
+        Require(sprint.IsSprinting(), "Link should be sprinting");
+
+        status = sprint.Update(true, false, 0.0f, -100.0f, kState1StartPullingPushing, 0, 0, 2.0f, dt, true);
+        Require(!status.IsSprinting, "Sprint must immediately cancel upon pulling");
+        Require(status.SpeedMultiplier == 1.0f, "Speed multiplier must immediately reset to 1.0f with no ramp-down on pull");
+    }
+
+    // Teste 11: Em diálogos (Talking / Textboxes)
+    {
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+        constexpr uint32_t kState1Talking = 0x00000020U;
+
+        // 1. Durante diálogo com NPC (botão A sendo apertado para avançar texto): NÃO deve acionar sprint
+        auto status = sprint.Update(true, true, 0.0f, 0.0f, kState1Talking, 0, 0, 0.0f, dt, true, true);
+        Require(status.State == PlayerSprintState::Idle, "Pressing A in dialogue must never enter RollWaiting");
+        Require(!status.IsSprinting, "Cannot sprint in dialogue");
+        Require(status.IsInDialogue, "IsInDialogue flag must be true");
+
+        // 2. Mesmo se o analógico estiver inclinado e botão A for pressionado em diálogo
+        status = sprint.Update(true, true, 50.0f, 50.0f, kState1Talking, 0, 0, 0.0f, dt, true, true);
+        Require(status.State == PlayerSprintState::Idle, "Cannot trigger sprint during dialogue even with stick deflected");
+
+        // 3. Se por acaso estivesse correndo e entrar em diálogo: cancela na hora
+        sprint.Update(true, true, 0.0f, 100.0f, 0, 0, 0, 5.0f, dt, true);
+        for (int frame = 0; frame < 24; ++frame) {
+            sprint.Update(true, false, 0.0f, 100.0f, 0, 0, 0, 5.0f, dt, true);
+        }
+        Require(sprint.IsSprinting(), "Link should be sprinting");
+
+        status = sprint.Update(true, false, 0.0f, 0.0f, kState1Talking, 0, 0, 0.0f, dt, true, true);
+        Require(!status.IsSprinting, "Entering dialogue must immediately cancel sprint");
+        Require(status.SpeedMultiplier == 1.0f, "Speed multiplier must reset immediately to 1.0f in dialogue");
+    }
+
+    // Teste 12: Salto automático de beirada / abismo (Hopping)
+    {
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+        constexpr uint32_t kState1Hopping = 0x20000000U;
+
+        sprint.Update(true, true, 0.0f, 100.0f, 0, 0, 0, 5.0f, dt, true);
+        for (int frame = 0; frame < 24; ++frame) {
+            sprint.Update(true, false, 0.0f, 100.0f, 0, 0, 0, 5.0f, dt, true);
+        }
+        Require(sprint.IsSprinting(), "Link should be sprinting");
+
+        auto status = sprint.Update(true, false, 0.0f, 100.0f, kState1Hopping, 0, 0, 5.0f, dt, false);
+        Require(!status.IsSprinting, "Hopping ledge must immediately cancel sprint");
+        Require(status.SpeedMultiplier == 1.0f, "Speed multiplier must immediately drop to 1.0f upon hopping");
+    }
+
+    // Teste 13: ApplyGuestPlayerSprint com MessageContext (msgMode != 0) na memória
+    {
+        MockMemoryBus memory;
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+
+        const uint32_t kPauseRoot = 0x005043D4U;
+        const uint32_t kPlayState = 0x10000000U;
+        const uint32_t kPlayer = 0x10002000U;
+
+        memory.Write32(kPauseRoot + 0x0CU, kPlayState);
+        memory.Write32(kPlayState + 0x20ACU, kPlayer);
+        memory.Write32(kPlayer + 0x1710U, 0U); // stateFlags1
+        memory.Write32(kPlayer + 0x1714U, 0U); // stateFlags2
+        memory.Write32(kPlayer + 0x1224U, 0U); // heldActor
+        memory.Write8(kPlayer + 0x12BCU, 0U);  // cutsceneAction
+        memory.WriteFloat(kPlayer + 0x006CU, 0.0f);
+        memory.WriteFloat(kPlayer + 0x221CU, 0.0f);
+        memory.Write16(kPlayer + 0x0090U, 0x0001U); // no chão
+
+        // Diálogo ativo: msgCtx (PlayState + 0x32C0U) com msgMode = 0x07 (await input) em +0x0FA0U
+        memory.Write8(kPlayState + 0x32C0U + 0x0FA0U, 0x07U);
+
+        // Jogador aperta A durante diálogo
+        bool sprinting = ApplyGuestPlayerSprint(memory, sprint, true, true, 0.0f, 100.0f, dt);
+        Require(!sprinting, "ApplyGuestPlayerSprint must not trigger sprint when msgMode != 0");
+        Require(sprint.State() == PlayerSprintState::Idle, "Must stay Idle when message is active");
+    }
+
+    // Teste 14: ApplyGuestPlayerSprint na base da escada (kBgCheckFlagGround ligado, mas escalando)
+    {
+        MockMemoryBus memory;
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+
+        const uint32_t kPauseRoot = 0x005043D4U;
+        const uint32_t kPlayState = 0x10000000U;
+        const uint32_t kPlayer = 0x10002000U;
+
+        memory.Write32(kPauseRoot + 0x0CU, kPlayState);
+        memory.Write32(kPlayState + 0x20ACU, kPlayer);
+        memory.Write32(kPlayer + 0x1710U, 0x00000200U); // kState1ClimbingLadder ativo
+        memory.Write32(kPlayer + 0x1714U, 0U);
+        memory.Write32(kPlayer + 0x1224U, 0U);
+        memory.Write8(kPlayer + 0x12BCU, 0U);
+        memory.WriteFloat(kPlayer + 0x006CU, 1.0f);
+        memory.WriteFloat(kPlayer + 0x221CU, 1.0f);
+        memory.Write16(kPlayer + 0x0090U, 0x0001U); // flag de chão está setada porque os pés tocam a base da escada
+
+        // Pressionar A enquanto na escada: não pode correr
+        bool sprinting = ApplyGuestPlayerSprint(memory, sprint, true, true, 0.0f, 100.0f, dt);
+        Require(!sprinting, "ApplyGuestPlayerSprint must NOT sprint when climbing ladder even if ground flag is set");
+        Require(sprint.State() == PlayerSprintState::Idle, "Must stay Idle when on ladder");
+    }
+
     std::cout << "All PlayerSprintRuntime tests PASSED!\n";
     return 0;
 }

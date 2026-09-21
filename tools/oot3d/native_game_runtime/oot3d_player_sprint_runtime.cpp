@@ -15,17 +15,42 @@ namespace Oot3dNativeGame {
 
 namespace {
 
+// stateFlags1 (offset 0x1710)
 constexpr uint32_t kState1StartPullingPushing = 0x00000002U;
 constexpr uint32_t kState1PullingPushing = 0x00000004U;
-constexpr uint32_t kState1CarryingActor = 0x00000800U;
+constexpr uint32_t kState1Talking = 0x00000020U;
 constexpr uint32_t kState1Dead = 0x00000080U;
+constexpr uint32_t kState1ClimbingLadder = 0x00000200U;
+constexpr uint32_t kState1HangingOffLedge = 0x00000400U;
+constexpr uint32_t kState1CarryingActor = 0x00000800U;
+constexpr uint32_t kState1Swimming = 0x00001000U;
+constexpr uint32_t kState1ClimbingLedge = 0x00002000U;
+constexpr uint32_t kState1RidingHorse = 0x00004000U;
+constexpr uint32_t kState1HangingFromCeiling = 0x00040000U;
+constexpr uint32_t kState1InCutscene = 0x00080000U;
+constexpr uint32_t kState1ClimbingStart = 0x00200000U;
+constexpr uint32_t kState1Paralyzed = 0x00800000U;
+constexpr uint32_t kState1InCutsceneMovement = 0x02000000U;
 constexpr uint32_t kState1InWater = 0x08000000U;
+constexpr uint32_t kState1Hopping = 0x20000000U;
 constexpr uint32_t kState1Jumping = 0x80000000U;
+
+// stateFlags2 (offset 0x1714)
+constexpr uint32_t kState2Crawling = 0x00040000U;
 
 // Constantes de layout de memória de Link e PlayState em espaço A32 guest
 constexpr uint32_t kPauseRoot = 0x005043D4U;
 constexpr uint32_t kPlayStateOffset = 0x0CU;
 constexpr uint32_t kPlayerOffsetInPlay = 0x20ACU;
+
+// Cutscene Context (csCtx) em PlayState + 0x2298U
+constexpr uint32_t kCsCtxOffset = 0x2298U;
+constexpr uint32_t kCsStateOffset = 0x08U;
+
+// Message Context (msgCtx) em PlayState + 0x32C0U
+constexpr uint32_t kMsgCtxOffset = 0x32C0U;
+constexpr uint32_t kMsgModeOffset = 0x0FA0U;
+
 constexpr uint32_t kActorWorldPosXOffset = 0x0028U;
 constexpr uint32_t kActorWorldPosZOffset = 0x0030U;
 constexpr uint32_t kActorVelXOffset = 0x0060U;
@@ -40,6 +65,7 @@ constexpr uint32_t kSkelAnimeAnimLengthOffset = 0x02A0U;
 constexpr uint32_t kPlayerHeldActorOffset = 0x1224U;
 constexpr uint32_t kPlayerCutsceneActionOffset = 0x12BCU;
 constexpr uint32_t kPlayerStateFlags1Offset = 0x1710U;
+constexpr uint32_t kPlayerStateFlags2Offset = 0x1714U;
 constexpr uint32_t kPlayerLinearVelocityOffset = 0x221CU;
 constexpr uint16_t kBgCheckFlagGround = 0x0001U;
 constexpr uint16_t kBgCheckFlagWall = 0x0008U;
@@ -67,6 +93,22 @@ bool PlayerSprintRuntime::IsPushingBoxesOrCarrying(uint32_t stateFlags1, uint32_
     return pushingOrPulling || carryingActor;
 }
 
+bool PlayerSprintRuntime::IsClimbingOrHanging(uint32_t stateFlags1) noexcept {
+    constexpr uint32_t kClimbOrHangMask = kState1ClimbingLadder |
+                                          kState1HangingOffLedge |
+                                          kState1ClimbingLedge |
+                                          kState1HangingFromCeiling |
+                                          kState1ClimbingStart;
+    return (stateFlags1 & kClimbOrHangMask) != 0U;
+}
+
+bool PlayerSprintRuntime::IsInDialogueOrCutscene(uint32_t stateFlags1, uint8_t cutsceneAction, bool isInDialogue) noexcept {
+    constexpr uint32_t kDialogueOrCsMask = kState1Talking |
+                                           kState1InCutscene |
+                                           kState1InCutsceneMovement;
+    return isInDialogue || cutsceneAction != 0U || (stateFlags1 & kDialogueOrCsMask) != 0U;
+}
+
 PlayerSprintStatus PlayerSprintRuntime::Update(bool aButtonHeld,
                                               bool aButtonPressed,
                                               float stickX,
@@ -76,7 +118,9 @@ PlayerSprintStatus PlayerSprintRuntime::Update(bool aButtonHeld,
                                               uint8_t cutsceneAction,
                                               float speedXZ,
                                               float deltaSeconds,
-                                              bool isGrounded) {
+                                              bool isGrounded,
+                                              bool isInDialogue,
+                                              uint32_t stateFlags2) {
     if (deltaSeconds <= 0.0f) {
         deltaSeconds = 1.0f / 30.0f;
     }
@@ -86,19 +130,28 @@ PlayerSprintStatus PlayerSprintRuntime::Update(bool aButtonHeld,
 
     const float stickMagnitude = std::sqrt(stickX * stickX + stickY * stickY);
     const bool hasMovementIntent = stickMagnitude >= mConfig.MinStickMagnitude || speedXZ > 0.5f;
+
     const bool pushingBoxes = IsPushingBoxesOrCarrying(stateFlags1, heldActor);
-    const bool jumping = !isGrounded || (stateFlags1 & kState1Jumping) != 0U;
-    const bool invalidState = jumping ||
+    const bool climbingOrHanging = IsClimbingOrHanging(stateFlags1);
+    const bool inDialogueOrCs = IsInDialogueOrCutscene(stateFlags1, cutsceneAction, isInDialogue);
+    const bool jumpingOrAirborne = !isGrounded || (stateFlags1 & (kState1Jumping | kState1Hopping)) != 0U;
+    const bool inWater = (stateFlags1 & (kState1Dead | kState1InWater | kState1Swimming)) != 0U;
+    const bool disabled = (stateFlags1 & (kState1Paralyzed | kState1RidingHorse)) != 0U ||
+                          (stateFlags2 & kState2Crawling) != 0U;
+
+    const bool invalidState = jumpingOrAirborne ||
                               pushingBoxes ||
-                              (stateFlags1 & (kState1Dead | kState1InWater)) != 0U ||
-                              cutsceneAction != 0U;
+                              climbingOrHanging ||
+                              inDialogueOrCs ||
+                              inWater ||
+                              disabled;
 
     if (invalidState) {
         if (mState == PlayerSprintState::RollWaiting || mState == PlayerSprintState::Sprinting) {
-            SPRINT_LOG("Sprint invalidated: grounded=%d, jumping=%d, pushingBoxes=%d, flags1=0x%08X",
-                       (int)isGrounded, (int)jumping, (int)pushingBoxes, stateFlags1);
+            SPRINT_LOG("Sprint invalidated: grounded=%d, jumping=%d, pushing=%d, climbHang=%d, dialogue=%d, flags1=0x%08X",
+                       (int)isGrounded, (int)jumpingOrAirborne, (int)pushingBoxes, (int)climbingOrHanging, (int)inDialogueOrCs, stateFlags1);
             mState = PlayerSprintState::Idle;
-            mSpeedMultiplier = 1.0f; // Para a velocidade na hora ao pular ou invalidar
+            mSpeedMultiplier = 1.0f; // Para a velocidade na hora
             mRollTimer = 0.0f;
             mSprintTimer = 0.0f;
         }
@@ -125,7 +178,8 @@ PlayerSprintStatus PlayerSprintRuntime::Update(bool aButtonHeld,
                                          mStaminaRemaining + deltaSeconds);
         }
 
-        // Se o botão A foi pressionado durante movimento no chão, inicia o monitoramento do rolamento
+        // Se o botão A foi pressionado durante movimento no chão e sem estados inválidos,
+        // inicia o monitoramento do rolamento
         if (!invalidState && justPressedA && hasMovementIntent && mStaminaRemaining > 1.0f) {
             mState = PlayerSprintState::RollWaiting;
             mRollTimer = 0.0f;
@@ -139,7 +193,7 @@ PlayerSprintStatus PlayerSprintRuntime::Update(bool aButtonHeld,
         mSprintTimer = 0.0f;
         mRollTimer += deltaSeconds;
 
-        // Se o jogador soltou o botão A antes de terminar o rolamento, apenas rola normalmente
+        // Se o jogador soltou o botão A antes de terminar o rolamento, ou se entrou em estado inválido
         if (!aButtonHeld || invalidState) {
             SPRINT_LOG("RollWaiting cancelled: aButtonHeld=%d, invalidState=%d, rollTimer=%.2fs",
                        (int)aButtonHeld, (int)invalidState, mRollTimer);
@@ -186,7 +240,7 @@ PlayerSprintStatus PlayerSprintRuntime::Update(bool aButtonHeld,
     }
     }
 
-    // Gerenciamento da rampa suave de velocidade usando SmoothStep para aceleração gradual e natural
+    // Gerenciamento da velocidade: se estiver em estado inválido, para imediatamente ("na hora")
     if (mState == PlayerSprintState::Sprinting) {
         const float t = mConfig.SprintRampUpTimeSeconds > 0.0f
                             ? std::clamp(mSprintTimer / mConfig.SprintRampUpTimeSeconds, 0.0f, 1.0f)
@@ -194,8 +248,9 @@ PlayerSprintStatus PlayerSprintRuntime::Update(bool aButtonHeld,
         const float smoothProgress = t * t * (3.0f - 2.0f * t);
         mSpeedMultiplier = 1.0f + (mConfig.MaxSprintMultiplier - 1.0f) * smoothProgress;
     } else {
-        if (jumping) {
-            // Se Link pulou/saiu do chão, a velocidade para imediatamente ("na hora")
+        if (invalidState) {
+            // Em qualquer estado inválido (pulou, empurrando, subindo, pendurado, diálogo, etc.),
+            // a velocidade para IMEDIATAMENTE na hora (sem ramp-down que empurre caixas/objetos)
             mSpeedMultiplier = 1.0f;
         } else {
             const float rampDownStep = ((mConfig.MaxSprintMultiplier - 1.0f) / mConfig.SprintRampDownTimeSeconds) * deltaSeconds;
@@ -210,6 +265,8 @@ PlayerSprintStatus PlayerSprintRuntime::Update(bool aButtonHeld,
     status.CooldownRemainingSeconds = mCooldownRemaining;
     status.IsSprinting = (mState == PlayerSprintState::Sprinting);
     status.IsPushingBoxes = pushingBoxes;
+    status.IsClimbingOrHanging = climbingOrHanging;
+    status.IsInDialogue = inDialogueOrCs;
     return status;
 }
 
@@ -236,6 +293,9 @@ bool ApplyGuestPlayerSprint(
         return false;
     }
 
+    uint32_t stateFlags2 = 0;
+    memory.Read32(player + kPlayerStateFlags2Offset, &stateFlags2);
+
     uint32_t heldActor = 0;
     if (!memory.Read32(player + kPlayerHeldActorOffset, &heldActor)) {
         return false;
@@ -246,6 +306,17 @@ bool ApplyGuestPlayerSprint(
         return false;
     }
 
+    // Checa se há diálogo/caixa de mensagem ativa em msgCtx ou cutscene ativa em csCtx
+    uint8_t msgMode = 0;
+    memory.Read8(playState + kMsgCtxOffset + kMsgModeOffset, &msgMode);
+    const bool isDialogueActive = (msgMode != 0U);
+
+    uint8_t csState = 0;
+    memory.Read8(playState + kCsCtxOffset + kCsStateOffset, &csState);
+    const bool isCsActive = (csState != 0U);
+
+    const bool inDialogueOrCs = isDialogueActive || isCsActive;
+
     float speedXZ = 0.0f;
     uint32_t speedRaw = 0;
     if (!memory.Read32(player + kActorSpeedXZOffset, &speedRaw)) {
@@ -255,16 +326,22 @@ bool ApplyGuestPlayerSprint(
 
     uint16_t bgCheckFlags = 0;
     memory.Read16(player + kActorBgCheckFlagsOffset, &bgCheckFlags);
+
+    // Para ser considerado grounded:
+    // Deve ter a flag de ground do bgCheck E NÃO pode estar suspenso, escalando, pendurado nem no ar
+    const bool isClimbingOrHanging = PlayerSprintRuntime::IsClimbingOrHanging(stateFlags1);
+    const bool isAirborneOrJumping = (stateFlags1 & (kState1Jumping | kState1Hopping | kState1Swimming | kState1InWater)) != 0U;
     const bool isGrounded = ((bgCheckFlags & kBgCheckFlagGround) != 0U) &&
-                            ((stateFlags1 & kState1Jumping) == 0U);
+                            !isClimbingOrHanging &&
+                            !isAirborneOrJumping;
 
     const auto status = sprintRuntime.Update(
         aButtonHeld, aButtonPressed, stickX, stickY,
         stateFlags1, heldActor, cutsceneAction, speedXZ, deltaSeconds,
-        isGrounded);
+        isGrounded, inDialogueOrCs, stateFlags2);
 
-    if (!isGrounded) {
-        // Ao pular (sair do chão), a velocidade para imediatamente ("na hora"):
+    if (!isGrounded || !status.IsSprinting) {
+        // Quando não estiver no chão ou quando não estiver correndo ativamente:
         // Restabelece speedXZ e linearVelocity para os valores normais do jogo (máx 5.66f)
         if (speedXZ > 5.66f) {
             memory.Write32(player + kActorSpeedXZOffset, std::bit_cast<uint32_t>(5.66f));
@@ -308,7 +385,7 @@ bool ApplyGuestPlayerSprint(
         currentPlaySpeed = std::bit_cast<float>(playSpeedRaw);
     }
 
-    if (status.SpeedMultiplier > 1.0f) {
+    if (status.SpeedMultiplier > 1.0f && status.IsSprinting) {
         const float extraFactor = status.SpeedMultiplier - 1.0f;
         const bool hitWall = (bgCheckFlags & kBgCheckFlagWall) != 0U;
 
@@ -387,7 +464,7 @@ bool ApplyGuestPlayerSprint(
 
         memory.Write32(player + kSkelAnimePlaySpeedOffset, std::bit_cast<uint32_t>(status.SpeedMultiplier));
     } else {
-        if (currentPlaySpeed > 1.001f) {
+        if (currentPlaySpeed != 1.0f) {
             memory.Write32(player + kSkelAnimePlaySpeedOffset, std::bit_cast<uint32_t>(1.0f));
         }
     }
