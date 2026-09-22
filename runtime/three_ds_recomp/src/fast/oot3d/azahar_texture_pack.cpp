@@ -643,16 +643,30 @@ class AzaharTexturePackRuntime::Impl {
             return nullptr;
         }
 
+        auto targetHash = *loadHash;
         IndexedTexture indexed;
         {
             std::scoped_lock lock(mMutex);
             if (generation != mGeneration) {
                 return nullptr;
             }
-            if (const auto cached = mReplacementCache.find(*loadHash); cached != mReplacementCache.end()) {
+            if (const auto cached = mReplacementCache.find(targetHash); cached != mReplacementCache.end()) {
                 return cached->second;
             }
-            const auto found = mIndex.find(*loadHash);
+            auto found = mIndex.find(targetHash);
+            if (found == mIndex.end()) {
+                const auto altHash = resolveHash(!loadUsesNewHash);
+                if (altHash.has_value()) {
+                    if (const auto cachedAlt = mReplacementCache.find(*altHash); cachedAlt != mReplacementCache.end()) {
+                        return cachedAlt->second;
+                    }
+                    const auto altFound = mIndex.find(*altHash);
+                    if (altFound != mIndex.end()) {
+                        found = altFound;
+                        targetHash = *altHash;
+                    }
+                }
+            }
             if (found == mIndex.end()) {
                 return nullptr;
             }
@@ -660,12 +674,12 @@ class AzaharTexturePackRuntime::Impl {
         }
 
         try {
-            const auto replacement = DecodeReplacement(indexed, *loadHash);
+            const auto replacement = DecodeReplacement(indexed, targetHash);
             std::scoped_lock lock(mMutex);
             if (generation != mGeneration || !mConfiguration.LoadCustomTextures) {
                 return nullptr;
             }
-            const auto [entry, inserted] = mReplacementCache.try_emplace(*loadHash, replacement);
+            const auto [entry, inserted] = mReplacementCache.try_emplace(targetHash, replacement);
             return entry->second;
         } catch (const std::exception& exception) {
             SetError(exception.what());
@@ -745,48 +759,65 @@ class AzaharTexturePackRuntime::Impl {
                 AzaharTextureResolveState::Failed, 0U, nullptr};
         }
 
+        auto targetHash = *loadHash;
         std::scoped_lock lock(mMutex);
         if (generation != mGeneration ||
             !mConfiguration.LoadCustomTextures) {
             return {
                 AzaharTextureResolveState::Disabled,
-                *loadHash, nullptr};
+                targetHash, nullptr};
         }
-        if (const auto cached = mReplacementCache.find(*loadHash);
+        if (const auto cached = mReplacementCache.find(targetHash);
             cached != mReplacementCache.end()) {
             return {
                 AzaharTextureResolveState::Ready,
-                *loadHash, cached->second};
+                targetHash, cached->second};
         }
-        const auto indexed = mIndex.find(*loadHash);
+        auto indexed = mIndex.find(targetHash);
+        if (indexed == mIndex.end()) {
+            const auto altHash = resolveHash(!loadUsesNewHash);
+            if (altHash.has_value()) {
+                if (const auto cachedAlt = mReplacementCache.find(*altHash);
+                    cachedAlt != mReplacementCache.end()) {
+                    return {
+                        AzaharTextureResolveState::Ready,
+                        *altHash, cachedAlt->second};
+                }
+                const auto altIndexed = mIndex.find(*altHash);
+                if (altIndexed != mIndex.end()) {
+                    indexed = altIndexed;
+                    targetHash = *altHash;
+                }
+            }
+        }
         if (indexed == mIndex.end()) {
             return {
                 AzaharTextureResolveState::Missing,
-                *loadHash, nullptr};
+                targetHash, nullptr};
         }
-        if (mFailedLoadHashes.contains(*loadHash)) {
+        if (mFailedLoadHashes.contains(targetHash)) {
             return {
                 AzaharTextureResolveState::Failed,
-                *loadHash, nullptr};
+                targetHash, nullptr};
         }
         if (const auto pending =
-                mPendingLoadGenerations.find(*loadHash);
+                mPendingLoadGenerations.find(targetHash);
             pending != mPendingLoadGenerations.end() &&
             pending->second == generation) {
             return {
                 AzaharTextureResolveState::Pending,
-                *loadHash, nullptr};
+                targetHash, nullptr};
         }
 
         mPendingLoadGenerations.insert_or_assign(
-            *loadHash, generation);
+            targetHash, generation);
         mLoadJobs.push_back({
-            *loadHash, generation, indexed->second});
+            targetHash, generation, indexed->second});
         ++mPendingLoads;
         mWorkAvailable.notify_one();
         return {
             AzaharTextureResolveState::Pending,
-            *loadHash, nullptr};
+            targetHash, nullptr};
     }
 
     AzaharTextureResolveResult PollQueued(
@@ -871,13 +902,44 @@ class AzaharTexturePackRuntime::Impl {
         mLastError.clear();
         mUnsupportedFiles = 0U;
         const std::string title = Hex16(mConfiguration.TitleId);
-        mLoadDirectory = mConfiguration.LoadDirectory.empty()
-                             ? mConfiguration.UserDirectory / "load" / "textures" / title
-                             : mConfiguration.LoadDirectory;
+        std::error_code dirErr;
+        if (mConfiguration.LoadDirectory.empty()) {
+            const auto defaultTextures = mConfiguration.UserDirectory / "textures";
+            const auto titleTextures = mConfiguration.UserDirectory / "load" / "textures" / title;
+            const auto customTextures = mConfiguration.UserDirectory / "custom_textures";
+            if (std::filesystem::exists(defaultTextures, dirErr) && !dirErr) {
+                mLoadDirectory = defaultTextures;
+            } else if (std::filesystem::exists(customTextures, dirErr) && !dirErr) {
+                mLoadDirectory = customTextures;
+            } else {
+                mLoadDirectory = titleTextures;
+            }
+        } else {
+            mLoadDirectory = mConfiguration.LoadDirectory;
+        }
         mDumpDirectory = mConfiguration.DumpDirectory.empty()
                              ? mConfiguration.UserDirectory / "dump" / "textures" / title
                              : mConfiguration.DumpDirectory;
         mPack = ReadPackState(mLoadDirectory / "pack.json", &mLastError);
+        if (!mPack.ConfigurationFound) {
+            const std::filesystem::path candidateSubdirs[] = {
+                mLoadDirectory / title / "pack.json",
+                mLoadDirectory / "0004000000033600" / "pack.json",
+                mLoadDirectory / "0004000000033500" / "pack.json",
+                mLoadDirectory / "textures" / "pack.json",
+                mLoadDirectory / "load" / "textures" / title / "pack.json",
+            };
+            for (const auto& candidate : candidateSubdirs) {
+                if (std::filesystem::exists(candidate, dirErr) && !dirErr) {
+                    std::string candidateErr;
+                    auto subPack = ReadPackState(candidate, &candidateErr);
+                    if (subPack.ConfigurationFound) {
+                        mPack = std::move(subPack);
+                        break;
+                    }
+                }
+            }
+        }
         std::string dumpPackError;
         const auto dumpPack = ReadPackState(mDumpDirectory / "pack.json", &dumpPackError);
         mDumpUsesNewHash = dumpPack.ConfigurationFound ? dumpPack.UseNewHash : true;

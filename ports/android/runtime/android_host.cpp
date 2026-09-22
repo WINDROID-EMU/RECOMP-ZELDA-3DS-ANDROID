@@ -21,6 +21,7 @@
 #include "fast/backends/gfx_android.h"
 #include "fast/oot3d/graphics_settings_persistence.h"
 #include "fast/oot3d/graphics_settings_runtime.h"
+#include "oot3d/renderer/azahar_texture_pack.h"
 #include "oot3d_top_screen_config.h"
 
 static AndroidOverlayInputState gOverlayInputState;
@@ -82,6 +83,7 @@ void InitializeAndroidGameHost() {
   }
 
   setenv("TRIAEVUM_STORAGE_PATH", root.c_str(), 1);
+  setenv("OOT3D_AZAHAR_USER_DIRECTORY", root.c_str(), 1);
 
   try {
     std::filesystem::current_path(root);
@@ -195,6 +197,7 @@ Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
       const auto loaded = Fast::Oot3d::LoadGraphicsSettingsConfig(root, runtime.Snapshot());
       if (loaded.Found && !loaded.UnsupportedFutureVersion) {
         runtime.Apply(loaded.Value, false);
+        ::Oot3d::Renderer::AzaharTexturePackRuntime::Instance().Reload();
         __android_log_print(ANDROID_LOG_INFO, "TriAevum", "Live graphics settings reloaded and applied successfully");
       }
     }

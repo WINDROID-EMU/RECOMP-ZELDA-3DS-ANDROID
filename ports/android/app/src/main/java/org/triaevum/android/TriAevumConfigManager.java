@@ -248,6 +248,34 @@ public final class TriAevumConfigManager {
         writeJson("oot3d_native_game.json", root);
     }
 
+    public String getCustomTexturesPath() {
+        JSONObject tp = getGraphics().optJSONObject("TexturePacks");
+        if (tp == null) return "";
+        JSONObject az = tp.optJSONObject("Azahar");
+        if (az == null) return "";
+        return az.optString("LoadDirectory", "");
+    }
+
+    public void setCustomTexturesPath(String path) {
+        JSONObject root = readJson("oot3d_native_game.json");
+        try {
+            JSONObject gfx = root.optJSONObject("Graphics");
+            if (gfx == null) gfx = new JSONObject();
+            JSONObject tp = gfx.optJSONObject("TexturePacks");
+            if (tp == null) tp = new JSONObject();
+            JSONObject az = tp.optJSONObject("Azahar");
+            if (az == null) az = new JSONObject();
+            az.put("LoadDirectory", path != null ? path : "");
+            if (path != null && !path.trim().isEmpty()) {
+                az.put("LoadCustomTextures", true);
+            }
+            tp.put("Azahar", az);
+            gfx.put("TexturePacks", tp);
+            root.put("Graphics", gfx);
+        } catch (JSONException ignored) {}
+        writeJson("oot3d_native_game.json", root);
+    }
+
     // =========================================================================
     // topscreen_ui.json
     // =========================================================================

@@ -433,6 +433,66 @@
                                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                                 android:buttonTint="#FFD700" />
                         </LinearLayout>
+
+                        <!-- Informações e Seleção de Pasta de Texturas -->
+                        <LinearLayout
+                            android:id="@+id/layout_custom_textures_dir"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="6dp"
+                            android:background="#152238"
+                            android:padding="8dp">
+
+                            <TextView
+                                android:id="@+id/tv_custom_textures_path"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Diretório: Padrão do aplicativo"
+                                android:textColor="#90A4AE"
+                                android:textSize="10sp"
+                                android:ellipsize="middle"
+                                android:singleLine="true" />
+
+                            <TextView
+                                android:id="@+id/tv_custom_textures_count"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:layout_marginBottom="6dp"
+                                android:text="Verificando texturas..."
+                                android:textColor="#80D8FF"
+                                android:textSize="11sp" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <Button
+                                    android:id="@+id/btn_select_textures_dir"
+                                    android:layout_width="0dp"
+                                    android:layout_height="36dp"
+                                    android:layout_weight="1"
+                                    android:layout_marginRight="6dp"
+                                    android:background="@drawable/btn_gold"
+                                    android:text="📁 Escolher Pasta"
+                                    android:textColor="#1A1500"
+                                    android:textSize="11sp"
+                                    android:textStyle="bold" />
+
+                                <Button
+                                    android:id="@+id/btn_reset_textures_dir"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="36dp"
+                                    android:background="@drawable/btn_dark"
+                                    android:paddingLeft="10dp"
+                                    android:paddingRight="10dp"
+                                    android:text="↺ Padrão"
+                                    android:textColor="#C8D8E8"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
                     </LinearLayout>
 
                 </LinearLayout>

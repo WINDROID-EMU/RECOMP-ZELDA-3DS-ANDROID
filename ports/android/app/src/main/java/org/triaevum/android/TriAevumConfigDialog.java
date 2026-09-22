@@ -60,6 +60,10 @@ public final class TriAevumConfigDialog extends Dialog {
     private Spinner mSpFramerate;
     private CheckBox mCbVSync;
     private CheckBox mCbCustomTextures;
+    private TextView mTvCustomTexturesPath;
+    private TextView mTvCustomTexturesCount;
+    private Button   mBtnSelectTexturesDir;
+    private Button   mBtnResetTexturesDir;
 
     // Câmera / HUD
     private CheckBox mCbFreeCamera;
@@ -157,6 +161,10 @@ public final class TriAevumConfigDialog extends Dialog {
         mSpFramerate      = findViewById(R.id.sp_framerate);
         mCbVSync          = findViewById(R.id.cb_vsync);
         mCbCustomTextures = findViewById(R.id.cb_custom_textures);
+        mTvCustomTexturesPath = findViewById(R.id.tv_custom_textures_path);
+        mTvCustomTexturesCount = findViewById(R.id.tv_custom_textures_count);
+        mBtnSelectTexturesDir = findViewById(R.id.btn_select_textures_dir);
+        mBtnResetTexturesDir  = findViewById(R.id.btn_reset_textures_dir);
 
         // Câmera / HUD
         mCbFreeCamera      = findViewById(R.id.cb_free_camera);
@@ -246,6 +254,7 @@ public final class TriAevumConfigDialog extends Dialog {
 
         mCbVSync.setChecked(mConfig.isVSync());
         mCbCustomTextures.setChecked(mConfig.isCustomTexturesEnabled());
+        updateTextureDirectoryDisplay();
         Log.d(TAG, "  renderScale=" + mConfig.getRenderScale()
             + " AA=" + mConfig.getAAMode()
             + " FR=" + mConfig.getFrameRateMode()
@@ -529,6 +538,51 @@ public final class TriAevumConfigDialog extends Dialog {
                     })
                     .setNegativeButton("Cancelar", null)
                     .show();
+            });
+        }
+
+        if (mBtnSelectTexturesDir != null) {
+            mBtnSelectTexturesDir.setOnClickListener(v -> {
+                if (mActivity instanceof TriAevumActivity) {
+                    ((TriAevumActivity) mActivity).startSelectTextureDirFlow(newPath -> {
+                        if (mCbCustomTextures != null) {
+                            mCbCustomTextures.setChecked(true);
+                        }
+                        updateTextureDirectoryDisplay();
+                    });
+                }
+            });
+        }
+
+        if (mBtnResetTexturesDir != null) {
+            mBtnResetTexturesDir.setOnClickListener(v -> {
+                mConfig.setCustomTexturesPath("");
+                TriAevumConfigManager.nativeReloadGraphicsSettings();
+                updateTextureDirectoryDisplay();
+                Toast.makeText(getContext(), "Diretório de texturas redefinido para a pasta padrão do aplicativo!", Toast.LENGTH_SHORT).show();
+            });
+        }
+    }
+
+    private void updateTextureDirectoryDisplay() {
+        if (mTvCustomTexturesPath == null) return;
+        String path = mConfig.getCustomTexturesPath();
+        if (path == null || path.trim().isEmpty()) {
+            java.io.File defaultDir = TriAevumTextureManager.getDefaultTexturesDir(getContext());
+            mTvCustomTexturesPath.setText("Diretório: Padrão (" + defaultDir.getAbsolutePath() + ")");
+            mTvCustomTexturesCount.setText("Verificando texturas...");
+            TriAevumTextureManager.countTexturesAsync(defaultDir.getAbsolutePath(), (count, summary) -> {
+                if (mTvCustomTexturesCount != null) {
+                    mTvCustomTexturesCount.setText(summary);
+                }
+            });
+        } else {
+            mTvCustomTexturesPath.setText("Diretório: " + path);
+            mTvCustomTexturesCount.setText("Verificando texturas...");
+            TriAevumTextureManager.countTexturesAsync(path, (count, summary) -> {
+                if (mTvCustomTexturesCount != null) {
+                    mTvCustomTexturesCount.setText(summary);
+                }
             });
         }
     }

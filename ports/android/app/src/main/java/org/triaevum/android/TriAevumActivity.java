@@ -565,15 +565,38 @@ public final class TriAevumActivity extends Activity {
 
     public static final int REQUEST_CODE_EXPORT_SAVE = 2001;
     public static final int REQUEST_CODE_IMPORT_SAVE = 2002;
+    public static final int REQUEST_CODE_SELECT_TEXTURE_DIR = 2003;
 
     public interface SaveActionListener {
         void onSaveOperationCompleted();
     }
 
+    public interface TextureDirSelectedListener {
+        void onTextureDirSelected(String path);
+    }
+
     private SaveActionListener mSaveActionListener;
+    private TextureDirSelectedListener mTextureDirSelectedListener;
 
     public void setSaveActionListener(SaveActionListener listener) {
         mSaveActionListener = listener;
+    }
+
+    public void setTextureDirSelectedListener(TextureDirSelectedListener listener) {
+        mTextureDirSelectedListener = listener;
+    }
+
+    public void startSelectTextureDirFlow(TextureDirSelectedListener listener) {
+        mTextureDirSelectedListener = listener;
+        try {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            startActivityForResult(intent, REQUEST_CODE_SELECT_TEXTURE_DIR);
+        } catch (Exception e) {
+            Log.e(TAG, "Falha ao iniciar seletor de diretório de texturas", e);
+            android.widget.Toast.makeText(this, "Erro ao abrir seletor de pasta: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+        }
     }
 
     public void startExportSaveFlow(SaveActionListener listener) {
@@ -650,6 +673,24 @@ public final class TriAevumActivity extends Activity {
                     android.widget.Toast.makeText(TriAevumActivity.this, "❌ Erro ao importar save: " + error.getMessage(), android.widget.Toast.LENGTH_LONG).show();
                 }
             });
+        } else if (requestCode == REQUEST_CODE_SELECT_TEXTURE_DIR) {
+            try {
+                getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } catch (Exception ignored) {}
+
+            String resolvedPath = TriAevumTextureManager.resolvePathFromTreeUri(this, uri);
+            if (resolvedPath != null && !resolvedPath.trim().isEmpty()) {
+                TriAevumConfigManager config = new TriAevumConfigManager(this);
+                config.setCustomTexturesPath(resolvedPath);
+                config.setCustomTexturesEnabled(true);
+                TriAevumConfigManager.nativeReloadGraphicsSettings();
+                android.widget.Toast.makeText(this, "✅ Pasta de texturas selecionada:\n" + resolvedPath, android.widget.Toast.LENGTH_LONG).show();
+                if (mTextureDirSelectedListener != null) {
+                    mTextureDirSelectedListener.onTextureDirSelected(resolvedPath);
+                }
+            } else {
+                android.widget.Toast.makeText(this, "⚠️ Não foi possível resolver o caminho do diretório selecionado.", android.widget.Toast.LENGTH_LONG).show();
+            }
         }
     }
 
