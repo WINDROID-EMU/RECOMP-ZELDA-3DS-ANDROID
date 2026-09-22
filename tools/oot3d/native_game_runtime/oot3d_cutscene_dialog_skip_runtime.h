@@ -9,6 +9,8 @@ class MemoryBus;
 namespace Oot3dNativeGame {
 
 struct CutsceneDialogSkipConfig {
+    bool EnableCutsceneSkip = false; // Desativado: pulo de cutscenes inativo para evitar softlocks e travas
+    bool EnableDialogSkip = false;   // Desativado: pulo de diálogos inativo ao segurar B
     float HoldThresholdSeconds = 0.20f; // 6 quadros a 30 FPS segurando B
     uint16_t CutsceneFrameStep = 10;    // Avanço de 10 quadros por tick (~10x velocidade)
 };

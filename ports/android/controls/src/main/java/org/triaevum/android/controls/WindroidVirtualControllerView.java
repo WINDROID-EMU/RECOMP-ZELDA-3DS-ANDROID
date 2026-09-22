@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
@@ -84,6 +85,14 @@ public class WindroidVirtualControllerView extends View {
     private SharedPreferences preferences;
     public boolean isEditing = false;
     private int touchscreenPointerId = -1;
+
+    // ------- Dragging / Editing state -------
+    private Object mDraggedControl = null;
+    private int mDragPointerId = -1;
+    private float mDragOffsetX = 0F;
+    private float mDragOffsetY = 0F;
+    private final Paint mEditIndicatorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mEditFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private float scaleX = 1.0F;
     private float scaleY = 1.0F;
@@ -279,6 +288,12 @@ public class WindroidVirtualControllerView extends View {
         mSettingsTextPaint.setTextAlign(Paint.Align.CENTER);
         mSettingsTextPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
 
+        // Edit mode paints
+        mEditIndicatorPaint.setStyle(Paint.Style.STROKE);
+        mEditIndicatorPaint.setColor(Color.parseColor("#FFD700"));
+        mEditFillPaint.setStyle(Paint.Style.FILL);
+        mEditFillPaint.setColor(Color.parseColor("#44FFD700"));
+
         // Exact Windroid-emu base layout on 2400x1080 canvas
         addButton(A_BUTTON, 2065F, 910F, 180F, SHAPE_CIRCLE);
         addButton(B_BUTTON, 2205F, 735F, 180F, SHAPE_CIRCLE);
@@ -401,7 +416,7 @@ public class WindroidVirtualControllerView extends View {
         // ---- Settings gear button (always drawn, scales uniformly with min floor) ----
         drawSettingsButton(canvas, alphaFactor);
 
-        if (!mShowControls) {
+        if (!mShowControls && !isEditing) {
             return;
         }
 
@@ -596,6 +611,43 @@ public class WindroidVirtualControllerView extends View {
         drawDPad(dpadDown, dpad.dpadStatus == DOWN || dpad.dpadStatus == RIGHT_DOWN || dpad.dpadStatus == LEFT_DOWN, canvas, baseAlpha);
         drawDPad(dpadLeft, dpad.dpadStatus == LEFT || dpad.dpadStatus == LEFT_DOWN || dpad.dpadStatus == LEFT_UP, canvas, baseAlpha);
         drawDPad(dpadRight, dpad.dpadStatus == RIGHT || dpad.dpadStatus == RIGHT_DOWN || dpad.dpadStatus == RIGHT_UP, canvas, baseAlpha);
+
+        if (isEditing) {
+            drawEditingIndicators(canvas);
+        }
+    }
+
+    private void drawEditingIndicators(Canvas canvas) {
+        mEditIndicatorPaint.setStrokeWidth(3F * scaleFactor);
+        mEditIndicatorPaint.setPathEffect(new DashPathEffect(new float[]{14F * scaleFactor, 8F * scaleFactor}, 0));
+
+        for (VirtualControllerButton btn : buttonList) {
+            boolean isDragged = (mDraggedControl == btn);
+            if (btn.shape == SHAPE_CIRCLE) {
+                if (isDragged) canvas.drawCircle(btn.x, btn.y, btn.radius * 0.6F, mEditFillPaint);
+                canvas.drawCircle(btn.x, btn.y, btn.radius * 0.6F, mEditIndicatorPaint);
+            } else {
+                float halfW = btn.radius * 0.55F;
+                float halfH = btn.radius * 0.3F;
+                if (isDragged) canvas.drawRoundRect(btn.x - halfW, btn.y - halfH, btn.x + halfW, btn.y + halfH, 20F * scaleFactor, 20F * scaleFactor, mEditFillPaint);
+                canvas.drawRoundRect(btn.x - halfW, btn.y - halfH, btn.x + halfW, btn.y + halfH, 20F * scaleFactor, 20F * scaleFactor, mEditIndicatorPaint);
+            }
+        }
+
+        // Left analog
+        boolean dragLA = (mDraggedControl == leftAnalog);
+        if (dragLA) canvas.drawCircle(leftAnalog.x, leftAnalog.y, leftAnalog.radius * 0.65F, mEditFillPaint);
+        canvas.drawCircle(leftAnalog.x, leftAnalog.y, leftAnalog.radius * 0.65F, mEditIndicatorPaint);
+
+        // Right analog
+        boolean dragRA = (mDraggedControl == rightAnalog);
+        if (dragRA) canvas.drawCircle(rightAnalog.x, rightAnalog.y, rightAnalog.radius * 0.65F, mEditFillPaint);
+        canvas.drawCircle(rightAnalog.x, rightAnalog.y, rightAnalog.radius * 0.65F, mEditIndicatorPaint);
+
+        // D-Pad
+        boolean dragDpad = (mDraggedControl == dpad);
+        if (dragDpad) canvas.drawCircle(dpad.x, dpad.y, dpad.radius * 0.85F, mEditFillPaint);
+        canvas.drawCircle(dpad.x, dpad.y, dpad.radius * 0.85F, mEditIndicatorPaint);
     }
 
     private void drawSettingsButton(Canvas canvas, float alphaFactor) {
@@ -719,6 +771,10 @@ public class WindroidVirtualControllerView extends View {
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (isEditing) {
+            return handleTouchEventEditing(event);
+        }
+
         int action = event.getActionMasked();
         int actionIndex = event.getActionIndex();
         int pointerId = event.getPointerId(actionIndex);
@@ -906,6 +962,170 @@ public class WindroidVirtualControllerView extends View {
 
         }
         return true;
+    }
+
+    private boolean handleTouchEventEditing(MotionEvent event) {
+        int action = event.getActionMasked();
+        int actionIndex = event.getActionIndex();
+        int pointerId = event.getPointerId(actionIndex);
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+            case MotionEvent.ACTION_POINTER_DOWN: {
+                if (mDraggedControl != null) {
+                    return true;
+                }
+                float px = event.getX(actionIndex);
+                float py = event.getY(actionIndex);
+
+                // 1. Check buttons
+                for (VirtualControllerButton btn : buttonList) {
+                    if (detectClick(px, py, btn.x, btn.y, btn.radius * 1.1F, btn.shape)) {
+                        mDraggedControl = btn;
+                        mDragPointerId = pointerId;
+                        mDragOffsetX = px - btn.x;
+                        mDragOffsetY = py - btn.y;
+                        performHaptic();
+                        invalidate();
+                        return true;
+                    }
+                }
+
+                // 2. Check Circle Pad (Left Analog)
+                if (detectClick(px, py, leftAnalog.x, leftAnalog.y, leftAnalog.radius * 1.1F, SHAPE_CIRCLE)) {
+                    mDraggedControl = leftAnalog;
+                    mDragPointerId = pointerId;
+                    mDragOffsetX = px - leftAnalog.x;
+                    mDragOffsetY = py - leftAnalog.y;
+                    performHaptic();
+                    invalidate();
+                    return true;
+                }
+
+                // 3. Check C-Stick (Right Analog)
+                if (detectClick(px, py, rightAnalog.x, rightAnalog.y, rightAnalog.radius * 1.1F, SHAPE_CIRCLE)) {
+                    mDraggedControl = rightAnalog;
+                    mDragPointerId = pointerId;
+                    mDragOffsetX = px - rightAnalog.x;
+                    mDragOffsetY = py - rightAnalog.y;
+                    performHaptic();
+                    invalidate();
+                    return true;
+                }
+
+                // 4. Check D-Pad
+                if (detectClick(px, py, dpad.x, dpad.y, dpad.radius * 1.1F, SHAPE_DPAD)) {
+                    mDraggedControl = dpad;
+                    mDragPointerId = pointerId;
+                    mDragOffsetX = px - dpad.x;
+                    mDragOffsetY = py - dpad.y;
+                    performHaptic();
+                    invalidate();
+                    return true;
+                }
+                return true;
+            }
+
+            case MotionEvent.ACTION_MOVE: {
+                if (mDraggedControl == null) {
+                    return true;
+                }
+                int pIndex = event.findPointerIndex(mDragPointerId);
+                if (pIndex < 0) {
+                    return true;
+                }
+                float px = event.getX(pIndex);
+                float py = event.getY(pIndex);
+                float targetX = Math.max(30F, Math.min(getWidth() - 30F, px - mDragOffsetX));
+                float targetY = Math.max(30F, Math.min(getHeight() - 30F, py - mDragOffsetY));
+
+                if (mDraggedControl instanceof VirtualControllerButton) {
+                    VirtualControllerButton btn = (VirtualControllerButton) mDraggedControl;
+                    btn.x = targetX;
+                    btn.y = targetY;
+                } else if (mDraggedControl == leftAnalog) {
+                    leftAnalog.x = targetX;
+                    leftAnalog.y = targetY;
+                } else if (mDraggedControl == rightAnalog) {
+                    rightAnalog.x = targetX;
+                    rightAnalog.y = targetY;
+                } else if (mDraggedControl == dpad) {
+                    dpad.x = targetX;
+                    dpad.y = targetY;
+                }
+                invalidate();
+                return true;
+            }
+
+            case MotionEvent.ACTION_POINTER_UP:
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL: {
+                if (pointerId == mDragPointerId) {
+                    mDraggedControl = null;
+                    mDragPointerId = -1;
+                    invalidate();
+                }
+                return true;
+            }
+        }
+        return true;
+    }
+
+    public void startEditing() {
+        isEditing = true;
+        mDraggedControl = null;
+        mDragPointerId = -1;
+        invalidate();
+    }
+
+    public void stopEditing() {
+        isEditing = false;
+        mDraggedControl = null;
+        mDragPointerId = -1;
+        invalidate();
+    }
+
+    public void saveControlPositions() {
+        if (preferences == null) return;
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putBoolean("VC_CUSTOM_USER_SAVED", true);
+        for (VirtualControllerButton btn : buttonList) {
+            editor.putFloat("VC_BUTTON_" + btn.id + "_X", btn.x);
+            editor.putFloat("VC_BUTTON_" + btn.id + "_Y", btn.y);
+        }
+        editor.putFloat("VC_BUTTON_" + LEFT_ANALOG + "_X", leftAnalog.x);
+        editor.putFloat("VC_BUTTON_" + LEFT_ANALOG + "_Y", leftAnalog.y);
+        editor.putFloat("VC_BUTTON_" + RIGHT_ANALOG + "_X", rightAnalog.x);
+        editor.putFloat("VC_BUTTON_" + RIGHT_ANALOG + "_Y", rightAnalog.y);
+        editor.putFloat("VC_BUTTON_DPAD_X", dpad.x);
+        editor.putFloat("VC_BUTTON_DPAD_Y", dpad.y);
+        editor.apply();
+        stopEditing();
+    }
+
+    public void resetControlPositions() {
+        if (preferences != null) {
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putBoolean("VC_CUSTOM_USER_SAVED", false);
+            for (VirtualControllerButton btn : buttonList) {
+                editor.remove("VC_BUTTON_" + btn.id + "_X");
+                editor.remove("VC_BUTTON_" + btn.id + "_Y");
+            }
+            editor.remove("VC_BUTTON_" + LEFT_ANALOG + "_X");
+            editor.remove("VC_BUTTON_" + LEFT_ANALOG + "_Y");
+            editor.remove("VC_BUTTON_" + RIGHT_ANALOG + "_X");
+            editor.remove("VC_BUTTON_" + RIGHT_ANALOG + "_Y");
+            editor.remove("VC_BUTTON_DPAD_X");
+            editor.remove("VC_BUTTON_DPAD_Y");
+            editor.apply();
+        }
+        adjustButtons(getWidth(), getHeight());
+        stopEditing();
+    }
+
+    public void cancelEditing() {
+        adjustButtons(getWidth(), getHeight());
+        stopEditing();
     }
 
     private void updateAnalogPosition(float dx, float dy, boolean isLeft) {

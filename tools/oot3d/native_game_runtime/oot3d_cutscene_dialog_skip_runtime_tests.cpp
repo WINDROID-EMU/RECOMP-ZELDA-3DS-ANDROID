@@ -137,10 +137,33 @@ int main() {
     constexpr uint32_t kCsCtx = kPlayStateAddr + 0x2298U;
     constexpr uint32_t kMsgCtx = kPlayStateAddr + 0x32C0U;
 
-    // Teste 4: Memória nula / sem PlayState
+    const CutsceneDialogSkipConfig enabledConfig{
+        .EnableCutsceneSkip = true,
+        .EnableDialogSkip = true,
+        .HoldThresholdSeconds = 0.20f,
+        .CutsceneFrameStep = 10,
+    };
+
+    // Teste 4: Configuração padrão desativada (EnableCutsceneSkip=false, EnableDialogSkip=false)
     {
         MockMemoryBus bus;
-        CutsceneDialogSkipRuntime skip;
+        CutsceneDialogSkipRuntime skip; // padrão
+        Require(!skip.Config().EnableCutsceneSkip, "EnableCutsceneSkip deve ser false por padrao");
+        Require(!skip.Config().EnableDialogSkip, "EnableDialogSkip deve ser false por padrao");
+
+        uint32_t buttons = 1U << 1; // B segurado
+        for (int i = 0; i < 10; ++i) {
+            auto st = ApplyGuestCutsceneDialogSkip(bus, skip, true, &buttons, dt);
+            Require(!st.IsActive, "Com skip desativado, status deve permanecer inativo");
+            Require(st.Target == CutsceneDialogSkipTarget::None, "Target deve ser None");
+            Require((buttons & (1U << 1)) != 0, "Botao B nao deve ser mascarado quando desativado");
+        }
+    }
+
+    // Teste 4b: Memória nula / sem PlayState quando habilitado
+    {
+        MockMemoryBus bus;
+        CutsceneDialogSkipRuntime skip(enabledConfig);
         uint32_t buttons = 1U << 1; // B segurado
         for (int i = 0; i < 7; ++i) {
             auto st = ApplyGuestCutsceneDialogSkip(bus, skip, true, &buttons, dt);
@@ -162,7 +185,7 @@ int main() {
         bus.Write16(kMsgCtx + 0x0F38U, 15U); // textboxState (não deve ser corrompido)
         bus.Write16(kMsgCtx + 0x0FA4U, 8U);  // textboxNextState (não deve ser corrompido)
 
-        CutsceneDialogSkipRuntime skip;
+        CutsceneDialogSkipRuntime skip(enabledConfig);
         uint32_t buttons = 1U << 1; // B segurado
 
         // Acumula hold até threshold
@@ -190,7 +213,7 @@ int main() {
         // msgMode = 0x07 (MSGMODE_TEXT_AWAIT_INPUT)
         bus.Write8(kMsgCtx + 0x0FA0U, 0x07U);
 
-        CutsceneDialogSkipRuntime skip;
+        CutsceneDialogSkipRuntime skip(enabledConfig);
         // Avança até ativar
         for (int i = 0; i < 5; ++i) {
             skip.Update(true, dt);
@@ -224,7 +247,7 @@ int main() {
         bus.Write16(kCsCtx + 0x18U, 100U);
         bus.Write16(kCsCtx + 0x20U, 50U);
 
-        CutsceneDialogSkipRuntime skip;
+        CutsceneDialogSkipRuntime skip(enabledConfig);
         for (int i = 0; i < 5; ++i) skip.Update(true, dt);
 
         uint32_t buttons = 1U << 1;
@@ -247,7 +270,7 @@ int main() {
         bus.Write16(kCsCtx + 0x18U, 200U);        // endFrame = 200
         bus.Write16(kCsCtx + 0x20U, 10U);         // curFrame = 10
 
-        CutsceneDialogSkipRuntime skip;
+        CutsceneDialogSkipRuntime skip(enabledConfig);
         for (int i = 0; i < 5; ++i) skip.Update(true, dt);
 
         uint32_t buttons = 1U << 1;
@@ -271,7 +294,7 @@ int main() {
         bus.Write16(kCsCtx + 0x18U, 100U); // endFrame = 100
         bus.Write16(kCsCtx + 0x20U, 95U);  // curFrame = 95
 
-        CutsceneDialogSkipRuntime skip;
+        CutsceneDialogSkipRuntime skip(enabledConfig);
         for (int i = 0; i < 5; ++i) skip.Update(true, dt);
 
         uint32_t buttons = 1U << 1;
@@ -293,7 +316,7 @@ int main() {
         bus.Write16(kCsCtx + 0x18U, 300U);
         bus.Write16(kCsCtx + 0x20U, 40U);
 
-        CutsceneDialogSkipRuntime skip;
+        CutsceneDialogSkipRuntime skip(enabledConfig);
         for (int i = 0; i < 5; ++i) skip.Update(true, dt);
 
         uint32_t buttons = 1U << 1;
@@ -314,7 +337,7 @@ int main() {
         bus.Write16(kCsCtx + 0x18U, 100U);
         bus.Write16(kCsCtx + 0x20U, 10U);
 
-        CutsceneDialogSkipRuntime skip;
+        CutsceneDialogSkipRuntime skip(enabledConfig);
         for (int i = 0; i < 5; ++i) skip.Update(true, dt);
 
         uint32_t buttons = 1U << 1;
@@ -324,6 +347,35 @@ int main() {
         uint16_t csFrame = 0;
         bus.Read16(kCsCtx + 0x20U, &csFrame);
         Require(csFrame == 10, "curFrame nao deve mudar em cutscene unskippable");
+    }
+
+    // Teste 12: EnableCutsceneSkip = false com EnableDialogSkip = true -> Diálogo pula mas cutscene NÃO avança
+    {
+        CutsceneDialogSkipConfig dialogOnlyConfig{
+            .EnableCutsceneSkip = false,
+            .EnableDialogSkip = true,
+            .HoldThresholdSeconds = 0.20f,
+            .CutsceneFrameStep = 10,
+        };
+
+        MockMemoryBus bus;
+        bus.Write32(kPauseRoot + 0x0CU, kPlayStateAddr);
+        bus.Write32(kCsCtx + 0x04U, 0x00800000U); // cutscene ativa
+        bus.Write8(kCsCtx + 0x08U, 1U);
+        bus.Write16(kCsCtx + 0x18U, 200U);
+        bus.Write16(kCsCtx + 0x20U, 50U); // curFrame = 50
+
+        CutsceneDialogSkipRuntime skip(dialogOnlyConfig);
+        for (int i = 0; i < 5; ++i) skip.Update(true, dt);
+
+        uint32_t buttons = 1U << 1;
+        auto st = ApplyGuestCutsceneDialogSkip(bus, skip, true, &buttons, dt);
+        Require(st.Target != CutsceneDialogSkipTarget::Cutscene, "Com EnableCutsceneSkip=false cutscene NUNCA deve avancar");
+        Require(st.CutsceneFramesAdvanced == 0, "CutsceneFramesAdvanced deve ser 0");
+
+        uint16_t csFrame = 0;
+        bus.Read16(kCsCtx + 0x20U, &csFrame);
+        Require(csFrame == 50, "curFrame deve permanecer inalterado (50)");
     }
 
     std::cout << "All CutsceneDialogSkipRuntime tests passed successfully!\n";

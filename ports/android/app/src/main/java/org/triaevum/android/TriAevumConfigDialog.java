@@ -84,9 +84,11 @@ public final class TriAevumConfigDialog extends Dialog {
     private CheckBox mCbTouchScreen;
     private CheckBox mCbJoystickRelCenter;
     private CheckBox mCbDpadSlide;
+    private final Activity mActivity;
 
     public TriAevumConfigDialog(Activity owner, WindroidVirtualControllerView overlay) {
         super(owner, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+        mActivity = owner;
         mConfig  = new TriAevumConfigManager(owner);
         mOverlay = overlay;
         // PreferenceManager.getDefaultSharedPreferences() → "<pkg>_preferences"
@@ -444,6 +446,45 @@ public final class TriAevumConfigDialog extends Dialog {
             loadFromConfig();
             Toast.makeText(getContext(), "Padrões restaurados e aplicados.", Toast.LENGTH_SHORT).show();
         });
+
+        Button btnEditHud = findViewById(R.id.btn_edit_hud_layout);
+        if (btnEditHud != null) {
+            btnEditHud.setOnClickListener(v -> {
+                dismiss();
+                if (mActivity instanceof TriAevumActivity) {
+                    ((TriAevumActivity) mActivity).openHudLayoutEditor();
+                }
+            });
+        }
+
+        Button btnResetHud = findViewById(R.id.btn_reset_hud_layout);
+        if (btnResetHud != null) {
+            btnResetHud.setOnClickListener(v -> {
+                if (mActivity instanceof TriAevumActivity) {
+                    ((TriAevumActivity) mActivity).restoreDefaultHudLayout();
+                }
+            });
+        }
+
+        Button btnEditControls = findViewById(R.id.btn_edit_virtual_controls);
+        if (btnEditControls != null) {
+            btnEditControls.setOnClickListener(v -> {
+                dismiss();
+                if (mActivity instanceof TriAevumActivity) {
+                    ((TriAevumActivity) mActivity).openVirtualControlsEditor();
+                }
+            });
+        }
+
+        Button btnResetControls = findViewById(R.id.btn_reset_virtual_controls);
+        if (btnResetControls != null) {
+            btnResetControls.setOnClickListener(v -> {
+                if (mOverlay != null) {
+                    mOverlay.resetControlPositions();
+                    Toast.makeText(getContext(), "Posições dos controles restauradas para o padrão!", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     }
 
     // -------------------------------------------------------------------------

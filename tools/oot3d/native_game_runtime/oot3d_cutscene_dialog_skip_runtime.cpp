@@ -87,6 +87,11 @@ CutsceneDialogSkipStatus ApplyGuestCutsceneDialogSkip(
     bool bButtonHeld,
     uint32_t* inOutGuestButtons,
     float deltaSeconds) {
+    if (!skipRuntime.Config().EnableCutsceneSkip && !skipRuntime.Config().EnableDialogSkip) {
+        skipRuntime.Reset();
+        return CutsceneDialogSkipStatus{};
+    }
+
     auto status = skipRuntime.Update(bButtonHeld, deltaSeconds);
     if (!status.IsActive) {
         return status;
@@ -98,85 +103,89 @@ CutsceneDialogSkipStatus ApplyGuestCutsceneDialogSkip(
     }
 
     // 1. Verificar Diálogo ativo (MessageContext em playState + 0x32C0)
-    const uint32_t msgCtx = playState + kMsgCtxOffset;
-    uint8_t msgMode = kMsgModeNone;
-    memory.Read8(msgCtx + kMsgModeOffset, &msgMode);
+    if (skipRuntime.Config().EnableDialogSkip) {
+        const uint32_t msgCtx = playState + kMsgCtxOffset;
+        uint8_t msgMode = kMsgModeNone;
+        memory.Read8(msgCtx + kMsgModeOffset, &msgMode);
 
-    if (msgMode != kMsgModeNone) {
-        uint8_t secondaryState = 0;
-        memory.Read8(msgCtx + kSecondaryStateOffset, &secondaryState);
-        uint16_t primaryState = 0;
-        memory.Read16(msgCtx + kPrimaryStateOffset, &primaryState);
+        if (msgMode != kMsgModeNone) {
+            uint8_t secondaryState = 0;
+            memory.Read8(msgCtx + kSecondaryStateOffset, &secondaryState);
+            uint16_t primaryState = 0;
+            memory.Read16(msgCtx + kPrimaryStateOffset, &primaryState);
 
-        const bool isChoiceActive = (secondaryState == kTextStateChoice) ||
-                                   ((primaryState & 0xFF) == kTextStateChoice);
+            const bool isChoiceActive = (secondaryState == kTextStateChoice) ||
+                                       ((primaryState & 0xFF) == kTextStateChoice);
 
-        if (isChoiceActive) {
-            // Em caixas com escolhas/perguntas (ex: Sim/Não), pausar o skip totalmente para o usuário
-            // ler a mensagem, mover o cursor analógico e confirmar deliberadamente.
-            SKIP_LOG("Dialog skip paused: choice active (secState=0x%02X, priState=0x%04X)",
-                     secondaryState, primaryState);
+            if (isChoiceActive) {
+                // Em caixas com escolhas/perguntas (ex: Sim/Não), pausar o skip totalmente para o usuário
+                // ler a mensagem, mover o cursor analógico e confirmar deliberadamente.
+                SKIP_LOG("Dialog skip paused: choice active (secState=0x%02X, priState=0x%04X)",
+                         secondaryState, primaryState);
+                return status;
+            }
+
+            status.Target = CutsceneDialogSkipTarget::Dialog;
+
+            // Se estiver aguardando confirmação do jogador para avançar ou fechar
+            const bool awaitingInput = (msgMode == kMsgModeTextAwaitInput ||
+                                        msgMode == kMsgModeTextAwaitNext ||
+                                        msgMode == kMsgModeTextDone);
+
+            if (inOutGuestButtons != nullptr) {
+                // Suprime o botão B para evitar que Link desfira espadada ao sair da mensagem
+                *inOutGuestButtons &= ~kButtonMaskB;
+
+                if (awaitingInput && status.ShouldPulseAdvance) {
+                    *inOutGuestButtons |= kButtonMaskA;
+                }
+            }
+
+            SKIP_LOG("Dialog skip active: msgMode=0x%02X, awaitingInput=%d, pulse=%d",
+                     msgMode, awaitingInput ? 1 : 0, status.ShouldPulseAdvance ? 1 : 0);
+            // Enquanto houver diálogo em andamento, não avançar quadros da cutscene subjacente
             return status;
         }
-
-        status.Target = CutsceneDialogSkipTarget::Dialog;
-
-        // Se estiver aguardando confirmação do jogador para avançar ou fechar
-        const bool awaitingInput = (msgMode == kMsgModeTextAwaitInput ||
-                                    msgMode == kMsgModeTextAwaitNext ||
-                                    msgMode == kMsgModeTextDone);
-
-        if (inOutGuestButtons != nullptr) {
-            // Suprime o botão B para evitar que Link desfira espadada ao sair da mensagem
-            *inOutGuestButtons &= ~kButtonMaskB;
-
-            if (awaitingInput && status.ShouldPulseAdvance) {
-                *inOutGuestButtons |= kButtonMaskA;
-            }
-        }
-
-        SKIP_LOG("Dialog skip active: msgMode=0x%02X, awaitingInput=%d, pulse=%d",
-                 msgMode, awaitingInput ? 1 : 0, status.ShouldPulseAdvance ? 1 : 0);
-        // Enquanto houver diálogo em andamento, não avançar quadros da cutscene subjacente
-        return status;
     }
 
     // 2. Verificar Cutscene ativa (CsContext em playState + 0x2298)
-    const uint32_t csCtx = playState + kCsCtxOffset;
-    uint32_t activeCsData = 0;
-    memory.Read32(csCtx + kActiveCsDataOffset, &activeCsData);
-    uint8_t csState = 0;
-    memory.Read8(csCtx + kCsStateOffset, &csState);
+    if (skipRuntime.Config().EnableCutsceneSkip) {
+        const uint32_t csCtx = playState + kCsCtxOffset;
+        uint32_t activeCsData = 0;
+        memory.Read32(csCtx + kActiveCsDataOffset, &activeCsData);
+        uint8_t csState = 0;
+        memory.Read8(csCtx + kCsStateOffset, &csState);
 
-    // Estado 4 no OoT/OoT3D é cutscene não pulável (CS_STATE_RUN_UNSKIPPABLE)
-    constexpr uint8_t kCsStateUnskippable = 0x04U;
+        // Estado 4 no OoT/OoT3D é cutscene não pulável (CS_STATE_RUN_UNSKIPPABLE)
+        constexpr uint8_t kCsStateUnskippable = 0x04U;
 
-    if ((activeCsData != 0U || csState != 0U) && csState != kCsStateUnskippable) {
-        uint16_t endFrame = 0;
-        uint16_t curFrame = 0;
-        memory.Read16(csCtx + kEndFrameOffset, &endFrame);
-        memory.Read16(csCtx + kCurFrameOffset, &curFrame);
+        if ((activeCsData != 0U || csState != 0U) && csState != kCsStateUnskippable) {
+            uint16_t endFrame = 0;
+            uint16_t curFrame = 0;
+            memory.Read16(csCtx + kEndFrameOffset, &endFrame);
+            memory.Read16(csCtx + kCurFrameOffset, &curFrame);
 
-        if (endFrame > 0 && curFrame <= endFrame) {
-            status.Target = CutsceneDialogSkipTarget::Cutscene;
-            const uint16_t step = skipRuntime.Config().CutsceneFrameStep;
-            // O encerramento nativo da cutscene (csCtx.state = 3 / CS_STATE_STOP) dispara
-            // quando curFrame > endFrame. Portanto, o limite deve ser endFrame + 1.
-            const uint32_t maxAdvance = static_cast<uint32_t>(endFrame) + 1U;
-            const uint16_t targetFrame = static_cast<uint16_t>(std::min<uint32_t>(curFrame + step, maxAdvance));
+            if (endFrame > 0 && curFrame <= endFrame) {
+                status.Target = CutsceneDialogSkipTarget::Cutscene;
+                const uint16_t step = skipRuntime.Config().CutsceneFrameStep;
+                // O encerramento nativo da cutscene (csCtx.state = 3 / CS_STATE_STOP) dispara
+                // quando curFrame > endFrame. Portanto, o limite deve ser endFrame + 1.
+                const uint32_t maxAdvance = static_cast<uint32_t>(endFrame) + 1U;
+                const uint16_t targetFrame = static_cast<uint16_t>(std::min<uint32_t>(curFrame + step, maxAdvance));
 
-            if (targetFrame > curFrame) {
-                status.CutsceneFramesAdvanced = targetFrame - curFrame;
-                memory.Write16(csCtx + kCurFrameOffset, targetFrame);
+                if (targetFrame > curFrame) {
+                    status.CutsceneFramesAdvanced = targetFrame - curFrame;
+                    memory.Write16(csCtx + kCurFrameOffset, targetFrame);
+                }
+
+                if (inOutGuestButtons != nullptr) {
+                    *inOutGuestButtons &= ~kButtonMaskB;
+                }
+
+                SKIP_LOG("Cutscene skip active: curFrame=%u -> %u / %u (advanced %u)",
+                         curFrame, targetFrame, endFrame, status.CutsceneFramesAdvanced);
+                return status;
             }
-
-            if (inOutGuestButtons != nullptr) {
-                *inOutGuestButtons &= ~kButtonMaskB;
-            }
-
-            SKIP_LOG("Cutscene skip active: curFrame=%u -> %u / %u (advanced %u)",
-                     curFrame, targetFrame, endFrame, status.CutsceneFramesAdvanced);
-            return status;
         }
     }
 

@@ -44,6 +44,7 @@ const TopScreenCustomHudLayout *GetTopScreenCustomHudLayout() noexcept {
   static TopScreenCustomHudLayout sLayout;
   static bool sChecked = false;
   static std::filesystem::file_time_type sLastWriteTime{};
+  static std::uint32_t sCheckCadence = 0U;
 
   const char *storagePath = std::getenv("TRIAEVUM_STORAGE_PATH");
   std::filesystem::path jsonPath;
@@ -53,42 +54,45 @@ const TopScreenCustomHudLayout *GetTopScreenCustomHudLayout() noexcept {
     jsonPath = "custom_hud_layout.json";
   }
 
-  std::error_code ec;
-  if (std::filesystem::is_regular_file(jsonPath, ec)) {
-    auto mtime = std::filesystem::last_write_time(jsonPath, ec);
-    if (!sChecked || (!ec && mtime != sLastWriteTime)) {
-      sChecked = true;
-      sLastWriteTime = mtime;
-      std::ifstream f(jsonPath);
-      if (f.is_open()) {
-        try {
-          nlohmann::json j = nlohmann::json::parse(f);
-          auto parseElem = [](const nlohmann::json &parent, const char *key, TopScreenCustomHudElement &elem) {
-            if (parent.contains(key) && parent[key].is_object()) {
-              const auto &o = parent[key];
-              elem.X = o.value("x", 0.0F);
-              elem.Y = o.value("y", 0.0F);
-              elem.Width = o.value("width", 0.0F);
-              elem.Height = o.value("height", 0.0F);
-              elem.Valid = (elem.Width > 0.0F && elem.Height > 0.0F);
-            }
-          };
-          parseElem(j, "btn_a", sLayout.BtnA);
-          parseElem(j, "btn_b", sLayout.BtnB);
-          parseElem(j, "btn_x", sLayout.BtnX);
-          parseElem(j, "btn_y", sLayout.BtnY);
-          parseElem(j, "btn_zr", sLayout.BtnZr);
-          parseElem(j, "btn_zl", sLayout.BtnZl);
-          parseElem(j, "diamond_cluster", sLayout.DiamondCluster);
-          parseElem(j, "status", sLayout.Status);
-          parseElem(j, "rupees", sLayout.Rupees);
-          parseElem(j, "minimap", sLayout.Minimap);
-          sLayout.Loaded = true;
-        } catch (...) {}
+  if (!sChecked || ++sCheckCadence >= 30U) {
+    sCheckCadence = 0U;
+    std::error_code ec;
+    if (std::filesystem::is_regular_file(jsonPath, ec)) {
+      auto mtime = std::filesystem::last_write_time(jsonPath, ec);
+      if (!sChecked || (!ec && mtime != sLastWriteTime)) {
+        sChecked = true;
+        sLastWriteTime = mtime;
+        std::ifstream f(jsonPath);
+        if (f.is_open()) {
+          try {
+            nlohmann::json j = nlohmann::json::parse(f);
+            auto parseElem = [](const nlohmann::json &parent, const char *key, TopScreenCustomHudElement &elem) {
+              if (parent.contains(key) && parent[key].is_object()) {
+                const auto &o = parent[key];
+                elem.X = o.value("x", 0.0F);
+                elem.Y = o.value("y", 0.0F);
+                elem.Width = o.value("width", 0.0F);
+                elem.Height = o.value("height", 0.0F);
+                elem.Valid = (elem.Width > 0.0F && elem.Height > 0.0F);
+              }
+            };
+            parseElem(j, "btn_a", sLayout.BtnA);
+            parseElem(j, "btn_b", sLayout.BtnB);
+            parseElem(j, "btn_x", sLayout.BtnX);
+            parseElem(j, "btn_y", sLayout.BtnY);
+            parseElem(j, "btn_zr", sLayout.BtnZr);
+            parseElem(j, "btn_zl", sLayout.BtnZl);
+            parseElem(j, "diamond_cluster", sLayout.DiamondCluster);
+            parseElem(j, "status", sLayout.Status);
+            parseElem(j, "rupees", sLayout.Rupees);
+            parseElem(j, "minimap", sLayout.Minimap);
+            sLayout.Loaded = true;
+          } catch (...) {}
+        }
       }
+    } else {
+      sChecked = true;
     }
-  } else {
-    sChecked = true;
   }
   return sLayout.Loaded ? &sLayout : nullptr;
 }

@@ -2,14 +2,19 @@ package org.triaevum.android;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.Surface;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -82,7 +87,10 @@ public final class TriAevumActivity extends Activity {
         File root = getExternalFilesDir(null);
         if (root != null) {
             nativeSetStoragePath(root.getAbsolutePath());
-            exportHudLayoutFromXml(root);
+            File customJson = new File(root, "custom_hud_layout.json");
+            if (!customJson.exists()) {
+                exportHudLayoutFromXml(root);
+            }
         }
 
         mLayout = new FrameLayout(this);
@@ -383,12 +391,12 @@ public final class TriAevumActivity extends Activity {
                                     float scale, float offsetX, float offsetY) {
         android.view.View target = root.findViewById(viewId);
         if (target == null) return;
-        float x = target.getLeft();
-        float y = target.getTop();
+        float x = target.getLeft() + target.getTranslationX();
+        float y = target.getTop() + target.getTranslationY();
         android.view.View parent = (android.view.View) target.getParent();
         while (parent != null && parent != root) {
-            x += parent.getLeft();
-            y += parent.getTop();
+            x += parent.getLeft() + parent.getTranslationX();
+            y += parent.getTop() + parent.getTranslationY();
             parent = (parent.getParent() instanceof android.view.View) ? (android.view.View) parent.getParent() : null;
         }
         float w = target.getWidth() > 0 ? target.getWidth() : target.getMeasuredWidth();
@@ -410,6 +418,128 @@ public final class TriAevumActivity extends Activity {
             obj.put("height", canvasH);
             out.put(key, obj);
         } catch (Exception ignored) {}
+    }
+
+    public void openHudLayoutEditor() {
+        File root = getExternalFilesDir(null);
+        if (root == null) return;
+        HudLayoutEditorOverlay editor = new HudLayoutEditorOverlay(this, root, new HudLayoutEditorOverlay.Callback() {
+            @Override
+            public void onSaved(HudLayoutEditorOverlay overlay) {
+                mLayout.removeView(overlay);
+            }
+
+            @Override
+            public void onCancelled(HudLayoutEditorOverlay overlay) {
+                mLayout.removeView(overlay);
+            }
+        });
+        mLayout.addView(editor, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    public void restoreDefaultHudLayout() {
+        File root = getExternalFilesDir(null);
+        if (root != null) {
+            exportHudLayoutFromXml(root);
+            android.widget.Toast.makeText(this, "Layout do HUD restaurado para o padrão!", android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void openVirtualControlsEditor() {
+        if (mWindroidOverlay == null) return;
+        mWindroidOverlay.startEditing();
+
+        // Barra de ferramentas superior para o editor de controles virtuais
+        final LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setBackgroundColor(Color.parseColor("#EE0F141C"));
+        int padH = Math.round(12f * getResources().getDisplayMetrics().density);
+        int padV = Math.round(6f * getResources().getDisplayMetrics().density);
+        bar.setPadding(padH, padV, padH, padV);
+
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        lp.gravity = Gravity.TOP;
+        bar.setLayoutParams(lp);
+
+        // Título e subtítulo
+        LinearLayout titleBox = new LinearLayout(this);
+        titleBox.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+        titleBox.setLayoutParams(titleLp);
+
+        TextView title = new TextView(this);
+        title.setText("🎮 Editor de Controles Virtuais");
+        title.setTextColor(Color.parseColor("#FFC107"));
+        title.setTextSize(13);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        titleBox.addView(title);
+
+        TextView sub = new TextView(this);
+        sub.setText("Toque e arraste os botões para onde quiser na tela");
+        sub.setTextColor(Color.parseColor("#8B9BB4"));
+        sub.setTextSize(10);
+        titleBox.addView(sub);
+        bar.addView(titleBox);
+
+        int btnH = Math.round(34f * getResources().getDisplayMetrics().density);
+        int marginR = Math.round(6f * getResources().getDisplayMetrics().density);
+
+        // Botão Restaurar Padrão
+        Button btnReset = new Button(this);
+        btnReset.setText("↺ Padrão");
+        btnReset.setTextColor(Color.WHITE);
+        btnReset.setTextSize(11);
+        btnReset.setBackgroundResource(R.drawable.btn_dark);
+        LinearLayout.LayoutParams btnResetLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, btnH);
+        btnResetLp.rightMargin = marginR;
+        btnReset.setLayoutParams(btnResetLp);
+        btnReset.setPadding(padH, 0, padH, 0);
+        btnReset.setOnClickListener(v -> {
+            mWindroidOverlay.resetControlPositions();
+            android.widget.Toast.makeText(this, "Posições dos controles restauradas para o padrão!", android.widget.Toast.LENGTH_SHORT).show();
+        });
+        bar.addView(btnReset);
+
+        // Botão Cancelar
+        Button btnCancel = new Button(this);
+        btnCancel.setText("Cancelar");
+        btnCancel.setTextColor(Color.WHITE);
+        btnCancel.setTextSize(11);
+        btnCancel.setBackgroundResource(R.drawable.btn_dark);
+        LinearLayout.LayoutParams btnCancelLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, btnH);
+        btnCancelLp.rightMargin = marginR;
+        btnCancel.setLayoutParams(btnCancelLp);
+        btnCancel.setPadding(padH, 0, padH, 0);
+        btnCancel.setOnClickListener(v -> {
+            mWindroidOverlay.cancelEditing();
+            mLayout.removeView(bar);
+        });
+        bar.addView(btnCancel);
+
+        // Botão Salvar
+        Button btnSave = new Button(this);
+        btnSave.setText("💾 Salvar");
+        btnSave.setTextColor(Color.parseColor("#1A1500"));
+        btnSave.setTextSize(11);
+        btnSave.setTypeface(null, android.graphics.Typeface.BOLD);
+        btnSave.setBackgroundResource(R.drawable.btn_gold);
+        LinearLayout.LayoutParams btnSaveLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, btnH);
+        btnSave.setLayoutParams(btnSaveLp);
+        btnSave.setPadding(Math.round(14f * getResources().getDisplayMetrics().density), 0, Math.round(14f * getResources().getDisplayMetrics().density), 0);
+        btnSave.setOnClickListener(v -> {
+            mWindroidOverlay.saveControlPositions();
+            mLayout.removeView(bar);
+            android.widget.Toast.makeText(this, "Posições dos controles salvas com sucesso!", android.widget.Toast.LENGTH_SHORT).show();
+        });
+        bar.addView(btnSave);
+
+        mLayout.addView(bar);
     }
 
     @Override
