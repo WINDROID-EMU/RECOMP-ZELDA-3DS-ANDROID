@@ -33,6 +33,7 @@ struct PlayerSprintStatus {
     float StaminaRemainingSeconds = 15.0f;
     float CooldownRemainingSeconds = 0.0f;
     bool IsSprinting = false;
+    bool WasSprinting = false;
     bool IsPushingBoxes = false;
     bool IsClimbingOrHanging = false;
     bool IsInDialogue = false;
@@ -88,6 +89,7 @@ private:
     float mRollTimer = 0.0f;
     float mSprintTimer = 0.0f;
     bool mPreviousAButtonHeld = false;
+    bool mWasSprinting = false;
 };
 
 // Hook nativo de baixo overhead que lê o Link da memória guest A32 e aplica o sprint

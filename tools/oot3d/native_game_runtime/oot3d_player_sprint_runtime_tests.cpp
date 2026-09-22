@@ -775,6 +775,112 @@ int main() {
         Require(sprint.State() == PlayerSprintState::Idle, "Must stay in Idle");
     }
 
+    // Teste 22: Link rola com velocidade nativa plena (speedXZ = 8.5f, linVel = 8.5f);
+    // a velocidade NÃO pode ser limitada a 5.66f durante o rolamento, garantindo que
+    // caixas de madeira (OBJ_KIBAKO2) quebrem (exige speedXZ >= 7.0f no OoT/OoT3D).
+    {
+        MockMemoryBus memory;
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+
+        const uint32_t kPauseRoot = 0x005043D4U;
+        const uint32_t kPlayState = 0x10000000U;
+        const uint32_t kPlayer = 0x10002000U;
+
+        memory.Write32(kPauseRoot + 0x0CU, kPlayState);
+        memory.Write32(kPlayState + 0x20ACU, kPlayer);
+        memory.Write32(kPlayer + 0x1710U, 0U);
+        memory.Write32(kPlayer + 0x1714U, 0U);
+        memory.Write32(kPlayer + 0x1224U, 0U);
+        memory.Write8(kPlayer + 0x12BCU, 0U);
+        memory.Write16(kPlayer + 0x0090U, 0x0001U); // Chão (kBgCheckFlagGround)
+        memory.Write32(kPlayer + 0x0078U, 0U);      // wallPoly nulo
+
+        // No OoT3D original, a velocidade de rolamento atinge 1.5x a velocidade máxima de corrida (~8.49f)
+        const float rollSpeed = 8.49f;
+        memory.WriteFloat(kPlayer + 0x006CU, rollSpeed);
+        memory.WriteFloat(kPlayer + 0x221CU, rollSpeed);
+
+        // Frame 0: Pressiona A para rolar
+        ApplyGuestPlayerSprint(memory, sprint, true, true, 0.0f, 100.0f, dt);
+
+        // Frames 1 a 10: Link continua no meio do rolamento em alta velocidade
+        for (int f = 1; f <= 10; ++f) {
+            memory.WriteFloat(kPlayer + 0x006CU, rollSpeed);
+            memory.WriteFloat(kPlayer + 0x221CU, rollSpeed);
+            ApplyGuestPlayerSprint(memory, sprint, true, false, 0.0f, 100.0f, dt);
+
+            // A velocidade de rolamento deve permanecer intocada (> 7.0f)
+            const float currentSpeedXZ = memory.ReadFloat(kPlayer + 0x006CU);
+            const float currentLinVel = memory.ReadFloat(kPlayer + 0x221CU);
+            Require(currentSpeedXZ >= 7.0f, "speedXZ must NOT be clamped during roll, must remain >= 7.0f to break crates");
+            Require(currentSpeedXZ == rollSpeed, "speedXZ must remain unmodified by sprint runtime while rolling");
+            Require(currentLinVel == rollSpeed, "linearVelocity must remain unmodified by sprint runtime while rolling");
+        }
+    }
+
+    // Teste 23: Link rola contra caixa de madeira com speedXZ = 8.5f, quebra a caixa e sofre recuo (bonk).
+    // O sprint runtime NÃO deve acionar sprint nem fazer o Link deslizar no chão após o impacto.
+    {
+        MockMemoryBus memory;
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+
+        const uint32_t kPauseRoot = 0x005043D4U;
+        const uint32_t kPlayState = 0x10000000U;
+        const uint32_t kPlayer = 0x10002000U;
+
+        const float initialPosX = 50.0f;
+        const float initialPosZ = 100.0f;
+        memory.WriteFloat(kPlayer + 0x0028U, initialPosX);
+        memory.WriteFloat(kPlayer + 0x0030U, initialPosZ);
+        memory.WriteFloat(kPlayer + 0x0060U, 0.0f);
+        memory.WriteFloat(kPlayer + 0x0068U, 8.5f);
+        memory.WriteFloat(kPlayer + 0x006CU, 8.5f);
+        memory.WriteFloat(kPlayer + 0x221CU, 8.5f);
+        memory.Write32(kPauseRoot + 0x0CU, kPlayState);
+        memory.Write32(kPlayState + 0x20ACU, kPlayer);
+        memory.Write32(kPlayer + 0x1710U, 0U);
+        memory.Write32(kPlayer + 0x1714U, 0U);
+        memory.Write32(kPlayer + 0x1224U, 0U);
+        memory.Write8(kPlayer + 0x12BCU, 0U);
+        memory.Write16(kPlayer + 0x0090U, 0x0001U);
+
+        // Frame 0: Pressiona A e segura para rolar
+        ApplyGuestPlayerSprint(memory, sprint, true, true, 0.0f, 100.0f, dt);
+        Require(sprint.State() == PlayerSprintState::RollWaiting, "Must enter RollWaiting");
+
+        // Frames 1 a 4: Rolando em direção à caixa a 8.5f
+        for (int f = 1; f < 5; ++f) {
+            memory.WriteFloat(kPlayer + 0x006CU, 8.5f);
+            memory.WriteFloat(kPlayer + 0x221CU, 8.5f);
+            ApplyGuestPlayerSprint(memory, sprint, true, false, 0.0f, 100.0f, dt);
+            Require(sprint.State() == PlayerSprintState::RollWaiting, "Must remain RollWaiting before impact");
+            Require(memory.ReadFloat(kPlayer + 0x006CU) == 8.5f, "Must preserve 8.5f roll speed before impact");
+        }
+
+        // Frame 5: Link colide com a caixa (DynaPoly wallPoly ativo)! A velocidade de 8.5f quebra a caixa.
+        // O motor nativo ativa recuo bonk (speedXZ = -3.0f, linVel = -3.0f).
+        memory.Write16(kPlayer + 0x0090U, 0x0009U); // kBgCheckFlagWall
+        memory.Write32(kPlayer + 0x0078U, 0x00445566U); // wallPoly da caixa
+        memory.WriteFloat(kPlayer + 0x006CU, -3.0f);
+        memory.WriteFloat(kPlayer + 0x221CU, -3.0f);
+
+        ApplyGuestPlayerSprint(memory, sprint, true, false, 0.0f, 100.0f, dt);
+        Require(sprint.State() == PlayerSprintState::Idle, "Impact must cancel RollWaiting to Idle");
+        Require(!sprint.IsSprinting(), "Must not be sprinting after crate impact");
+
+        // Frames 6 a 30: Jogador continua segurando A enquanto Link se recupera do bonk no chão
+        for (int f = 6; f < 30; ++f) {
+            bool sprinting = ApplyGuestPlayerSprint(memory, sprint, true, false, 0.0f, 100.0f, dt);
+            Require(!sprinting, "Must not sprint while holding A after crate bonk");
+            Require(sprint.State() == PlayerSprintState::Idle, "Must stay in Idle");
+        }
+
+        Require(memory.ReadFloat(kPlayer + 0x0028U) == initialPosX, "Link must not slide on the ground after crate bonk");
+        Require(memory.ReadFloat(kPlayer + 0x0030U) == initialPosZ, "Link must not slide on the ground after crate bonk");
+    }
+
     std::cout << "All PlayerSprintRuntime tests PASSED!\n";
     return 0;
 }

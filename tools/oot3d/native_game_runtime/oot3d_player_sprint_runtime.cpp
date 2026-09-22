@@ -90,6 +90,7 @@ void PlayerSprintRuntime::Reset() {
     mRollTimer = 0.0f;
     mSprintTimer = 0.0f;
     mPreviousAButtonHeld = false;
+    mWasSprinting = false;
 }
 
 bool PlayerSprintRuntime::IsPushingBoxesOrCarrying(uint32_t stateFlags1, uint32_t heldActor) noexcept {
@@ -166,6 +167,8 @@ PlayerSprintStatus PlayerSprintRuntime::Update(bool aButtonHeld,
     if (linearVelocity == 100.0f) {
         linearVelocity = speedXZ;
     }
+
+    const bool wasSprinting = (mState == PlayerSprintState::Sprinting);
 
     const bool justPressedA = aButtonPressed || (aButtonHeld && !mPreviousAButtonHeld);
     mPreviousAButtonHeld = aButtonHeld;
@@ -305,12 +308,15 @@ PlayerSprintStatus PlayerSprintRuntime::Update(bool aButtonHeld,
         }
     }
 
+    mWasSprinting = (mState == PlayerSprintState::Sprinting);
+
     PlayerSprintStatus status;
     status.State = mState;
     status.SpeedMultiplier = mSpeedMultiplier;
     status.StaminaRemainingSeconds = mStaminaRemaining;
     status.CooldownRemainingSeconds = mCooldownRemaining;
     status.IsSprinting = (mState == PlayerSprintState::Sprinting);
+    status.WasSprinting = wasSprinting;
     status.IsPushingBoxes = pushingBoxes;
     status.IsClimbingOrHanging = climbingOrHanging;
     status.IsInDialogue = inDialogueOrCs;
@@ -414,9 +420,13 @@ bool ApplyGuestPlayerSprint(
         isGrounded, inDialogueOrCs, stateFlags2, isClimbingOrHanging,
         hitWall, currentLinVel);
 
-    if (!isGrounded || !status.IsSprinting || isClimbingOrHanging || hitWall) {
-        // Quando não estiver no chão ou quando não estiver correndo ativamente ou se estiver escalando ou bateu na parede:
-        // Restabelece speedXZ e linearVelocity para os valores normais do jogo (máx 5.66f)
+    const bool justStoppedSprinting = status.WasSprinting && !status.IsSprinting;
+
+    if (justStoppedSprinting) {
+        // Ao sair do sprint ativo (por soltar botão, esgotar stamina, bater na parede ou sair do chão):
+        // Restabelece speedXZ e linearVelocity acelerados pelo sprint de volta aos limites normais do jogo (máx 5.66f).
+        // NUNCA limita a velocidade quando Link está apenas rolando (velocidade nativa ~8.5f),
+        // permitindo quebrar caixas (que exige speedXZ >= 7.0f) e executar bonks normais.
         if (speedXZ > 5.66f) {
             memory.Write32(player + kActorSpeedXZOffset, std::bit_cast<uint32_t>(5.66f));
         }
@@ -522,7 +532,7 @@ bool ApplyGuestPlayerSprint(
 
         memory.Write32(player + kSkelAnimePlaySpeedOffset, std::bit_cast<uint32_t>(status.SpeedMultiplier));
     } else {
-        if (currentPlaySpeed != 1.0f && isGrounded && !isClimbingOrHanging) {
+        if (justStoppedSprinting && currentPlaySpeed != 1.0f) {
             memory.Write32(player + kSkelAnimePlaySpeedOffset, std::bit_cast<uint32_t>(1.0f));
         }
     }
