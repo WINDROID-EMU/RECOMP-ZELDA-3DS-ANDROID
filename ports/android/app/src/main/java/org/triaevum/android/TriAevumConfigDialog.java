@@ -50,6 +50,9 @@ public final class TriAevumConfigDialog extends Dialog {
     // Geral
     private Spinner mSpLanguage;
     private Spinner mSpSurfaceRes;
+    private TextView mTvSaveStatus;
+    private Button mBtnExportSave;
+    private Button mBtnImportSave;
 
     // Gráficos
     private Spinner mSpRenderScale;
@@ -144,6 +147,9 @@ public final class TriAevumConfigDialog extends Dialog {
         // Geral
         mSpLanguage   = findViewById(R.id.sp_language);
         mSpSurfaceRes = findViewById(R.id.sp_surface_resolution);
+        mTvSaveStatus = findViewById(R.id.tv_save_status);
+        mBtnExportSave = findViewById(R.id.btn_export_save);
+        mBtnImportSave = findViewById(R.id.btn_import_save);
 
         // Gráficos
         mSpRenderScale    = findViewById(R.id.sp_render_scale);
@@ -368,6 +374,15 @@ public final class TriAevumConfigDialog extends Dialog {
             @Override public void onStartTrackingTouch(SeekBar sb) {}
             @Override public void onStopTrackingTouch(SeekBar sb) {}
         });
+
+        refreshSaveStatus();
+    }
+
+    public void refreshSaveStatus() {
+        if (mTvSaveStatus != null) {
+            String summary = TriAevumSaveManager.getSaveSummary(getContext());
+            mTvSaveStatus.setText(summary);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -483,6 +498,37 @@ public final class TriAevumConfigDialog extends Dialog {
                     mOverlay.resetControlPositions();
                     Toast.makeText(getContext(), "Posições dos controles restauradas para o padrão!", Toast.LENGTH_SHORT).show();
                 }
+            });
+        }
+
+        if (mBtnExportSave != null) {
+            mBtnExportSave.setOnClickListener(v -> {
+                if (!TriAevumSaveManager.hasSaveFiles(getContext())) {
+                    Toast.makeText(getContext(), "Nenhum arquivo de save gravado ainda para exportar.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (mActivity instanceof TriAevumActivity) {
+                    ((TriAevumActivity) mActivity).startExportSaveFlow(() -> {
+                        refreshSaveStatus();
+                    });
+                }
+            });
+        }
+
+        if (mBtnImportSave != null) {
+            mBtnImportSave.setOnClickListener(v -> {
+                new android.app.AlertDialog.Builder(getContext(), android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle("Importar Save")
+                    .setMessage("Importar um novo save atualizará os arquivos de progresso atuais na pasta de salvamento.\n\nDeseja continuar e selecionar o arquivo (.zip / save)?")
+                    .setPositiveButton("Selecionar Arquivo", (dialog, which) -> {
+                        if (mActivity instanceof TriAevumActivity) {
+                            ((TriAevumActivity) mActivity).startImportSaveFlow(() -> {
+                                refreshSaveStatus();
+                            });
+                        }
+                    })
+                    .setNegativeButton("Cancelar", null)
+                    .show();
             });
         }
     }

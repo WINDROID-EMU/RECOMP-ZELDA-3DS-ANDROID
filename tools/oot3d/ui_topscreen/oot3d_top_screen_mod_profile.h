@@ -218,6 +218,7 @@ struct TopScreenCustomHudLayout {
   TopScreenCustomHudElement Status;
   TopScreenCustomHudElement Rupees;
   TopScreenCustomHudElement Minimap;
+  TopScreenCustomHudElement DpadItems;
 };
 
 const TopScreenCustomHudLayout *GetTopScreenCustomHudLayout() noexcept;

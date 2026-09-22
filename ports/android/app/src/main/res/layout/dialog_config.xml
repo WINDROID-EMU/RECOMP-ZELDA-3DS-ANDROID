@@ -246,6 +246,91 @@
                             android:paddingRight="10dp" />
                     </LinearLayout>
 
+                    <!-- Gerenciamento de Save -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/card_bg"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="GERENCIAMENTO DE SAVE"
+                            android:textColor="#FFC107"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="6dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Exporte seus arquivos de progresso (.zip) ou importe um save externo para continuar jogando."
+                            android:textColor="#8B9BB4"
+                            android:textSize="10sp"
+                            android:layout_marginBottom="8dp" />
+
+                        <!-- Status atual do Save -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:background="@drawable/btn_dark"
+                            android:paddingLeft="10dp"
+                            android:paddingRight="10dp"
+                            android:paddingTop="6dp"
+                            android:paddingBottom="6dp"
+                            android:layout_marginBottom="10dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="💾  "
+                                android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/tv_save_status"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Verificando arquivos de save..."
+                                android:textColor="#C8D8E8"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
+                        <!-- Botões de Ação: Exportar e Importar -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <Button
+                                android:id="@+id/btn_export_save"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:layout_marginRight="6dp"
+                                android:background="@drawable/btn_gold"
+                                android:text="📤 Exportar Save"
+                                android:textColor="#1A1500"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                            <Button
+                                android:id="@+id/btn_import_save"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/btn_dark"
+                                android:text="📥 Importar Save"
+                                android:textColor="#FFFFFF"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
                 </LinearLayout>
             </ScrollView>
 

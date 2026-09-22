@@ -22,16 +22,18 @@
         android:id="@+id/hud_top_left_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
-        android:layout_marginLeft="72dp"
+        android:layout_marginStart="72dp"
+        android:layout_marginLeft="15dp"
         android:layout_marginTop="12dp"
         android:orientation="vertical">
 
         <!-- Linha 1 de Corações -->
         <LinearLayout
             android:id="@+id/hud_hearts_row_1"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:orientation="horizontal">
 
@@ -72,6 +74,9 @@
     <!-- CANTO INFERIOR ESQUERDO: CONTADOR DE RÚPIAS & CHAVES             -->
     <!-- ================================================================= -->
 
+    <!-- D-PAD DO HUD: 4 slots de itens em formato de cruz (↑ ← ▪ → ↓)  -->
+    <!-- Posicionado acima das rúpias; arrastável pelo usuário             -->
+
     <!-- ================================================================= -->
     <!-- CANTO SUPERIOR DIREITO: GRUPO PRINCIPAL DE BOTÕES (HUD)           -->
     <!-- ================================================================= -->
@@ -79,6 +84,155 @@
     <!-- ================================================================= -->
     <!-- CANTO INFERIOR DIREITO: MINIMAPA                                  -->
     <!-- ================================================================= -->
+
+    <RelativeLayout
+        android:id="@+id/hud_dpad_item_cluster"
+        android:layout_width="108dp"
+        android:layout_height="108dp"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginLeft="10dp"
+        android:layout_marginBottom="230dp">
+
+        <!-- Dimensões de cada braço: 36x36 dp (slot de item) -->
+        <!-- Centro "morto" do D-Pad 36x36 dp -->
+
+        <!-- ─── CIMA ─── -->
+        <RelativeLayout
+            android:id="@+id/hud_dpad_up"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            android:background="@drawable/hud_dpad_arm">
+
+            <!-- Badge de direção -->
+            <TextView
+                android:id="@+id/badge_dpad_up"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="1dp"
+                android:background="@drawable/hud_badge_yellow"
+                android:text="↑"
+                android:textColor="#000000"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+
+            <!-- Ícone do item atribuído ao D-Pad ↑ -->
+            <ImageView
+                android:id="@+id/hud_dpad_up_icon"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_centerInParent="true"
+                android:layout_marginTop="4dp"
+                android:alpha="0.85" />
+        </RelativeLayout>
+
+        <!-- ─── ESQUERDA ─── -->
+        <RelativeLayout
+            android:id="@+id/hud_dpad_left"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_alignParentLeft="true"
+            android:layout_marginTop="36dp"
+            android:background="@drawable/hud_dpad_arm">
+
+            <TextView
+                android:id="@+id/badge_dpad_left"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentTop="true"
+                android:layout_marginLeft="1dp"
+                android:layout_marginTop="1dp"
+                android:background="@drawable/hud_badge_yellow"
+                android:text="←"
+                android:textColor="#000000"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/hud_dpad_left_icon"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_centerInParent="true"
+                android:alpha="0.85" />
+        </RelativeLayout>
+
+        <!-- ─── CENTRO (quadrado morto, sem função) ─── -->
+        <View
+            android:id="@+id/hud_dpad_center"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginLeft="36dp"
+            android:layout_marginTop="36dp"
+            android:background="#33FFFFFF" />
+
+        <!-- ─── DIREITA ─── -->
+        <RelativeLayout
+            android:id="@+id/hud_dpad_right"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginLeft="72dp"
+            android:layout_marginTop="36dp"
+            android:background="@drawable/hud_dpad_arm">
+
+            <TextView
+                android:id="@+id/badge_dpad_right"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentRight="true"
+                android:layout_marginTop="1dp"
+                android:layout_marginRight="1dp"
+                android:background="@drawable/hud_badge_yellow"
+                android:text="→"
+                android:textColor="#000000"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/hud_dpad_right_icon"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_centerInParent="true"
+                android:alpha="0.85" />
+        </RelativeLayout>
+
+        <!-- ─── BAIXO ─── -->
+        <RelativeLayout
+            android:id="@+id/hud_dpad_down"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="72dp"
+            android:background="@drawable/hud_dpad_arm">
+
+            <TextView
+                android:id="@+id/badge_dpad_down"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginBottom="1dp"
+                android:background="@drawable/hud_badge_yellow"
+                android:text="↓"
+                android:textColor="#000000"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/hud_dpad_down_icon"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_centerInParent="true"
+                android:layout_marginBottom="4dp"
+                android:alpha="0.85" />
+        </RelativeLayout>
+
+    </RelativeLayout>
 
     <LinearLayout
         android:id="@+id/hud_bottom_left_collectibles"
@@ -114,252 +268,268 @@
             android:textStyle="bold" />
     </LinearLayout>
 
+    <!-- ============================================================= -->
+    <!-- CLUSTER DE ITENS EM LOSANGO (DIAMOND: X, Y, ZR, ZL)           -->
+    <!-- Alinhado ao canto superior direito da tela (116x116 dp)       -->
+    <!-- Área justa apenas aos 4 botões, sem invadir o botão A         -->
+    <!-- ============================================================= -->
+    <!-- ============================================================= -->
+    <!-- CLUSTER DE ITENS EM LOSANGO (DIAMOND: X, Y, ZR, ZL)           -->
+    <!-- 116x116 dp posicionado no canto superior direito               -->
+    <!-- Coordenadas explícitas formam um losango perfeito de 45°      -->
+    <!-- ============================================================= -->
     <RelativeLayout
-        android:id="@+id/hud_top_right_action_cluster"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:id="@+id/hud_diamond_cluster"
+        android:layout_width="116dp"
+        android:layout_height="116dp"
         android:layout_alignParentTop="true"
         android:layout_alignParentRight="true"
-        android:layout_marginTop="15dp"
-        android:layout_marginRight="21dp">
+        android:layout_marginTop="8dp"
+        android:layout_marginRight="10dp">
 
-        <!-- BOTÃO B (ESPADA) - Círculo Prateado 52x52 dp -->
+        <!-- BOTÃO X (Topo: centro=58, topo=0) -->
         <RelativeLayout
-            android:id="@+id/hud_btn_b"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:id="@+id/hud_btn_x"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:layout_alignParentLeft="true"
-            android:layout_centerVertical="true"
+            android:layout_alignParentTop="true"
+            android:layout_marginLeft="36dp"
+            android:layout_marginTop="0dp"
             android:background="@drawable/hud_button_ring">
 
-            <!-- Distintivo Amarelo 'B' -->
             <TextView
-                android:id="@+id/badge_b"
+                android:id="@+id/badge_x"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentLeft="true"
                 android:layout_alignParentTop="true"
-                android:layout_marginLeft="2dp"
-                android:layout_marginTop="1dp"
                 android:background="@drawable/hud_badge_yellow"
-                android:text="B"
+                android:text="X"
                 android:textColor="#000000"
                 android:textSize="10sp"
                 android:textStyle="bold" />
 
-            <!-- Ícone da Espada -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
-                android:shadowColor="#000000"
-                android:shadowDx="1"
-                android:shadowDy="1"
-                android:shadowRadius="2"
-                android:textColor="#FFFFFF"
-                android:textSize="24sp" />
-        </RelativeLayout>
+                android:textSize="20sp" />
 
-        <!-- BOTÃO A (AÇÃO) - Círculo Prateado IDÊNTICO AO BOTÃO B (52x52 dp) -->
-        <!-- Posicionado diretamente ao lado do Botão B -->
-        <RelativeLayout
-            android:id="@+id/hud_btn_a"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
-            android:layout_centerVertical="true"
-            android:layout_marginLeft="14dp"
-            android:layout_toRightOf="@id/hud_btn_b"
-            android:background="@drawable/hud_button_ring">
-
-            <!-- Distintivo Amarelo 'A' no topo do anel -->
             <TextView
-                android:id="@+id/badge_a"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentTop="true"
-                android:layout_centerHorizontal="true"
-                android:layout_marginTop="2dp"
-                android:background="@drawable/hud_badge_yellow"
-                android:text="A"
-                android:textColor="#000000"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-
-            <!-- Texto de Ação Contextual (Check / Open / Speak / Attack) -->
-            <TextView
-                android:id="@+id/text_hud_a_action"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:layout_marginTop="4dp"
-                android:shadowColor="#000000"
-                android:shadowDx="2"
-                android:shadowDy="2"
-                android:shadowRadius="3"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-        </RelativeLayout>
-
-        <!-- ============================================================= -->
-        <!-- CLUSTER DE ITENS EM LOSANGO (DIAMOND: X, Y, ZR, ZL)           -->
-        <!-- ============================================================= -->
-        <RelativeLayout
-            android:id="@+id/hud_diamond_cluster"
-            android:layout_width="140dp"
-            android:layout_height="140dp"
-            android:layout_marginLeft="16dp"
-            android:layout_toRightOf="@id/hud_btn_a">
-
-            <!-- BOTÃO X (Topo do Losango) -->
-            <RelativeLayout
-                android:id="@+id/hud_btn_x"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:layout_alignParentTop="true"
-                android:layout_centerHorizontal="true"
-                android:background="@drawable/hud_button_ring">
-
-                <TextView
-                    android:id="@+id/badge_x"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentLeft="true"
-                    android:layout_alignParentTop="true"
-                    android:background="@drawable/hud_badge_yellow"
-                    android:text="X"
-                    android:textColor="#000000"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_centerInParent="true"
-                    android:textSize="20sp" />
-
-                <!-- Contador de Munição -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentRight="true"
-                    android:layout_alignParentBottom="true"
-                    android:background="#CC000000"
-                    android:paddingLeft="2dp"
-                    android:paddingRight="2dp"
-                    android:textColor="#00FF66"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
-            </RelativeLayout>
-
-            <!-- BOTÃO Y (Esquerda do Losango) -->
-            <RelativeLayout
-                android:id="@+id/hud_btn_y"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:layout_alignParentLeft="true"
-                android:layout_centerVertical="true"
-                android:background="@drawable/hud_button_ring">
-
-                <TextView
-                    android:id="@+id/badge_y"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentLeft="true"
-                    android:layout_alignParentTop="true"
-                    android:background="@drawable/hud_badge_yellow"
-                    android:text="Y"
-                    android:textColor="#000000"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_centerInParent="true"
-                    android:textSize="20sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentRight="true"
-                    android:layout_alignParentBottom="true"
-                    android:background="#CC000000"
-                    android:paddingLeft="2dp"
-                    android:paddingRight="2dp"
-                    android:textColor="#00FF66"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
-            </RelativeLayout>
-
-            <!-- BOTÃO ZR (Direita do Losango) -->
-            <RelativeLayout
-                android:id="@+id/hud_btn_zr"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
                 android:layout_alignParentRight="true"
-                android:layout_centerVertical="true"
-                android:background="@drawable/hud_button_ring">
-
-                <TextView
-                    android:id="@+id/badge_zr"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentLeft="true"
-                    android:layout_alignParentTop="true"
-                    android:background="@drawable/hud_badge_yellow"
-                    android:text="ZR"
-                    android:textColor="#000000"
-                    android:textSize="9sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_centerInParent="true"
-                    android:textSize="20sp" />
-            </RelativeLayout>
-
-            <!-- BOTÃO ZL (Base do Losango) -->
-            <RelativeLayout
-                android:id="@+id/hud_btn_zl"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
                 android:layout_alignParentBottom="true"
-                android:layout_centerHorizontal="true"
-                android:background="@drawable/hud_button_ring">
-
-                <TextView
-                    android:id="@+id/badge_zl"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentLeft="true"
-                    android:layout_alignParentTop="true"
-                    android:background="@drawable/hud_badge_yellow"
-                    android:text="ZL"
-                    android:textColor="#000000"
-                    android:textSize="9sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_centerInParent="true"
-                    android:textSize="20sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentRight="true"
-                    android:layout_alignParentBottom="true"
-                    android:background="#CC000000"
-                    android:paddingLeft="2dp"
-                    android:paddingRight="2dp"
-                    android:textColor="#00FF66"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
-            </RelativeLayout>
+                android:background="#CC000000"
+                android:paddingLeft="2dp"
+                android:paddingRight="2dp"
+                android:textColor="#00FF66"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
         </RelativeLayout>
+
+        <!-- BOTÃO Y (Esquerda: centro=22, esquerda=0, centroVertical=58) -->
+        <RelativeLayout
+            android:id="@+id/hud_btn_y"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentTop="true"
+            android:layout_marginLeft="0dp"
+            android:layout_marginTop="36dp"
+            android:background="@drawable/hud_button_ring">
+
+            <TextView
+                android:id="@+id/badge_y"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentTop="true"
+                android:background="@drawable/hud_badge_yellow"
+                android:text="Y"
+                android:textColor="#000000"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:textSize="20sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentBottom="true"
+                android:background="#CC000000"
+                android:paddingLeft="2dp"
+                android:paddingRight="2dp"
+                android:textColor="#00FF66"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </RelativeLayout>
+
+        <!-- BOTÃO ZR (Direita: centro=94, direita=116, centroVertical=58) -->
+        <RelativeLayout
+            android:id="@+id/hud_btn_zr"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentTop="true"
+            android:layout_marginLeft="72dp"
+            android:layout_marginTop="36dp"
+            android:background="@drawable/hud_button_ring">
+
+            <TextView
+                android:id="@+id/badge_zr"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentTop="true"
+                android:background="@drawable/hud_badge_yellow"
+                android:text="ZR"
+                android:textColor="#000000"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:textSize="20sp" />
+        </RelativeLayout>
+
+        <!-- BOTÃO ZL (Base: centro=58, base=116) -->
+        <RelativeLayout
+            android:id="@+id/hud_btn_zl"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentTop="true"
+            android:layout_marginLeft="36dp"
+            android:layout_marginTop="72dp"
+            android:background="@drawable/hud_button_ring">
+
+            <TextView
+                android:id="@+id/badge_zl"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentTop="true"
+                android:background="@drawable/hud_badge_yellow"
+                android:text="ZL"
+                android:textColor="#000000"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:textSize="20sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentBottom="true"
+                android:background="#CC000000"
+                android:paddingLeft="2dp"
+                android:paddingRight="2dp"
+                android:textColor="#00FF66"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </RelativeLayout>
+    </RelativeLayout>
+
+    <!-- ============================================================= -->
+    <!-- BOTÃO A (AÇÃO) - Círculo Prateado (52x52 dp)                  -->
+    <!-- Posicionado à esquerda do Diamond Cluster (142dp da direita)  -->
+    <!-- TOTALMENTE LIVRE e FORA da zona do diamond cluster            -->
+    <!-- ============================================================= -->
+    <RelativeLayout
+        android:id="@+id/hud_btn_a"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentRight="true"
+        android:layout_marginTop="16dp"
+        android:layout_marginRight="142dp"
+        android:background="@drawable/hud_button_ring">
+
+        <!-- Distintivo Amarelo 'A' no topo-centro do anel (como na referência) -->
+        <TextView
+            android:id="@+id/badge_a"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="1dp"
+            android:background="@drawable/hud_badge_yellow"
+            android:text="A"
+            android:textColor="#000000"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <!-- Texto de Ação Contextual (Check / Open / Speak / Attack) -->
+        <TextView
+            android:id="@+id/text_hud_a_action"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_marginTop="4dp"
+            android:shadowColor="#000000"
+            android:shadowDx="2"
+            android:shadowDy="2"
+            android:shadowRadius="3"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <!-- ============================================================= -->
+    <!-- BOTÃO B (ESPADA) - Círculo Prateado (52x52 dp) IDÊNTICO AO A  -->
+    <!-- Posicionado à esquerda do Botão A (206dp da direita)          -->
+    <!-- ============================================================= -->
+    <RelativeLayout
+        android:id="@+id/hud_btn_b"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentRight="true"
+        android:layout_marginTop="16dp"
+        android:layout_marginRight="206dp"
+        android:background="@drawable/hud_button_ring">
+
+        <!-- Distintivo Amarelo 'B' no topo-esquerdo do anel (como na referência) -->
+        <TextView
+            android:id="@+id/badge_b"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentTop="true"
+            android:background="@drawable/hud_badge_yellow"
+            android:text="B"
+            android:textColor="#000000"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <!-- Ícone da Espada -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:shadowColor="#000000"
+            android:shadowDx="1"
+            android:shadowDy="1"
+            android:shadowRadius="2"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp" />
     </RelativeLayout>
 
     <RelativeLayout

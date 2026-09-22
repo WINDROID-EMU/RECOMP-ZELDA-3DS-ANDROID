@@ -2,7 +2,9 @@ package org.triaevum.android;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
@@ -88,7 +90,9 @@ public final class TriAevumActivity extends Activity {
         if (root != null) {
             nativeSetStoragePath(root.getAbsolutePath());
             File customJson = new File(root, "custom_hud_layout.json");
-            if (!customJson.exists()) {
+            // O XML é sempre a fonte de verdade: regenera o JSON padrão a cada
+            // inicialização, exceto quando o usuário salvou um layout customizado.
+            if (!customJson.exists() || !isUserCustomizedHudLayout(customJson)) {
                 exportHudLayoutFromXml(root);
             }
         }
@@ -334,6 +338,18 @@ public final class TriAevumActivity extends Activity {
         }
     }
 
+    private boolean isUserCustomizedHudLayout(File jsonFile) {
+        try (java.io.FileInputStream fis = new java.io.FileInputStream(jsonFile)) {
+            byte[] data = new byte[(int) jsonFile.length()];
+            //noinspection ResultOfMethodCallIgnored
+            fis.read(data);
+            org.json.JSONObject j = new org.json.JSONObject(new String(data, java.nio.charset.StandardCharsets.UTF_8));
+            return j.optBoolean("user_customized", false);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     private void exportHudLayoutFromXml(File root) {
         try {
             android.view.View hudView = getLayoutInflater().inflate(R.layout.hud_gameplay_layout, null);
@@ -375,6 +391,7 @@ public final class TriAevumActivity extends Activity {
             exportViewToCanvas(hudView, R.id.hud_top_left_status, "status", hudJson, scale, offsetX, offsetY);
             exportViewToCanvas(hudView, R.id.hud_bottom_left_collectibles, "rupees", hudJson, scale, offsetX, offsetY);
             exportViewToCanvas(hudView, R.id.hud_minimap_container, "minimap", hudJson, scale, offsetX, offsetY);
+            exportViewToCanvas(hudView, R.id.hud_dpad_item_cluster, "dpad_items", hudJson, scale, offsetX, offsetY);
 
             File targetFile = new File(root, "custom_hud_layout.json");
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(targetFile)) {
@@ -540,6 +557,100 @@ public final class TriAevumActivity extends Activity {
         bar.addView(btnSave);
 
         mLayout.addView(bar);
+    }
+
+    // -------------------------------------------------------------------------
+    // Save Data Export & Import (Storage Access Framework)
+    // -------------------------------------------------------------------------
+
+    public static final int REQUEST_CODE_EXPORT_SAVE = 2001;
+    public static final int REQUEST_CODE_IMPORT_SAVE = 2002;
+
+    public interface SaveActionListener {
+        void onSaveOperationCompleted();
+    }
+
+    private SaveActionListener mSaveActionListener;
+
+    public void setSaveActionListener(SaveActionListener listener) {
+        mSaveActionListener = listener;
+    }
+
+    public void startExportSaveFlow(SaveActionListener listener) {
+        mSaveActionListener = listener;
+        try {
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("application/zip");
+            String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(new java.util.Date());
+            intent.putExtra(Intent.EXTRA_TITLE, "TriAevum_Save_" + timestamp + ".zip");
+            startActivityForResult(intent, REQUEST_CODE_EXPORT_SAVE);
+        } catch (Exception e) {
+            Log.e(TAG, "Falha ao iniciar seletor de exportação de save", e);
+            android.widget.Toast.makeText(this, "Erro ao abrir seletor de arquivo: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    public void startImportSaveFlow(SaveActionListener listener) {
+        mSaveActionListener = listener;
+        try {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
+                "application/zip",
+                "application/x-zip-compressed",
+                "application/octet-stream",
+                "*/*"
+            });
+            startActivityForResult(intent, REQUEST_CODE_IMPORT_SAVE);
+        } catch (Exception e) {
+            Log.e(TAG, "Falha ao iniciar seletor de importação de save", e);
+            android.widget.Toast.makeText(this, "Erro ao abrir seletor de arquivo: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) {
+            return;
+        }
+
+        Uri uri = data.getData();
+        if (requestCode == REQUEST_CODE_EXPORT_SAVE) {
+            android.widget.Toast.makeText(this, "Exportando save...", android.widget.Toast.LENGTH_SHORT).show();
+            TriAevumSaveManager.exportSaveToUri(this, uri, new TriAevumSaveManager.SaveCallback<String>() {
+                @Override
+                public void onSuccess(String result) {
+                    android.widget.Toast.makeText(TriAevumActivity.this, "✅ " + result, android.widget.Toast.LENGTH_LONG).show();
+                    if (mSaveActionListener != null) {
+                        mSaveActionListener.onSaveOperationCompleted();
+                    }
+                }
+
+                @Override
+                public void onError(Exception error) {
+                    android.widget.Toast.makeText(TriAevumActivity.this, "❌ Erro ao exportar save: " + error.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+                }
+            });
+        } else if (requestCode == REQUEST_CODE_IMPORT_SAVE) {
+            android.widget.Toast.makeText(this, "Importando save...", android.widget.Toast.LENGTH_SHORT).show();
+            TriAevumSaveManager.importSaveFromUri(this, uri, new TriAevumSaveManager.SaveCallback<Integer>() {
+                @Override
+                public void onSuccess(Integer count) {
+                    android.widget.Toast.makeText(TriAevumActivity.this, "✅ Save importado com sucesso (" + count + " arquivos)!", android.widget.Toast.LENGTH_LONG).show();
+                    if (mSaveActionListener != null) {
+                        mSaveActionListener.onSaveOperationCompleted();
+                    }
+                }
+
+                @Override
+                public void onError(Exception error) {
+                    android.widget.Toast.makeText(TriAevumActivity.this, "❌ Erro ao importar save: " + error.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+                }
+            });
+        }
     }
 
     @Override

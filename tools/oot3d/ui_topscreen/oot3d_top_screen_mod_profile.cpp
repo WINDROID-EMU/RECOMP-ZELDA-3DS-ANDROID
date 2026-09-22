@@ -86,6 +86,7 @@ const TopScreenCustomHudLayout *GetTopScreenCustomHudLayout() noexcept {
             parseElem(j, "status", sLayout.Status);
             parseElem(j, "rupees", sLayout.Rupees);
             parseElem(j, "minimap", sLayout.Minimap);
+            parseElem(j, "dpad_items", sLayout.DpadItems);
             sLayout.Loaded = true;
           } catch (...) {}
         }
