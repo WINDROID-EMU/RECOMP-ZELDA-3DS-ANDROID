@@ -196,38 +196,19 @@ jobs:
           fi
 
       - name: Prepare and Stage Native Libraries
-        env:
-          FAIL_IF_MISSING: ${{ github.event.inputs.fail_if_title_missing || 'true' }}
-          IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release) }}
         run: |
-          LLVM_DIR="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          CLANG="$LLVM_DIR/aarch64-linux-android29-clang"
-
           if [ ! -f "build/title/libtriaevum_title_aot.so" ]; then
-            if [ "$FAIL_IF_MISSING" = "true" ] || [ "$IS_RELEASE" = "true" ]; then
-              echo "================================================================================="
-              echo "ERROR: libtriaevum_title_aot.so was NOT generated!"
-              echo "Cannot publish or produce a playable APK without the real game logic library,"
-              echo "as it will fail on device with: 'the private whole-AOT ABI-v2 plugin is missing'."
-              echo "Please provide OOT3D_ROM_URL secret, rom_url input, or source_zip_url."
-              echo "================================================================================="
-              exit 1
-            fi
-            echo "WARNING: Using empty placeholder stub (FOR SMOKE TESTING ONLY, NOT PLAYABLE)..."
-            mkdir -p build/title_stub
-            cat << 'EOF' > build/title_stub/triaevum_title_stub.c
-            #include <stdint.h>
-            __attribute__((visibility("default"))) uint32_t TriAevumTitlePluginVersion(void) { return 1; }
-            __attribute__((visibility("default"))) int TriAevumTitlePluginInit(void* host) { (void)host; return 0; }
-            EOF
-            $CLANG -shared -fPIC -O2 -Wl,-z,max-page-size=16384 \
-              build/title_stub/triaevum_title_stub.c \
-              -o build/title_stub/libtriaevum_title_aot.so
-            TITLE_MODULE="$(pwd)/build/title_stub/libtriaevum_title_aot.so"
-          else
-            echo "✅ Using genuinely compiled whole-AOT game module."
-            TITLE_MODULE="$(pwd)/build/title/libtriaevum_title_aot.so"
+            echo "================================================================================="
+            echo "ERROR: libtriaevum_title_aot.so was NOT generated!"
+            echo "Cannot publish or produce a playable APK without the real game logic library,"
+            echo "as it will fail on device with: 'the private whole-AOT ABI-v2 plugin is missing'."
+            echo "Please provide OOT3D_ROM_URL secret, rom_url input, or source_zip_url."
+            echo "================================================================================="
+            exit 1
           fi
+
+          echo "✅ Using genuinely compiled whole-AOT game module."
+          TITLE_MODULE="$(pwd)/build/title/libtriaevum_title_aot.so"
 
           python3 tools/android/stage_native_app.py \
             --runtime-build build/runtime \
