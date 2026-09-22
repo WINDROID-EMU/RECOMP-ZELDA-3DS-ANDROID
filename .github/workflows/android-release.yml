@@ -9,11 +9,15 @@ on:
     paths:
       - 'ports/android/**'
       - 'tools/android/**'
+      - 'scripts/**'
+      - 'source.zip'
       - '.github/workflows/android-release.yml'
   pull_request:
     paths:
       - 'ports/android/**'
       - 'tools/android/**'
+      - 'scripts/**'
+      - 'source.zip'
       - '.github/workflows/android-release.yml'
   workflow_dispatch:
     inputs:
