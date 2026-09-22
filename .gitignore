@@ -16,6 +16,7 @@ venv/
 
 # Project-specific ignores
 build/
+dist/
 expected/
 notes/
 baserom/

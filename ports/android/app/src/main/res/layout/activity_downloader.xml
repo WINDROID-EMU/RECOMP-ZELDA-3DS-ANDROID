@@ -10,8 +10,8 @@
     <!-- Background artwork: Link with Ocarina in Lost Woods -->
     <ImageView
         android:id="@+id/iv_download_bg"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_width="735dp"
+        android:layout_height="410dp"
         android:scaleType="centerCrop"
         android:src="@drawable/bg_download" />
 
@@ -38,7 +38,7 @@
             android:layout_height="wrap_content"
             android:text="The Legend of Zelda: Ocarina of Time 3D"
             android:textColor="#FFD700"
-            android:textSize="17sp"
+            android:textSize="15sp"
             android:textStyle="bold" />
 
         <TextView
@@ -59,7 +59,8 @@
             android:layout_marginTop="12dp"
             android:max="100"
             android:progress="0"
-            android:progressDrawable="@drawable/progress_bar_gold" />
+            android:progressDrawable="@drawable/progress_bar_gold"
+            android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/layout_progress_details"
@@ -111,23 +112,9 @@
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/btn_download_action"
-                android:layout_width="wrap_content"
-                android:layout_height="38dp"
-                android:background="@drawable/btn_gold"
-                android:paddingStart="24dp"
-                android:paddingEnd="24dp"
-                android:text="Selecionar Pasta da ROM"
-                android:textAllCaps="false"
-                android:textColor="#0B0E14"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:visibility="visible" />
-
-            <Button
                 android:id="@+id/btn_change_directory"
                 android:layout_width="wrap_content"
-                android:layout_height="38dp"
+                android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:background="@drawable/btn_gold"
                 android:paddingStart="20dp"
@@ -139,6 +126,20 @@
                 android:textStyle="bold"
                 android:visibility="gone" />
         </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_download_action"
+            android:layout_width="wrap_content"
+            android:layout_height="38dp"
+            android:background="@drawable/btn_gold"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:text="Selecionar Pasta da ROM"
+            android:textAllCaps="false"
+            android:textColor="#0B0E14"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:visibility="visible" />
 
     </LinearLayout>
 

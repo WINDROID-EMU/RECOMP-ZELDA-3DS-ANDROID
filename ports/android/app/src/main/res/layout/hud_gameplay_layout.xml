@@ -156,7 +156,6 @@
                 android:shadowDx="1"
                 android:shadowDy="1"
                 android:shadowRadius="2"
-                android:text="⚔"
                 android:textColor="#FFFFFF"
                 android:textSize="24sp" />
         </RelativeLayout>
@@ -197,7 +196,6 @@
                 android:shadowDx="2"
                 android:shadowDy="2"
                 android:shadowRadius="3"
-                android:text="Check"
                 android:textColor="#FFFFFF"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -238,7 +236,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerInParent="true"
-                    android:text="🏹"
                     android:textSize="20sp" />
 
                 <!-- Contador de Munição -->
@@ -250,7 +247,6 @@
                     android:background="#CC000000"
                     android:paddingLeft="2dp"
                     android:paddingRight="2dp"
-                    android:text="40"
                     android:textColor="#00FF66"
                     android:textSize="10sp"
                     android:textStyle="bold" />
@@ -281,7 +277,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerInParent="true"
-                    android:text="🌰"
                     android:textSize="20sp" />
 
                 <TextView
@@ -292,7 +287,6 @@
                     android:background="#CC000000"
                     android:paddingLeft="2dp"
                     android:paddingRight="2dp"
-                    android:text="40"
                     android:textColor="#00FF66"
                     android:textSize="10sp"
                     android:textStyle="bold" />
@@ -323,7 +317,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerInParent="true"
-                    android:text="🗺"
                     android:textSize="20sp" />
             </RelativeLayout>
 
@@ -352,7 +345,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerInParent="true"
-                    android:text="💣"
                     android:textSize="20sp" />
 
                 <TextView
@@ -363,7 +355,6 @@
                     android:background="#CC000000"
                     android:paddingLeft="2dp"
                     android:paddingRight="2dp"
-                    android:text="50"
                     android:textColor="#00FF66"
                     android:textSize="10sp"
                     android:textStyle="bold" />

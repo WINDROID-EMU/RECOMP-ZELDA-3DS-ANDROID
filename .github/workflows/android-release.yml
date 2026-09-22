@@ -8,10 +8,12 @@ on:
       - main
     paths:
       - 'ports/android/**'
+      - 'tools/android/**'
       - '.github/workflows/android-release.yml'
   pull_request:
     paths:
       - 'ports/android/**'
+      - 'tools/android/**'
       - '.github/workflows/android-release.yml'
   workflow_dispatch:
     inputs:
@@ -30,6 +32,21 @@ on:
         required: true
         type: boolean
         default: false
+      rom_url:
+        description: 'Direct download URL for OoT3D ROM (.3ds / .cci) (Optional)'
+        required: false
+        type: string
+        default: ''
+      source_zip_url:
+        description: 'Direct download URL for pre-generated source.zip / shards (Optional)'
+        required: false
+        type: string
+        default: ''
+      fail_if_title_missing:
+        description: 'Fail build if real AOT title cannot be built (prevents broken stub releases)'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -37,7 +54,7 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -75,18 +92,59 @@ jobs:
           echo "ANDROID_NDK_ROOT=$NDK_DIR" >> $GITHUB_ENV
           echo "NDK=$NDK_DIR" >> $GITHUB_ENV
 
-      - name: Extract Uploaded Shards
+      - name: Obtain or Generate Title Sources (AOT)
+        env:
+          ROM_URL: ${{ github.event.inputs.rom_url || secrets.OOT3D_ROM_URL }}
+          SOURCE_ZIP_URL: ${{ github.event.inputs.source_zip_url || secrets.SOURCE_ZIP_URL }}
         run: |
           mkdir -p title-source
+          mkdir -p work-ir
+
+          # 1. Check if source.zip is present or downloadable
           if [ -f "source.zip" ]; then
-            unzip source.zip -d ./title-source/
-            # Normalize internal folders if zipped with a parent folder root
-            if [ -d "./title-source/source" ]; then
-              mv ./title-source/source/* ./title-source/
+            echo "Found source.zip in repository root. Extracting..."
+            unzip -q source.zip -d ./title-source/
+          elif [ -n "$SOURCE_ZIP_URL" ]; then
+            echo "Downloading pre-generated source.zip from URL..."
+            curl -L "$SOURCE_ZIP_URL" -o source.zip
+            unzip -q source.zip -d ./title-source/
+          fi
+
+          # Normalize internal directory nesting if zipped with a parent folder
+          if [ -d "./title-source/source" ]; then
+            mv ./title-source/source/* ./title-source/
+          elif [ -d "./title-source/translated-sources" ]; then
+            mv ./title-source/translated-sources/* ./title-source/
+          fi
+
+          # 2. If title-source is still empty, check if a ROM is available or provided
+          if [ ! -f "./title-source/TITLE_SOURCE_MANIFEST.json" ]; then
+            ROM_FILE=""
+            if [ -n "$ROM_URL" ]; then
+              echo "Downloading ROM from URL..."
+              curl -L "$ROM_URL" -o game_rom.3ds
+              ROM_FILE="game_rom.3ds"
+            else
+              FOUND_ROM=$(find . -maxdepth 2 -name "*.3ds" -o -name "*.cci" | head -n 1)
+              if [ -n "$FOUND_ROM" ] && [ -f "$FOUND_ROM" ]; then
+                echo "Found local ROM file: $FOUND_ROM"
+                ROM_FILE="$FOUND_ROM"
+              fi
             fi
-            echo "Shards extracted successfully."
+
+            if [ -n "$ROM_FILE" ] && [ -f "$ROM_FILE" ]; then
+              echo "Extracting and generating AOT C++ shards from ROM ($ROM_FILE)..."
+              python3 tools/android/generate_title_from_rom.py \
+                --rom "$ROM_FILE" \
+                --work-dir work-ir \
+                --output title-source
+            fi
+          fi
+
+          if [ -f "./title-source/TITLE_SOURCE_MANIFEST.json" ]; then
+            echo "✅ Title sources ready with $(ls -1 title-source/*.cpp | wc -l) C++ files."
           else
-            echo "CRITICAL WARNING: source.zip not found in repo root. Building stub instead."
+            echo "⚠️ Title sources are not present."
           fi
 
       - name: Build Android Native Runtime (ARM64)
@@ -102,49 +160,68 @@ jobs:
 
       - name: Compile Real Title Shared Library (AOT)
         run: |
-          if [ -d "title-source" ] && [ "$(ls -A title-source)" ]; then
+          if [ -f "title-source/TITLE_SOURCE_MANIFEST.json" ]; then
             echo "Compiling structural game code shards into true AOT binary..."
             mkdir -p build/title
             
-            # Setup build structure using the project's native build parameters
             cmake -S ports/android/native -B build/native_title -G Ninja \
               -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake" \
               -DANDROID_ABI=arm64-v8a \
               -DANDROID_PLATFORM=android-29 \
               -DANDROID_STL=c++_shared \
               -DCMAKE_BUILD_TYPE=Release \
-              -DTRIAEVUM_BUILD_TITLE=1 \
-              -DTRIAEVUM_TRANSLATED_TITLE_DIR="$(pwd)/title-source"
+              -DTRIAEVUM_ANDROID_BUILD_NRI=OFF \
+              -DTRIAEVUM_TRANSLATED_TITLE_DIR="$(pwd)/title-source" \
+              -DTRIAEVUM_ANDROID_TITLE_OPTIMIZATION=1 \
+              -DTRIAEVUM_ANDROID_TITLE_DEBUG_INFO=OFF
             
-            # Build the game binary target target
-            ninja -C build/native_title triaevum_android_title
+            ninja -C build/native_title -j 4 triaevum_android_title
             
-            # Stage the created file exactly where the downstream python packer looks
+            # Stage the created file
             cp build/native_title/libtriaevum_title_aot.so build/title/libtriaevum_title_aot.so
+            
+            # Validate ABI-v2 export
+            LLVM_READELF="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+            if ! "$LLVM_READELF" --dyn-syms build/title/libtriaevum_title_aot.so | grep "triaevum_title_whole_aot_query" > /dev/null; then
+              echo "FATAL: libtriaevum_title_aot.so does not export triaevum_title_whole_aot_query!"
+              exit 1
+            fi
+            echo "✅ Verified libtriaevum_title_aot.so exports ABI-v2 entry points."
           else
             echo "Skipping true AOT library build: title-source directory is missing or empty."
           fi
 
       - name: Prepare and Stage Native Libraries
+        env:
+          FAIL_IF_MISSING: ${{ github.event.inputs.fail_if_title_missing || 'true' }}
+          IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release) }}
         run: |
-          mkdir -p build/title_stub
           LLVM_DIR="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin"
           CLANG="$LLVM_DIR/aarch64-linux-android29-clang"
 
-          # Fallback stub strategy in case compilation step was skipped
           if [ ! -f "build/title/libtriaevum_title_aot.so" ]; then
-            echo "Using placeholder empty stub..."
+            if [ "$FAIL_IF_MISSING" = "true" ] || [ "$IS_RELEASE" = "true" ]; then
+              echo "================================================================================="
+              echo "ERROR: libtriaevum_title_aot.so was NOT generated!"
+              echo "Cannot publish or produce a playable APK without the real game logic library,"
+              echo "as it will fail on device with: 'the private whole-AOT ABI-v2 plugin is missing'."
+              echo "Please provide OOT3D_ROM_URL secret, rom_url input, or source_zip_url."
+              echo "================================================================================="
+              exit 1
+            fi
+            echo "WARNING: Using empty placeholder stub (FOR SMOKE TESTING ONLY, NOT PLAYABLE)..."
+            mkdir -p build/title_stub
             cat << 'EOF' > build/title_stub/triaevum_title_stub.c
             #include <stdint.h>
             __attribute__((visibility("default"))) uint32_t TriAevumTitlePluginVersion(void) { return 1; }
             __attribute__((visibility("default"))) int TriAevumTitlePluginInit(void* host) { (void)host; return 0; }
-          EOF
+            EOF
             $CLANG -shared -fPIC -O2 -Wl,-z,max-page-size=16384 \
               build/title_stub/triaevum_title_stub.c \
               -o build/title_stub/libtriaevum_title_aot.so
             TITLE_MODULE="$(pwd)/build/title_stub/libtriaevum_title_aot.so"
           else
-            echo "Using genuinely compiled whole-AOT game module."
+            echo "✅ Using genuinely compiled whole-AOT game module."
             TITLE_MODULE="$(pwd)/build/title/libtriaevum_title_aot.so"
           fi
 
@@ -208,5 +285,6 @@ jobs:
           body: |
             ### TriAevum Android Native Release (${{ steps.release_info.outputs.tag }})
 
-            - **Platform**: Android ARM64
-            - **Status**: Full AOT game instruction module successfully compiled and linked directly.
+            - **Platform**: Android ARM64 (`arm64-v8a`)
+            - **Engine**: TriAevum native Vulkan / NRI renderer with 3DS PICA200 emulation
+            - **Status**: Full AOT game instruction module (`libtriaevum_title_aot.so`) compiled and embedded directly.
