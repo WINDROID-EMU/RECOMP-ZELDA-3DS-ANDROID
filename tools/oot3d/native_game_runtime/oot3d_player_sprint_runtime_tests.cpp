@@ -485,6 +485,296 @@ int main() {
         Require(sprint.State() == PlayerSprintState::Idle, "Must stay Idle when on ladder");
     }
 
+    // Teste 15: Escalada em vinhas/paredes com deslocamento lateral do analógico (CirclePadX != 0)
+    // Evita o bug onde Link 'sai correndo de lado' rapidamente ao caminhar/escalar pro lado em vinhas
+    {
+        MockMemoryBus memory;
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+
+        const uint32_t kPauseRoot = 0x005043D4U;
+        const uint32_t kPlayState = 0x10000000U;
+        const uint32_t kPlayer = 0x10002000U;
+
+        memory.Write32(kPauseRoot + 0x0CU, kPlayState);
+        memory.Write32(kPlayState + 0x20ACU, kPlayer);
+        memory.Write32(kPlayer + 0x1710U, 0U); // stateFlags1 pode não ter a flag de escada ao escalar vinhas
+        memory.Write32(kPlayer + 0x1714U, 0U);
+        memory.Write32(kPlayer + 0x1224U, 0U);
+        memory.Write8(kPlayer + 0x12BCU, 0U);
+        // Ação nativa de escalada de superfície/vinhas (SURFACE_CLIMB_ACTION_FUNCTION = 0x004BE20CU)
+        memory.Write32(kPlayer + 0x1708U, 0x004BE20CU);
+        // Animação de escalada lateral em vinha (ex: 0x011CU = free_climb_side_left)
+        memory.Write32(kPlayer + 0x0284U, 0x011CU);
+        memory.Write16(kPlayer + 0x0090U, 0x0200U); // kBgCheckFlagPlayerWallInteract
+
+        const float initialPosX = 150.0f;
+        const float initialPosZ = -300.0f;
+        memory.WriteFloat(kPlayer + 0x0028U, initialPosX);
+        memory.WriteFloat(kPlayer + 0x0030U, initialPosZ);
+        memory.WriteFloat(kPlayer + 0x0060U, 1.2f); // velX
+        memory.WriteFloat(kPlayer + 0x0068U, 0.0f); // velZ
+        memory.WriteFloat(kPlayer + 0x006CU, 1.2f); // speedXZ
+        memory.WriteFloat(kPlayer + 0x221CU, 1.2f); // linearVelocity
+
+        // Usuário segura o botão A e empurra o analógico 100% para o lado enquanto escala a vinha
+        for (int frame = 0; frame < 30; ++frame) {
+            bool sprinting = ApplyGuestPlayerSprint(memory, sprint, true, (frame == 0), 100.0f, 0.0f, dt);
+            Require(!sprinting, "ApplyGuestPlayerSprint must NOT activate sprint when climbing vines sideways");
+            Require(sprint.State() == PlayerSprintState::Idle, "Sprint state must remain Idle while climbing");
+        }
+
+        // Garante que a posição de Link NÃO foi deslocada pelo bônus de corrida
+        const float finalPosX = memory.ReadFloat(kPlayer + 0x0028U);
+        const float finalPosZ = memory.ReadFloat(kPlayer + 0x0030U);
+        Require(finalPosX == initialPosX, "Link posX must NOT be warped sideways when climbing vines");
+        Require(finalPosZ == initialPosZ, "Link posZ must NOT be warped when climbing vines");
+
+        // Garante que a velocidade não foi forçada para a velocidade de corrida
+        const float finalSpeedXZ = memory.ReadFloat(kPlayer + 0x006CU);
+        const float finalLinVel = memory.ReadFloat(kPlayer + 0x221CU);
+        Require(finalSpeedXZ <= 1.2f, "speedXZ must NOT be boosted to sprint velocity during climb");
+        Require(finalLinVel <= 1.2f, "linearVelocity must NOT be boosted to sprint velocity during climb");
+    }
+
+    // Teste 16: Interrupção imediata de sprint ao agarrar vinhas/muros durante a corrida
+    {
+        MockMemoryBus memory;
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+
+        const uint32_t kPauseRoot = 0x005043D4U;
+        const uint32_t kPlayState = 0x10000000U;
+        const uint32_t kPlayer = 0x10002000U;
+
+        memory.Write32(kPauseRoot + 0x0CU, kPlayState);
+        memory.Write32(kPlayState + 0x20ACU, kPlayer);
+        memory.Write32(kPlayer + 0x1710U, 0U);
+        memory.Write32(kPlayer + 0x1714U, 0U);
+        memory.Write32(kPlayer + 0x1224U, 0U);
+        memory.Write8(kPlayer + 0x12BCU, 0U);
+        memory.Write16(kPlayer + 0x0090U, 0x0001U); // no chão
+        memory.WriteFloat(kPlayer + 0x006CU, 5.0f);
+        memory.WriteFloat(kPlayer + 0x221CU, 5.0f);
+
+        // 1. Inicia corrida normal em solo plano
+        for (int frame = 0; frame < 30; ++frame) {
+            ApplyGuestPlayerSprint(memory, sprint, true, (frame == 0), 0.0f, 100.0f, dt);
+        }
+        Require(sprint.IsSprinting(), "Sprint should be active on flat ground");
+        Require(sprint.SpeedMultiplier() > 1.0f, "SpeedMultiplier should be boosted");
+
+        // 2. Link colide e agarra a vinha/parede (ação de escalada ativa, kBgCheckFlagPlayerWallInteract)
+        memory.Write32(kPlayer + 0x1708U, 0x004BE20CU); // SURFACE_CLIMB_ACTION_FUNCTION
+        memory.Write16(kPlayer + 0x0090U, 0x0200U);
+        memory.Write32(kPlayer + 0x0284U, 0x0104U); // Animação de escalada
+
+        bool sprinting = ApplyGuestPlayerSprint(memory, sprint, true, false, 80.0f, 0.0f, dt);
+        Require(!sprinting, "Sprint must immediately cancel upon grabbing climbable surface");
+        Require(sprint.State() == PlayerSprintState::Idle, "State must immediately drop to Idle");
+        Require(sprint.SpeedMultiplier() == 1.0f, "Speed multiplier must instantly drop to 1.0f");
+    }
+
+    // Teste 17: Escalada de borda / Ledge climb (ledgeClimbType != 0)
+    {
+        MockMemoryBus memory;
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+
+        const uint32_t kPauseRoot = 0x005043D4U;
+        const uint32_t kPlayState = 0x10000000U;
+        const uint32_t kPlayer = 0x10002000U;
+
+        memory.Write32(kPauseRoot + 0x0CU, kPlayState);
+        memory.Write32(kPlayState + 0x20ACU, kPlayer);
+        memory.Write32(kPlayer + 0x1710U, 0U);
+        memory.Write32(kPlayer + 0x1714U, 0U);
+        memory.Write32(kPlayer + 0x1224U, 0U);
+        memory.Write8(kPlayer + 0x12BCU, 0U);
+        memory.Write8(kPlayer + 0x2278U, 2U); // ledgeClimbType = 2 (subindo em parapeito/borda)
+        memory.Write16(kPlayer + 0x0090U, 0x0001U); // ground flag
+
+        bool sprinting = ApplyGuestPlayerSprint(memory, sprint, true, true, 90.0f, 0.0f, dt);
+        Require(!sprinting, "Must not sprint while climbing up a ledge");
+        Require(sprint.State() == PlayerSprintState::Idle, "Must stay Idle during ledge climbing");
+    }
+
+    // Teste 18: Link bate na parede durante o rolamento (RollWaiting cancelado na hora, corrida NÃO inicia)
+    {
+        MockMemoryBus memory;
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+
+        const uint32_t kPauseRoot = 0x005043D4U;
+        const uint32_t kPlayState = 0x10000000U;
+        const uint32_t kPlayer = 0x10002000U;
+
+        memory.Write32(kPauseRoot + 0x0CU, kPlayState);
+        memory.Write32(kPlayState + 0x20ACU, kPlayer);
+        memory.Write32(kPlayer + 0x1710U, 0U);
+        memory.Write32(kPlayer + 0x1714U, 0U);
+        memory.Write32(kPlayer + 0x1224U, 0U);
+        memory.Write8(kPlayer + 0x12BCU, 0U);
+        memory.Write16(kPlayer + 0x0090U, 0x0001U); // no chão, sem parede inicialmente
+        memory.Write32(kPlayer + 0x0078U, 0U);      // wallPoly nulo
+
+        const float initialPosX = 100.0f;
+        const float initialPosZ = 200.0f;
+        memory.WriteFloat(kPlayer + 0x0028U, initialPosX);
+        memory.WriteFloat(kPlayer + 0x0030U, initialPosZ);
+        memory.WriteFloat(kPlayer + 0x0060U, 0.0f);
+        memory.WriteFloat(kPlayer + 0x0068U, 5.0f);
+        memory.WriteFloat(kPlayer + 0x006CU, 5.0f);
+        memory.WriteFloat(kPlayer + 0x221CU, 5.0f);
+
+        // Frame 0: Pressiona A e segura para rolar e correr depois
+        ApplyGuestPlayerSprint(memory, sprint, true, true, 0.0f, 100.0f, dt);
+        Require(sprint.State() == PlayerSprintState::RollWaiting, "Must enter RollWaiting when starting roll");
+
+        // Frames 1 a 5: Link rolando em direção à parede
+        for (int f = 1; f < 5; ++f) {
+            ApplyGuestPlayerSprint(memory, sprint, true, false, 0.0f, 100.0f, dt);
+            Require(sprint.State() == PlayerSprintState::RollWaiting, "Must remain RollWaiting before impact");
+        }
+
+        // Frame 6: Link BATE na parede durante o rolamento!
+        memory.Write16(kPlayer + 0x0090U, 0x0009U); // kBgCheckFlagGround | kBgCheckFlagWall
+        memory.Write32(kPlayer + 0x0078U, 0x00223344U); // wallPoly não nulo
+        // A física nativa reage: velocidade vai para 0 ou recuo negativo
+        memory.WriteFloat(kPlayer + 0x006CU, 0.0f);
+        memory.WriteFloat(kPlayer + 0x221CU, -2.0f);
+
+        ApplyGuestPlayerSprint(memory, sprint, true, false, 0.0f, 100.0f, dt);
+        Require(sprint.State() == PlayerSprintState::Idle, "Hitting wall during roll MUST cancel RollWaiting to Idle immediately");
+        Require(!sprint.IsSprinting(), "Must not be sprinting after hitting wall");
+
+        // Frames 7 a 35: Usuário continua segurando A e analógico contra a parede esperando correr
+        for (int f = 7; f < 35; ++f) {
+            bool sprinting = ApplyGuestPlayerSprint(memory, sprint, true, false, 0.0f, 100.0f, dt);
+            Require(!sprinting, "Must NOT start sprinting after hitting wall, even if A is held");
+            Require(sprint.State() == PlayerSprintState::Idle, "Must remain Idle while holding A after bonk");
+        }
+
+        // Garante que a velocidade não foi forçada para corrida plena e a posição não sofreu teleporte
+        const float linVel = memory.ReadFloat(kPlayer + 0x221CU);
+        Require(linVel < 5.0f, "linearVelocity must NOT be boosted to sprint velocity after wall bonk");
+        const float finalPosX = memory.ReadFloat(kPlayer + 0x0028U);
+        const float finalPosZ = memory.ReadFloat(kPlayer + 0x0030U);
+        Require(finalPosX == initialPosX, "Link posX must not slide into wall");
+        Require(finalPosZ == initialPosZ, "Link posZ must not slide into wall");
+    }
+
+    // Teste 19: Link bate em obstáculo e senta no chão ao terminar rolamento (bonk/sitting recoil)
+    {
+        MockMemoryBus memory;
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+
+        const uint32_t kPauseRoot = 0x005043D4U;
+        const uint32_t kPlayState = 0x10000000U;
+        const uint32_t kPlayer = 0x10002000U;
+
+        memory.Write32(kPauseRoot + 0x0CU, kPlayState);
+        memory.Write32(kPlayState + 0x20ACU, kPlayer);
+        memory.Write32(kPlayer + 0x1710U, 0U);
+        memory.Write32(kPlayer + 0x1714U, 0U);
+        memory.Write32(kPlayer + 0x1224U, 0U);
+        memory.Write8(kPlayer + 0x12BCU, 0U);
+        memory.Write16(kPlayer + 0x0090U, 0x0001U);
+        memory.WriteFloat(kPlayer + 0x006CU, 5.0f);
+        memory.WriteFloat(kPlayer + 0x221CU, 5.0f);
+
+        // Inicia rolamento
+        ApplyGuestPlayerSprint(memory, sprint, true, true, 0.0f, 100.0f, dt);
+
+        // Rola até quase o fim (frame 21 = 0.70s)
+        for (int f = 1; f < 22; ++f) {
+            ApplyGuestPlayerSprint(memory, sprint, true, false, 0.0f, 100.0f, dt);
+        }
+
+        // No fim do rolamento (frame 22 e 23), Link bateu em algo e está sentado no chão!
+        // (speedXZ = 0.0f, linearVelocity = 0.0f, colisão de parede ativa)
+        memory.Write16(kPlayer + 0x0090U, 0x0009U); // kBgCheckFlagWall
+        memory.Write32(kPlayer + 0x0078U, 0x00112233U);
+        memory.WriteFloat(kPlayer + 0x006CU, 0.0f);
+        memory.WriteFloat(kPlayer + 0x221CU, 0.0f);
+
+        // Frame 23 (>= 0.75s): Rolamento finaliza enquanto Link está sentado/bonked contra parede
+        bool sprinting = ApplyGuestPlayerSprint(memory, sprint, true, false, 0.0f, 100.0f, dt);
+        Require(!sprinting, "Link must NOT sprint when finishing roll against a wall / sitting down");
+        Require(sprint.State() == PlayerSprintState::Idle, "Must drop to Idle instead of Sprinting");
+
+        // Verifica que linearVelocity e speedXZ NÃO foram sobrescritos com 5.66f * multiplier
+        const float linVel = memory.ReadFloat(kPlayer + 0x221CU);
+        const float speedXZ = memory.ReadFloat(kPlayer + 0x006CU);
+        Require(linVel == 0.0f, "linearVelocity must stay 0.0f so Link does not slide while sitting on the ground");
+        Require(speedXZ == 0.0f, "speedXZ must stay 0.0f so Link does not slide while sitting on the ground");
+    }
+
+    // Teste 20: Link colide com parede enquanto já está em velocidade plena de corrida
+    {
+        MockMemoryBus memory;
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+
+        const uint32_t kPauseRoot = 0x005043D4U;
+        const uint32_t kPlayState = 0x10000000U;
+        const uint32_t kPlayer = 0x10002000U;
+
+        memory.Write32(kPauseRoot + 0x0CU, kPlayState);
+        memory.Write32(kPlayState + 0x20ACU, kPlayer);
+        memory.Write32(kPlayer + 0x1710U, 0U);
+        memory.Write32(kPlayer + 0x1714U, 0U);
+        memory.Write32(kPlayer + 0x1224U, 0U);
+        memory.Write8(kPlayer + 0x12BCU, 0U);
+        memory.Write16(kPlayer + 0x0090U, 0x0001U);
+        memory.WriteFloat(kPlayer + 0x006CU, 5.0f);
+        memory.WriteFloat(kPlayer + 0x221CU, 5.0f);
+
+        // Inicia e atinge velocidade plena de corrida
+        for (int f = 0; f < 30; ++f) {
+            ApplyGuestPlayerSprint(memory, sprint, true, (f == 0), 0.0f, 100.0f, dt);
+        }
+        Require(sprint.IsSprinting(), "Must be sprinting");
+        Require(sprint.SpeedMultiplier() > 1.0f, "Multiplier must be boosted");
+
+        // Link bate de frente na parede durante a corrida
+        memory.Write16(kPlayer + 0x0090U, 0x0009U); // kBgCheckFlagWall
+        memory.Write32(kPlayer + 0x0078U, 0x00998877U);
+        memory.WriteFloat(kPlayer + 0x006CU, 0.0f);
+        memory.WriteFloat(kPlayer + 0x221CU, 0.0f);
+
+        bool sprinting = ApplyGuestPlayerSprint(memory, sprint, true, false, 0.0f, 100.0f, dt);
+        Require(!sprinting, "Sprint must immediately cancel upon wall impact");
+        Require(sprint.State() == PlayerSprintState::Idle, "Must return to Idle");
+        Require(sprint.SpeedMultiplier() == 1.0f, "Speed multiplier must instantly reset to 1.0f");
+    }
+
+    // Teste 21: Flag de knockback / recoil (stateFlags1 & 0x04000000U) invalida sprint
+    {
+        MockMemoryBus memory;
+        PlayerSprintRuntime sprint;
+        const float dt = 1.0f / 30.0f;
+
+        const uint32_t kPauseRoot = 0x005043D4U;
+        const uint32_t kPlayState = 0x10000000U;
+        const uint32_t kPlayer = 0x10002000U;
+
+        memory.Write32(kPauseRoot + 0x0CU, kPlayState);
+        memory.Write32(kPlayState + 0x20ACU, kPlayer);
+        memory.Write32(kPlayer + 0x1710U, 0x04000000U); // kState1KnockbackRecoil
+        memory.Write32(kPlayer + 0x1714U, 0U);
+        memory.Write32(kPlayer + 0x1224U, 0U);
+        memory.Write8(kPlayer + 0x12BCU, 0U);
+        memory.Write16(kPlayer + 0x0090U, 0x0001U);
+        memory.WriteFloat(kPlayer + 0x006CU, 4.0f);
+        memory.WriteFloat(kPlayer + 0x221CU, 4.0f);
+
+        bool sprinting = ApplyGuestPlayerSprint(memory, sprint, true, true, 0.0f, 100.0f, dt);
+        Require(!sprinting, "Must not sprint while in recoil/knockback state");
+        Require(sprint.State() == PlayerSprintState::Idle, "Must stay in Idle");
+    }
+
     std::cout << "All PlayerSprintRuntime tests PASSED!\n";
     return 0;
 }

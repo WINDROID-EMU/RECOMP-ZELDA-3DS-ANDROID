@@ -36,6 +36,7 @@ struct PlayerSprintStatus {
     bool IsPushingBoxes = false;
     bool IsClimbingOrHanging = false;
     bool IsInDialogue = false;
+    bool HitWall = false;
 };
 
 class PlayerSprintRuntime {
@@ -56,7 +57,10 @@ public:
                               float deltaSeconds,
                               bool isGrounded = true,
                               bool isInDialogue = false,
-                              uint32_t stateFlags2 = 0U);
+                              uint32_t stateFlags2 = 0U,
+                              bool isClimbing = false,
+                              bool hitWall = false,
+                              float linearVelocity = 100.0f);
 
     [[nodiscard]] PlayerSprintState State() const noexcept { return mState; }
     [[nodiscard]] float SpeedMultiplier() const noexcept { return mSpeedMultiplier; }
@@ -67,6 +71,11 @@ public:
 
     static bool IsPushingBoxesOrCarrying(uint32_t stateFlags1, uint32_t heldActor) noexcept;
     static bool IsClimbingOrHanging(uint32_t stateFlags1) noexcept;
+    static bool IsClimbingOrHanging(uint32_t stateFlags1,
+                                    uint8_t ledgeClimbType,
+                                    uint16_t bgCheckFlags,
+                                    uint32_t actionFunc = 0U,
+                                    uint32_t animIndex = 0U) noexcept;
     static bool IsInDialogueOrCutscene(uint32_t stateFlags1, uint8_t cutsceneAction, bool isInDialogue) noexcept;
 
 private:

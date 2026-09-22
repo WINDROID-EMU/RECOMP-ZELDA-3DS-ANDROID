@@ -3100,6 +3100,9 @@ target_link_libraries(oot3d_native_game_runtime PUBLIC
     oot3d_native_audio
     oot3d_native_a32_process
 )
+if (ANDROID)
+    target_link_libraries(oot3d_native_game_runtime PUBLIC log)
+endif()
 if(TARGET oot3d_native_math)
     target_link_libraries(oot3d_native_game_runtime PUBLIC oot3d_native_math)
 endif()
