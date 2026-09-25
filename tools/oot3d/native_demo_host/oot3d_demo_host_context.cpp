@@ -19,8 +19,35 @@
 #include "ship/config/ConsoleVariable.h"
 #include "ship/controller/physicaldevice/ConnectedPhysicalDeviceManager.h"
 #include "ship/resource/ResourceLoader.h"
+#include "fast/oot3d/graphics_settings_persistence.h"
+#include "fast/oot3d/graphics_settings_runtime.h"
+#include "oot3d/renderer/azahar_texture_pack.h"
+#include <nlohmann/json.hpp>
+
+#if defined(__ANDROID__)
+#include <android/log.h>
+#endif
 
 namespace {
+
+class Oot3dHostGraphicsSettingsPersistence final
+    : public Fast::Oot3d::GraphicsSettingsPersistencePort {
+  public:
+    bool LoadRoot(nlohmann::json& root) override {
+        auto* context = Ship::Context::GetRawInstance();
+        if (context == nullptr || context->GetConfig() == nullptr) {
+            return false;
+        }
+        root = context->GetConfig()->GetNestedJson();
+        return true;
+    }
+
+    bool StoreGraphics(const nlohmann::json& graphics) override {
+        auto* context = Ship::Context::GetRawInstance();
+        return context != nullptr && context->GetConfig() != nullptr &&
+            context->GetConfig()->SetBlock("Graphics", graphics);
+    }
+};
 
 std::string ResolveHostResourcePath(const std::filesystem::path& path) {
     const std::string encoded = path.generic_string();
@@ -61,6 +88,8 @@ void InitContextForDemo(const Args& args) {
     if (!context->InitLogging() || !context->InitConfiguration() || !context->InitConsoleVariables()) {
         throw std::runtime_error("failed to initialize base runtime/three_ds_recomp context services");
     }
+    Fast::Oot3d::InstallGraphicsSettingsPersistencePort(
+        std::make_shared<Oot3dHostGraphicsSettingsPersistence>());
     if (args.ThroughputBenchmark) {
         context->GetConsoleVariables()->SetInteger(CVAR_VSYNC_ENABLED, 0);
     }
@@ -133,6 +162,34 @@ void InitContextForDemo(const Args& args) {
     }
     RecordSwitchHostInitStage("host_audio");
     window->SetCursorVisibility(true);
+
+    try {
+        if (context != nullptr && context->GetConfig() != nullptr) {
+            nlohmann::json root = context->GetConfig()->GetNestedJson();
+            auto& runtime = Fast::Oot3d::GraphicsSettingsRuntime::Instance();
+            const auto loaded = Fast::Oot3d::LoadGraphicsSettingsConfig(root, runtime.Snapshot());
+            if (loaded.Found && !loaded.UnsupportedFutureVersion) {
+                runtime.Apply(loaded.Value, false);
+                ::Oot3d::Renderer::AzaharTexturePackRuntime::Instance().Configure({
+                    .DumpTextures = loaded.Value.TexturePacks.Azahar.DumpTextures,
+                    .LoadCustomTextures = loaded.Value.TexturePacks.Azahar.LoadCustomTextures,
+                    .LoadDirectory = loaded.Value.TexturePacks.Azahar.LoadDirectory,
+                    .DumpDirectory = loaded.Value.TexturePacks.Azahar.DumpDirectory,
+                });
+#if defined(__ANDROID__)
+                __android_log_print(
+                    ANDROID_LOG_INFO, "TriAevum",
+                    "Initial graphics settings loaded at boot (custom textures: %d, dir: %s)",
+                    loaded.Value.TexturePacks.Azahar.LoadCustomTextures,
+                    loaded.Value.TexturePacks.Azahar.LoadDirectory.c_str());
+#endif
+            }
+        }
+    } catch (const std::exception& e) {
+#if defined(__ANDROID__)
+        __android_log_print(ANDROID_LOG_ERROR, "TriAevum", "Failed to apply initial graphics settings at boot: %s", e.what());
+#endif
+    }
 }
 
 void DestroyContextForDemo() noexcept {
