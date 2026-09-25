@@ -297,8 +297,8 @@ public class WindroidVirtualControllerView extends View {
         // Exact Windroid-emu base layout on 2400x1080 canvas
         addButton(A_BUTTON, 2065F, 910F, 180F, SHAPE_CIRCLE);
         addButton(B_BUTTON, 2205F, 735F, 180F, SHAPE_CIRCLE);
-        addButton(X_BUTTON, 1925F, 735F, 180F, SHAPE_CIRCLE);
-        addButton(Y_BUTTON, 2065F, 560F, 180F, SHAPE_CIRCLE);
+        addButton(X_BUTTON, 2065F, 560F, 180F, SHAPE_CIRCLE); // Topo  (padrão Nintendo: X em cima)
+        addButton(Y_BUTTON, 1925F, 735F, 180F, SHAPE_CIRCLE); // Esquerda (padrão Nintendo: Y à esquerda)
         addButton(START_BUTTON, 1330F, 980F, 130F, SHAPE_CIRCLE);
         addButton(SELECT_BUTTON, 1120F, 980F, 130F, SHAPE_CIRCLE);
 
