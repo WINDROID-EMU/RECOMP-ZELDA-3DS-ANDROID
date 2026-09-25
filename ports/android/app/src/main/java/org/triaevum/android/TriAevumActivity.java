@@ -344,6 +344,10 @@ public final class TriAevumActivity extends Activity {
             //noinspection ResultOfMethodCallIgnored
             fis.read(data);
             org.json.JSONObject j = new org.json.JSONObject(new String(data, java.nio.charset.StandardCharsets.UTF_8));
+            // Se o arquivo não tiver version >= 2 ou canvas_width, deve ser re-exportado com as novas coordenadas widescreen
+            if (j.optInt("version", 1) < 2 || !j.has("canvas_width")) {
+                return false;
+            }
             return j.optBoolean("user_customized", false);
         } catch (Throwable ignored) {
             return false;
@@ -366,32 +370,29 @@ public final class TriAevumActivity extends Activity {
             );
             hudView.layout(0, 0, screenWidth, screenHeight);
 
-            // Compute scaling to 400x240 OoT3D top-screen canvas
+            // Calcula escala widescreen: altura fixa em 240, largura proporcional à proporção real da tela
             float scale = (float) screenHeight / 240.0f;
-            float offsetX = ((float) screenWidth - 400.0f * scale) / 2.0f;
-            float offsetY = 0.0f;
-            if (offsetX < 0) {
-                scale = (float) screenWidth / 400.0f;
-                offsetX = 0.0f;
-                offsetY = ((float) screenHeight - 240.0f * scale) / 2.0f;
-            }
+            float canvasWidth = (float) screenWidth / scale;
+            float canvasHeight = 240.0f;
 
             JSONObject hudJson = new JSONObject();
-            hudJson.put("version", 1);
+            hudJson.put("version", 2);
             hudJson.put("screen_width", screenWidth);
             hudJson.put("screen_height", screenHeight);
+            hudJson.put("canvas_width", canvasWidth);
+            hudJson.put("canvas_height", canvasHeight);
 
-            exportViewToCanvas(hudView, R.id.hud_btn_a, "btn_a", hudJson, scale, offsetX, offsetY);
-            exportViewToCanvas(hudView, R.id.hud_btn_b, "btn_b", hudJson, scale, offsetX, offsetY);
-            exportViewToCanvas(hudView, R.id.hud_btn_x, "btn_x", hudJson, scale, offsetX, offsetY);
-            exportViewToCanvas(hudView, R.id.hud_btn_y, "btn_y", hudJson, scale, offsetX, offsetY);
-            exportViewToCanvas(hudView, R.id.hud_btn_zr, "btn_zr", hudJson, scale, offsetX, offsetY);
-            exportViewToCanvas(hudView, R.id.hud_btn_zl, "btn_zl", hudJson, scale, offsetX, offsetY);
-            exportViewToCanvas(hudView, R.id.hud_diamond_cluster, "diamond_cluster", hudJson, scale, offsetX, offsetY);
-            exportViewToCanvas(hudView, R.id.hud_top_left_status, "status", hudJson, scale, offsetX, offsetY);
-            exportViewToCanvas(hudView, R.id.hud_bottom_left_collectibles, "rupees", hudJson, scale, offsetX, offsetY);
-            exportViewToCanvas(hudView, R.id.hud_minimap_container, "minimap", hudJson, scale, offsetX, offsetY);
-            exportViewToCanvas(hudView, R.id.hud_dpad_item_cluster, "dpad_items", hudJson, scale, offsetX, offsetY);
+            exportViewToCanvas(hudView, R.id.hud_btn_a, "btn_a", hudJson, scale, canvasWidth, canvasHeight);
+            exportViewToCanvas(hudView, R.id.hud_btn_b, "btn_b", hudJson, scale, canvasWidth, canvasHeight);
+            exportViewToCanvas(hudView, R.id.hud_btn_x, "btn_x", hudJson, scale, canvasWidth, canvasHeight);
+            exportViewToCanvas(hudView, R.id.hud_btn_y, "btn_y", hudJson, scale, canvasWidth, canvasHeight);
+            exportViewToCanvas(hudView, R.id.hud_btn_zr, "btn_zr", hudJson, scale, canvasWidth, canvasHeight);
+            exportViewToCanvas(hudView, R.id.hud_btn_zl, "btn_zl", hudJson, scale, canvasWidth, canvasHeight);
+            exportViewToCanvas(hudView, R.id.hud_diamond_cluster, "diamond_cluster", hudJson, scale, canvasWidth, canvasHeight);
+            exportViewToCanvas(hudView, R.id.hud_top_left_status, "status", hudJson, scale, canvasWidth, canvasHeight);
+            exportViewToCanvas(hudView, R.id.hud_bottom_left_collectibles, "rupees", hudJson, scale, canvasWidth, canvasHeight);
+            exportViewToCanvas(hudView, R.id.hud_minimap_container, "minimap", hudJson, scale, canvasWidth, canvasHeight);
+            exportViewToCanvas(hudView, R.id.hud_dpad_item_cluster, "dpad_items", hudJson, scale, canvasWidth, canvasHeight);
 
             File targetFile = new File(root, "custom_hud_layout.json");
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(targetFile)) {
@@ -405,7 +406,7 @@ public final class TriAevumActivity extends Activity {
     }
 
     private void exportViewToCanvas(android.view.View root, int viewId, String key, JSONObject out,
-                                    float scale, float offsetX, float offsetY) {
+                                    float scale, float canvasWidth, float canvasHeight) {
         android.view.View target = root.findViewById(viewId);
         if (target == null) return;
         float x = target.getLeft() + target.getTranslationX();
@@ -419,13 +420,14 @@ public final class TriAevumActivity extends Activity {
         float w = target.getWidth() > 0 ? target.getWidth() : target.getMeasuredWidth();
         float h = target.getHeight() > 0 ? target.getHeight() : target.getMeasuredHeight();
 
-        float rawCanvasX = (x - offsetX) / scale;
-        float rawCanvasY = (y - offsetY) / scale;
+        float rawCanvasX = x / scale;
+        float rawCanvasY = y / scale;
         float canvasW = w / scale;
         float canvasH = h / scale;
 
-        float canvasX = Math.max(0.0f, Math.min(400.0f - canvasW, rawCanvasX));
-        float canvasY = Math.max(0.0f, Math.min(240.0f - canvasH, rawCanvasY));
+        // Permite navegação pelas bordas completas da tela widescreen
+        float canvasX = Math.max(0.0f, Math.min(canvasWidth - canvasW, rawCanvasX));
+        float canvasY = Math.max(0.0f, Math.min(canvasHeight - canvasH, rawCanvasY));
 
         try {
             JSONObject obj = new JSONObject();

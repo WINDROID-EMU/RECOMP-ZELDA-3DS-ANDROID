@@ -45,6 +45,8 @@ public final class HudLayoutEditorOverlay extends FrameLayout {
     private int mScreenWidth;
     private int mScreenHeight;
     private float mScale;
+    private float mCanvasWidth;
+    private float mCanvasHeight;
     private float mOffsetX;
     private float mOffsetY;
 
@@ -66,15 +68,12 @@ public final class HudLayoutEditorOverlay extends FrameLayout {
         mScreenWidth = Math.max(dm.widthPixels, dm.heightPixels);
         mScreenHeight = Math.min(dm.widthPixels, dm.heightPixels);
 
-        // Calcula escala para o canvas virtual 400x240 do OoT3D
+        // Calcula escala para o canvas virtual widescreen do OoT3D (altura base 240, largura proporcional à tela cheia)
         mScale = (float) mScreenHeight / 240.0f;
-        mOffsetX = ((float) mScreenWidth - 400.0f * mScale) / 2.0f;
+        mCanvasWidth = (float) mScreenWidth / mScale;
+        mCanvasHeight = 240.0f;
+        mOffsetX = 0.0f;
         mOffsetY = 0.0f;
-        if (mOffsetX < 0) {
-            mScale = (float) mScreenWidth / 400.0f;
-            mOffsetX = 0.0f;
-            mOffsetY = ((float) mScreenHeight - 240.0f * mScale) / 2.0f;
-        }
 
         // Infla o layout visual do HUD
         mHudView = LayoutInflater.from(getContext()).inflate(R.layout.hud_gameplay_layout, this, false);
@@ -310,8 +309,8 @@ public final class HudLayoutEditorOverlay extends FrameLayout {
             float canvasX = (float) obj.getDouble("x");
             float canvasY = (float) obj.getDouble("y");
 
-            float targetPixelX = canvasX * mScale + mOffsetX;
-            float targetPixelY = canvasY * mScale + mOffsetY;
+            float targetPixelX = canvasX * mScale;
+            float targetPixelY = canvasY * mScale;
 
             // Calcula o deslocamento necessário em relação à posição original do layout
             float curLeft = getAbsoluteViewLeft(target) - target.getTranslationX();
@@ -346,9 +345,11 @@ public final class HudLayoutEditorOverlay extends FrameLayout {
     private void saveHudLayout() {
         try {
             JSONObject hudJson = new JSONObject();
-            hudJson.put("version", 1);
+            hudJson.put("version", 2);
             hudJson.put("screen_width", mScreenWidth);
             hudJson.put("screen_height", mScreenHeight);
+            hudJson.put("canvas_width", mCanvasWidth);
+            hudJson.put("canvas_height", mCanvasHeight);
 
             exportViewToCanvas(R.id.hud_btn_a, "btn_a", hudJson);
             exportViewToCanvas(R.id.hud_btn_b, "btn_b", hudJson);
@@ -393,13 +394,14 @@ public final class HudLayoutEditorOverlay extends FrameLayout {
         float w = target.getWidth() > 0 ? target.getWidth() : target.getMeasuredWidth();
         float h = target.getHeight() > 0 ? target.getHeight() : target.getMeasuredHeight();
 
-        float rawCanvasX = (x - mOffsetX) / mScale;
-        float rawCanvasY = (y - mOffsetY) / mScale;
+        float rawCanvasX = x / mScale;
+        float rawCanvasY = y / mScale;
         float canvasW = w / mScale;
         float canvasH = h / mScale;
 
-        float canvasX = Math.max(0.0f, Math.min(400.0f - canvasW, rawCanvasX));
-        float canvasY = Math.max(0.0f, Math.min(240.0f - canvasH, rawCanvasY));
+        // Permite navegação pelas bordas completas da tela widescreen
+        float canvasX = Math.max(0.0f, Math.min(mCanvasWidth - canvasW, rawCanvasX));
+        float canvasY = Math.max(0.0f, Math.min(mCanvasHeight - canvasH, rawCanvasY));
 
         try {
             JSONObject obj = new JSONObject();

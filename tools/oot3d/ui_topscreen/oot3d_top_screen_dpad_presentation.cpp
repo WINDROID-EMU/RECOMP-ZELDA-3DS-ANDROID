@@ -1,5 +1,6 @@
 #include "oot3d_top_screen_dpad_presentation.h"
 #include "oot3d_top_screen_items_hint.h"
+#include "oot3d_top_screen_mod_profile.h"
 
 #include "oot3d_native_a32_memory.h"
 #include "oot3d_ui/ui_contract_types.h"
@@ -139,15 +140,39 @@ std::size_t AppendTopScreenDpadPresentation(
       p.color.alpha *= state.ItemOpacity.ItemZl;
     else if (actions[direction] == TopScreenDpadAction::Ocarina)
       p.color.alpha *= state.ItemOpacity.Ocarina;
-    p.destination = {kCenterX[direction] - kIconSize / 2,
-                     kCenterY[direction] - kIconSize / 2, kIconSize, kIconSize};
+
+    float curCenterX = kCenterX[direction];
+    float curCenterY = kCenterY[direction];
+    const auto *custom = GetTopScreenCustomHudLayout();
+    if (custom != nullptr && custom->DpadItems.Valid) {
+      const float dpadX = custom->DpadItems.X;
+      const float dpadY = custom->DpadItems.Y;
+      const float dpadW = custom->DpadItems.Width;
+      const float dpadH = custom->DpadItems.Height;
+      if (direction == 0) { // Up
+        curCenterX = dpadX + dpadW * 0.5F;
+        curCenterY = dpadY + dpadH * (18.0F / 108.0F);
+      } else if (direction == 1) { // Down
+        curCenterX = dpadX + dpadW * 0.5F;
+        curCenterY = dpadY + dpadH * (90.0F / 108.0F);
+      } else if (direction == 2) { // Left
+        curCenterX = dpadX + dpadW * (18.0F / 108.0F);
+        curCenterY = dpadY + dpadH * 0.5F;
+      } else if (direction == 3) { // Right
+        curCenterX = dpadX + dpadW * (90.0F / 108.0F);
+        curCenterY = dpadY + dpadH * 0.5F;
+      }
+    }
+
+    p.destination = {curCenterX - kIconSize / 2,
+                     curCenterY - kIconSize / 2, kIconSize, kIconSize};
     if (actions[direction] == TopScreenDpadAction::View) {
       const auto q =
           BuildTopScreenAuxiliaryTouchGeometry(viewState, {}, alpha).Quads[4];
       p.texture = pauseTopPage;
       // Retain native view/gyro/telescope variants and move their anchor only.
-      p.destination = {q.Position.X + kCenterX[direction] - kCenterX[0],
-                       q.Position.Y + kCenterY[direction] - kCenterY[0],
+      p.destination = {q.Position.X + curCenterX - kCenterX[0],
+                       q.Position.Y + curCenterY - kCenterY[0],
                        q.Size.X, q.Size.Y};
       p.uv = {q.AtlasOrigin.X / 512, q.AtlasOrigin.Y / 256, q.AtlasSize.X / 512,
               q.AtlasSize.Y / 256};
@@ -185,8 +210,32 @@ std::size_t AppendTopScreenDpadPresentation(
     p.texture.semantic_name = kTopScreen211MenuAtlasSemantic;
     p.color = {1, 1, 1, std::clamp(alpha, 0.0F, 1.0F)};
     const float shift = action == TopScreenDpadAction::SwordToggle && direction < 2 ? 2.0F : 0.0F;
-    p.destination = {kCenterX[direction] - 7.0F + shift,
-                     kCenterY[direction] - 8.0F, 14.0F, 14.0F};
+
+    float curCenterX = kCenterX[direction];
+    float curCenterY = kCenterY[direction];
+    const auto *custom = GetTopScreenCustomHudLayout();
+    if (custom != nullptr && custom->DpadItems.Valid) {
+      const float dpadX = custom->DpadItems.X;
+      const float dpadY = custom->DpadItems.Y;
+      const float dpadW = custom->DpadItems.Width;
+      const float dpadH = custom->DpadItems.Height;
+      if (direction == 0) {
+        curCenterX = dpadX + dpadW * 0.5F;
+        curCenterY = dpadY + dpadH * (18.0F / 108.0F);
+      } else if (direction == 1) {
+        curCenterX = dpadX + dpadW * 0.5F;
+        curCenterY = dpadY + dpadH * (90.0F / 108.0F);
+      } else if (direction == 2) {
+        curCenterX = dpadX + dpadW * (18.0F / 108.0F);
+        curCenterY = dpadY + dpadH * 0.5F;
+      } else if (direction == 3) {
+        curCenterX = dpadX + dpadW * (90.0F / 108.0F);
+        curCenterY = dpadY + dpadH * 0.5F;
+      }
+    }
+
+    p.destination = {curCenterX - 7.0F + shift,
+                     curCenterY - 8.0F, 14.0F, 14.0F};
     p.uv = {458.0F / 512, 2.0F / 512, 40.0F / 512, 40.0F / 512};
     output.push_back(std::move(p));
   }

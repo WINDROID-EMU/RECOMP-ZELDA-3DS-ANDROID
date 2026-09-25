@@ -76,7 +76,8 @@ class N64UiFast3dRenderer {
     bool Render(std::span<const UiPrimitive> primitives,
                 std::uint32_t framebufferWidth,
                 std::uint32_t framebufferHeight, N64UiCanvasMode canvasMode,
-                std::string* error = nullptr);
+                std::string* error = nullptr,
+                float customCanvasWidth = 0.0F);
     void SetTextureProvider(const UiTextureProvider* textureProvider) noexcept;
     void Release() noexcept;
 

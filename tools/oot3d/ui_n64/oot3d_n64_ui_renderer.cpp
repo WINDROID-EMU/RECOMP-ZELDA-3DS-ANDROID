@@ -251,7 +251,8 @@ bool N64UiFast3dRenderer::Render(std::span<const UiPrimitive> primitives,
                                 std::uint32_t framebufferWidth,
                                 std::uint32_t framebufferHeight,
                                 N64UiCanvasMode canvasMode,
-                                std::string* error) {
+                                std::string* error,
+                                float customCanvasWidth) {
     ++stats_.frames;
     stats_.primitives_received += primitives.size();
     if (primitives.empty()) {
@@ -273,11 +274,13 @@ bool N64UiFast3dRenderer::Render(std::span<const UiPrimitive> primitives,
     const std::uint32_t height =
         std::max<std::uint32_t>(1U, framebufferHeight);
     const float canvasWidth =
-        canvasMode == N64UiCanvasMode::NativeTopScreen400x240
-            ? kNativeTopScreenCanvasWidth
-            : canvasMode == N64UiCanvasMode::NativeLowerScreen320x240
-                  ? kNativeLowerScreenCanvasWidth
-                  : kWidescreenCanvasWidth;
+        customCanvasWidth > 0.0F
+            ? customCanvasWidth
+            : canvasMode == N64UiCanvasMode::NativeTopScreen400x240
+                  ? kNativeTopScreenCanvasWidth
+                  : canvasMode == N64UiCanvasMode::NativeLowerScreen320x240
+                        ? kNativeLowerScreenCanvasWidth
+                        : kWidescreenCanvasWidth;
     const auto viewport = Oot3d::Renderer::FitUiPresentationViewport(
         width, height, canvasWidth, kCanvasHeight);
     if (!rendering_api_.PrepareUiOverlay(

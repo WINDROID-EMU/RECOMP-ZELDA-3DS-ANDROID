@@ -87,6 +87,15 @@ const TopScreenCustomHudLayout *GetTopScreenCustomHudLayout() noexcept {
             parseElem(j, "rupees", sLayout.Rupees);
             parseElem(j, "minimap", sLayout.Minimap);
             parseElem(j, "dpad_items", sLayout.DpadItems);
+            sLayout.CanvasWidth = j.value("canvas_width", 400.0F);
+            sLayout.CanvasHeight = j.value("canvas_height", 240.0F);
+            if (sLayout.CanvasWidth <= 0.0F && j.contains("screen_width") && j.contains("screen_height")) {
+              const float sw = j.value("screen_width", 400.0F);
+              const float sh = j.value("screen_height", 240.0F);
+              if (sh > 0.0F) {
+                sLayout.CanvasWidth = 240.0F * (sw / sh);
+              }
+            }
             sLayout.Loaded = true;
           } catch (...) {}
         }
@@ -1041,8 +1050,13 @@ TopScreenTouchClusterGeometry BuildTopScreenTouchClusterGeometry(
   result.AtlasSizes[4] = {48.0F, 48.0F};
   result.Alpha[4] = 1.0F;
 
-  result.Positions[5] = {14.0F, 52.0F};
-  result.Sizes[5] = {30.0F, 30.0F};
+  if (custom != nullptr && custom->BtnB.Valid) {
+    result.Positions[5] = TopScreenVec2{custom->BtnB.X, custom->BtnB.Y};
+    result.Sizes[5] = {custom->BtnB.Width, custom->BtnB.Height};
+  } else {
+    result.Positions[5] = {14.0F, 52.0F};
+    result.Sizes[5] = {30.0F, 30.0F};
+  }
   result.AtlasOrigins[5] = {432.0F, 218.0F};
   result.AtlasSizes[5] = {30.0F, 30.0F};
   result.Alpha[5] = nativeAlpha;
@@ -2181,14 +2195,18 @@ bool AppendTopScreenNativeTouchCopies(
                 (positions[vertex * 3U + 1U] - localCenterY) * contract.Scale};
       }
     } else {
-      const float destinationX =
-          restoration && contractIndex < 2U
-              ? 339.0F
-              : static_cast<float>(contract.DestinationX);
-      const float destinationY =
-          restoration && contractIndex < 2U
-              ? 55.0F
-              : static_cast<float>(contract.DestinationY);
+      float destinationX = static_cast<float>(contract.DestinationX);
+      float destinationY = static_cast<float>(contract.DestinationY);
+      if (restoration && contractIndex < 2U) {
+        destinationX = 339.0F;
+        destinationY = 55.0F;
+      } else if (custom != nullptr && custom->Rupees.Valid && contractIndex == 2U) {
+        destinationX = custom->Rupees.X;
+        destinationY = custom->Rupees.Y;
+      } else if (custom != nullptr && custom->Rupees.Valid && contractIndex == 3U) {
+        destinationX = custom->Rupees.X - 2.0F;
+        destinationY = custom->Rupees.Y - 20.0F;
+      }
       for (std::size_t vertex = 0; vertex < transformed.size(); ++vertex) {
         transformed[vertex] = {
             destinationX +
@@ -2253,6 +2271,14 @@ bool AppendTopScreenNativeTouchCopies(
 
 void ApplyTopScreenGameplayCanvas(
     std::span<oot3d::ui::UiPrimitive> primitives) noexcept {
+  const auto *custom = GetTopScreenCustomHudLayout();
+  const float canvasWidth = (custom != nullptr && custom->CanvasWidth > 0.0F)
+                                ? custom->CanvasWidth
+                                : kNativeTopScreenWidth;
+  const float canvasHeight = (custom != nullptr && custom->CanvasHeight > 0.0F)
+                                 ? custom->CanvasHeight
+                                 : kNativeTopScreenHeight;
+
   const auto clipAxis = [](float minimum, float maximum, float *position,
                            float *extent, float *uvPosition,
                            float *uvExtent) noexcept {
@@ -2278,10 +2304,10 @@ void ApplyTopScreenGameplayCanvas(
 
   for (auto &primitive : primitives) {
     if (!primitive.visible ||
-        !clipAxis(0.0F, kNativeTopScreenWidth, &primitive.destination.x,
+        !clipAxis(0.0F, canvasWidth, &primitive.destination.x,
                   &primitive.destination.width, &primitive.uv.x,
                   &primitive.uv.width) ||
-        !clipAxis(0.0F, kNativeTopScreenHeight, &primitive.destination.y,
+        !clipAxis(0.0F, canvasHeight, &primitive.destination.y,
                   &primitive.destination.height, &primitive.uv.y,
                   &primitive.uv.height)) {
       primitive.visible = false;
@@ -2293,6 +2319,10 @@ void ApplyTopScreenGameplayCanvas(
 void ApplyTopScreenHudScale(
     std::span<oot3d::ui::UiPrimitive> primitives,
     const TopScreenUiConfig &config) noexcept {
+  const auto *custom = GetTopScreenCustomHudLayout();
+  if (custom != nullptr && custom->Loaded) {
+    return;
+  }
   const float scale = config.HudScale;
   const float marginX = static_cast<float>(config.HudMarginX);
   const float marginY = static_cast<float>(config.HudMarginY);
@@ -3068,9 +3098,13 @@ bool ApplyTopScreenPauseProjection(NativeA32Memory &memory,
     nativeOffsetY -= 3000.0F;
     state.MapY.OriginalBits = std::bit_cast<std::uint32_t>(nativeOffsetY);
   }
+  const auto *custom = GetTopScreenCustomHudLayout();
   const float maximumExtent = std::max(extentA, extentB);
   float projectedOffsetX = nativeOffsetX;
-  if (maximumExtent - std::min(extentA, extentB) > 0.0F) {
+  if (custom != nullptr && custom->Minimap.Valid) {
+    projectedOffsetX = custom->Minimap.X;
+    state.OffsetX = custom->Minimap.X - nativeOffsetX;
+  } else if (maximumExtent - std::min(extentA, extentB) > 0.0F) {
     const float rightEdge = secondaryLayer == 1U ? 425.0F : 438.0F;
     const float configuredMargin = config != nullptr
                                        ? static_cast<float>(config->HudMarginX)
@@ -3081,6 +3115,10 @@ bool ApplyTopScreenPauseProjection(NativeA32Memory &memory,
     projectedOffsetX = nativeOffsetX + state.OffsetX;
   }
   float projectedOffsetY = nativeOffsetY;
+  if (custom != nullptr && custom->Minimap.Valid) {
+    projectedOffsetY = custom->Minimap.Y;
+    state.OffsetY = custom->Minimap.Y - nativeOffsetY;
+  }
   if (!state.AlternatePage) {
     projectedOffsetY += 3000.0F;
     state.OffsetY = 3000.0F;
@@ -3147,6 +3185,21 @@ bool ApplyTopScreenPauseProjection(NativeA32Memory &memory,
         if (error != nullptr)
           *error = "cannot write minimap indicator position";
         return false;
+      }
+
+      if (custom != nullptr && custom->Minimap.Valid) {
+        const std::uint32_t addressY = address + 4U;
+        std::uint32_t currentBitsY = 0U;
+        if (memory.Read32(addressY, &currentBitsY)) {
+          auto &trackedY = state.IconY[group * 64U + index];
+          const float originalY = recoverOriginal(trackedY, addressY, currentBitsY);
+          if (originalY < 240.0F) {
+            const float projectedY =
+                state.AlternatePage ? originalY + state.OffsetY : 240.0F;
+            trackedY.LastWrittenBits = std::bit_cast<std::uint32_t>(projectedY);
+            (void)memory.Write32(addressY, trackedY.LastWrittenBits);
+          }
+        }
       }
     }
   }

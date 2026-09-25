@@ -208,6 +208,8 @@ struct TopScreenCustomHudElement {
 
 struct TopScreenCustomHudLayout {
   bool Loaded = false;
+  float CanvasWidth = 400.0F;
+  float CanvasHeight = 240.0F;
   TopScreenCustomHudElement BtnA;
   TopScreenCustomHudElement BtnB;
   TopScreenCustomHudElement BtnX;
@@ -505,6 +507,7 @@ struct TopScreenPauseProjectionState {
   TrackedPosition MapX;
   TrackedPosition MapY;
   std::array<TrackedPosition, 4U * 64U> IconX;
+  std::array<TrackedPosition, 4U * 64U> IconY;
 };
 
 struct TopScreenSystemMenuLayerStats {

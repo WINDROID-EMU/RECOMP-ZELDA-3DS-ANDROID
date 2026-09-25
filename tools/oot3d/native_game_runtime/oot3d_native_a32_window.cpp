@@ -6200,8 +6200,19 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
           : topScreenPresentation
               ? oot3d::ui::N64UiCanvasMode::NativeTopScreen400x240
               : oot3d::ui::N64UiCanvasMode::Widescreen16x9;
+
+      float customCanvasWidth = 0.0F;
+      if (topScreenPresentation && subsystem != oot3d::ui::UiSubsystem::TouchControls) {
+        const auto *custom = Oot3dNativeGame::GetTopScreenCustomHudLayout();
+        if (custom != nullptr && custom->Loaded && custom->CanvasWidth > 0.0F) {
+          customCanvasWidth = custom->CanvasWidth;
+        } else {
+          customCanvasWidth = 240.0F * (static_cast<float>(width) / static_cast<float>(height));
+        }
+      }
+
       if (!n64UiRenderer.Render(primitives, width, height, canvasMode,
-                                &error)) {
+                                &error, customCanvasWidth)) {
         // A missing or unrecognized UI texture semantic (e.g. during the
         // in-game pause menu) is non-fatal: skip this subsystem this frame
         // rather than killing the game loop entirely.
