@@ -633,14 +633,22 @@ void GfxRenderingAPIVulkan::DrawTriangles(float bufVbo[], size_t bufVboLen, size
     auto& frame = mFrameResources[mCurrentFrame];
     const VkDeviceSize byteCount = static_cast<VkDeviceSize>(bufVboLen * sizeof(float));
     const VkDeviceSize alignedOffset = (frame.VertexBytesUsed + 15) & ~VkDeviceSize(15);
-    if (alignedOffset + byteCount > frame.VertexBuffer.Size) {
-        throw std::runtime_error("OOT3D Vulkan per-frame vertex arena exhausted");
+    if (alignedOffset + byteCount <= frame.VertexBuffer.Size) {
+        std::memcpy(static_cast<uint8_t*>(frame.VertexBuffer.Mapped) + alignedOffset, bufVbo,
+                    static_cast<size_t>(byteCount));
+        frame.VertexBytesUsed = alignedOffset + byteCount;
+        DrawTrianglesFromBuffer(frame.VertexBuffer.Buffer, alignedOffset, bufVboLen, bufVboNumTris);
+    } else {
+        auto fallbackVbo = CreateBuffer(
+            byteCount,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            true);
+        std::memcpy(fallbackVbo.Mapped, bufVbo, static_cast<size_t>(byteCount));
+        const VkBuffer bufferHandle = fallbackVbo.Buffer;
+        frame.TemporaryStagingBuffers.push_back(fallbackVbo);
+        DrawTrianglesFromBuffer(bufferHandle, 0, bufVboLen, bufVboNumTris);
     }
-    std::memcpy(static_cast<uint8_t*>(frame.VertexBuffer.Mapped) + alignedOffset, bufVbo,
-                static_cast<size_t>(byteCount));
-    frame.VertexBytesUsed = alignedOffset + byteCount;
-
-    DrawTrianglesFromBuffer(frame.VertexBuffer.Buffer, alignedOffset, bufVboLen, bufVboNumTris);
 }
 
 void GfxRenderingAPIVulkan::DrawTrianglesFromBuffer(VkBuffer vertexBuffer, VkDeviceSize vertexOffset, size_t bufVboLen,
@@ -1483,6 +1491,7 @@ void GfxRenderingAPIVulkan::StartFrame() {
     mRigidMotionOccurrencesThisFrame.clear();
     mNativePicaDepthWritingDrawsThisFrame = 0;
     mCustomTextureUploadBytesThisFrame = 0;
+    mCustomTexturePromotionsThisFrame = 0;
     if (mFrameCounter > 3U) {
         Oot3d::GrassSceneBridge::Instance().PruneBeforeFrame(mFrameCounter - 2U);
         mRigidMotionTracker.PruneBeforeFrame(mFrameCounter - 2U);
@@ -2147,17 +2156,29 @@ bool GfxRenderingAPIVulkan::DrawOot3dShadow2dDepthEncodedTriangles(float bufVbo[
     auto& frame = mFrameResources[mCurrentFrame];
     const VkDeviceSize byteCount = static_cast<VkDeviceSize>(bufVboLen * sizeof(float));
     const VkDeviceSize alignedOffset = (frame.VertexBytesUsed + 15) & ~VkDeviceSize(15);
-    if (alignedOffset + byteCount > frame.VertexBuffer.Size) {
-        throw std::runtime_error("OOT3D Vulkan Shadow2D vertex arena exhausted");
+    VkBuffer activeVertexBuffer = VK_NULL_HANDLE;
+    VkDeviceSize activeOffset = 0;
+    if (alignedOffset + byteCount <= frame.VertexBuffer.Size) {
+        std::memcpy(static_cast<uint8_t*>(frame.VertexBuffer.Mapped) + alignedOffset, bufVbo,
+                    static_cast<size_t>(byteCount));
+        frame.VertexBytesUsed = alignedOffset + byteCount;
+        activeVertexBuffer = frame.VertexBuffer.Buffer;
+        activeOffset = alignedOffset;
+    } else {
+        auto fallbackVbo = CreateBuffer(
+            byteCount,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            true);
+        std::memcpy(fallbackVbo.Mapped, bufVbo, static_cast<size_t>(byteCount));
+        activeVertexBuffer = fallbackVbo.Buffer;
+        activeOffset = 0;
+        frame.TemporaryStagingBuffers.push_back(fallbackVbo);
     }
-    std::memcpy(static_cast<uint8_t*>(frame.VertexBuffer.Mapped) + alignedOffset, bufVbo,
-                static_cast<size_t>(byteCount));
-    frame.VertexBytesUsed = alignedOffset + byteCount;
 
     VkCommandBuffer commandBuffer = mCommandBuffers[mCurrentFrame];
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mOot3dShadow2dDepthEncodePipeline);
-    const VkBuffer vertexBuffer = frame.VertexBuffer.Buffer;
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, &alignedOffset);
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &activeVertexBuffer, &activeOffset);
     vkCmdSetViewport(commandBuffer, 0, 1, &mViewport);
     vkCmdSetScissor(commandBuffer, 0, 1, &mScissor);
     vkCmdDraw(commandBuffer, static_cast<uint32_t>(bufVboNumTris * 3), 1, 0, 0);

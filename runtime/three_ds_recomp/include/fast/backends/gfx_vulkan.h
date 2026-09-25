@@ -744,6 +744,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI, public Oot3d::TitleR
     ::Fast::Renderer::ExtensionPassSchedulePlan mDirectionalShadowSchedulePlan;
     uint64_t mFrameAzaharTextureGeneration = 0;
     uint64_t mCustomTextureUploadBytesThisFrame = 0;
+    uint32_t mCustomTexturePromotionsThisFrame = 0;
     std::map<std::vector<uint8_t>, VkPipeline> mNativePicaPipelines;
     std::map<NativePicaTextureKey, TextureRecord> mNativePicaTextures;
     std::map<uint64_t, NativePicaLightingLutTexture> mNativePicaLightingLuts;

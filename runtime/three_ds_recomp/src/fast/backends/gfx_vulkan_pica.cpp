@@ -63,8 +63,15 @@
 namespace Fast {
 namespace {
 
+#if defined(__ANDROID__)
 constexpr uint64_t kCustomTextureUploadBudgetBytes =
-    64ULL * 1024ULL * 1024ULL;
+    8ULL * 1024ULL * 1024ULL;
+constexpr uint32_t kCustomTextureMaxPromotionsPerFrame = 1U;
+#else
+constexpr uint64_t kCustomTextureUploadBudgetBytes =
+    32ULL * 1024ULL * 1024ULL;
+constexpr uint32_t kCustomTextureMaxPromotionsPerFrame = 4U;
+#endif
 
 void CheckNativeVk(VkResult result, const char* operation) {
     if (result != VK_SUCCESS) {
@@ -2743,12 +2750,14 @@ GfxRenderingAPIVulkan::GetOrCreateNativePicaTexture(
                     const uint64_t replacementBytes =
                         resolved.Replacement->Rgba8->size();
                     const bool budgetAvailable =
-                        mCustomTextureUploadBytesThisFrame == 0U ||
-                        (mCustomTextureUploadBytesThisFrame <
-                             kCustomTextureUploadBudgetBytes &&
-                         replacementBytes <=
-                             kCustomTextureUploadBudgetBytes -
-                                 mCustomTextureUploadBytesThisFrame);
+                        mCustomTexturePromotionsThisFrame <
+                            kCustomTextureMaxPromotionsPerFrame &&
+                        (mCustomTextureUploadBytesThisFrame == 0U ||
+                         (mCustomTextureUploadBytesThisFrame <
+                              kCustomTextureUploadBudgetBytes &&
+                          replacementBytes <=
+                              kCustomTextureUploadBudgetBytes -
+                                  mCustomTextureUploadBytesThisFrame));
                     if (!budgetAvailable) {
                         return ensureTextureUploaded(found->first, record);
                     }
@@ -2765,6 +2774,7 @@ GfxRenderingAPIVulkan::GetOrCreateNativePicaTexture(
                         if (inserted) {
                             mCustomTextureUploadBytesThisFrame +=
                                 replacementBytes;
+                            mCustomTexturePromotionsThisFrame++;
                         }
                         return promoted;
                     } catch (const std::exception& ex) {
@@ -2924,12 +2934,14 @@ GfxRenderingAPIVulkan::GetOrCreateNativePicaTexture(
                 const uint64_t replacementBytes =
                     replacementResult.Replacement->Rgba8->size();
                 const bool budgetAvailable =
-                    mCustomTextureUploadBytesThisFrame == 0U ||
-                    (mCustomTextureUploadBytesThisFrame <
-                         kCustomTextureUploadBudgetBytes &&
-                     replacementBytes <=
-                         kCustomTextureUploadBudgetBytes -
-                             mCustomTextureUploadBytesThisFrame);
+                    mCustomTexturePromotionsThisFrame <
+                        kCustomTextureMaxPromotionsPerFrame &&
+                    (mCustomTextureUploadBytesThisFrame == 0U ||
+                     (mCustomTextureUploadBytesThisFrame <
+                          kCustomTextureUploadBudgetBytes &&
+                      replacementBytes <=
+                          kCustomTextureUploadBudgetBytes -
+                              mCustomTextureUploadBytesThisFrame));
                 if (budgetAvailable) {
                     bool inserted = false;
                     try {
@@ -2945,6 +2957,7 @@ GfxRenderingAPIVulkan::GetOrCreateNativePicaTexture(
                         if (inserted) {
                             mCustomTextureUploadBytesThisFrame +=
                                 replacementBytes;
+                            mCustomTexturePromotionsThisFrame++;
                         }
                         return promoted;
                     } catch (const std::exception& ex) {
@@ -3115,29 +3128,15 @@ void GfxRenderingAPIVulkan::CreateNativePicaTextureImage(
                 true, mNriPicaTextureUploadPass.LastUploadedBytes());
         } else {
             auto& frame = mFrameResources[mCurrentFrame];
-            const VkDeviceSize uploadOffset =
-                (frame.VertexBytesUsed + 15U) & ~VkDeviceSize(15U);
-            VkBuffer sourceBuffer = VK_NULL_HANDLE;
+            auto stagingBuffer = CreateBuffer(
+                byteCount,
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                true);
+            std::memcpy(stagingBuffer.Mapped, mipPixels.data(), mipPixels.size());
+            VkBuffer sourceBuffer = stagingBuffer.Buffer;
             VkDeviceSize bufferCopyOffset = 0;
-            if (uploadOffset + byteCount <= frame.VertexBuffer.Size) {
-                std::memcpy(
-                    static_cast<uint8_t*>(frame.VertexBuffer.Mapped) +
-                        uploadOffset,
-                    mipPixels.data(), mipPixels.size());
-                frame.VertexBytesUsed = uploadOffset + byteCount;
-                sourceBuffer = frame.VertexBuffer.Buffer;
-                bufferCopyOffset = uploadOffset;
-            } else {
-                auto stagingBuffer = CreateBuffer(
-                    byteCount,
-                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                    true);
-                std::memcpy(stagingBuffer.Mapped, mipPixels.data(), mipPixels.size());
-                sourceBuffer = stagingBuffer.Buffer;
-                bufferCopyOffset = 0;
-                frame.TemporaryStagingBuffers.push_back(stagingBuffer);
-            }
+            frame.TemporaryStagingBuffers.push_back(stagingBuffer);
 
             VkCommandBuffer commandBuffer = mCommandBuffers[mCurrentFrame];
             VkImageMemoryBarrier toTransfer{
@@ -4474,17 +4473,30 @@ bool GfxRenderingAPIVulkan::SubmitPicaDraw(
             cpuTimings.GeometryPersistentDraws = 1U;
         } else {
             geometryBaseOffset = (frame.VertexBytesUsed + 15U) & ~VkDeviceSize(15U);
-            if (geometryBaseOffset + geometry.Payload.size() > frame.VertexBuffer.Size) {
-                throw std::runtime_error("native PICA transient geometry arena exhausted");
+            if (geometryBaseOffset + geometry.Payload.size() <= frame.VertexBuffer.Size) {
+                std::memcpy(static_cast<uint8_t*>(frame.VertexBuffer.Mapped) + geometryBaseOffset, geometry.Payload.data(),
+                            geometry.Payload.size());
+                frame.VertexBytesUsed = geometryBaseOffset + geometry.Payload.size();
+                cpuTimings.GeometryTransientUploadBytes += geometry.Payload.size();
+                cpuTimings.GeometryTransientDraws = 1U;
+                geometryBuffer = frame.VertexBuffer.Buffer;
+                geometryBufferSize = frame.VertexBuffer.Size;
+                geometryMappedMemory = static_cast<uint8_t*>(frame.VertexBuffer.Mapped);
+            } else {
+                auto fallbackVbo = CreateBuffer(
+                    geometry.Payload.size(),
+                    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                    true);
+                std::memcpy(fallbackVbo.Mapped, geometry.Payload.data(), geometry.Payload.size());
+                geometryBaseOffset = 0;
+                geometryBuffer = fallbackVbo.Buffer;
+                geometryBufferSize = fallbackVbo.Size;
+                geometryMappedMemory = static_cast<uint8_t*>(fallbackVbo.Mapped);
+                frame.TemporaryStagingBuffers.push_back(fallbackVbo);
+                cpuTimings.GeometryTransientUploadBytes += geometry.Payload.size();
+                cpuTimings.GeometryTransientDraws = 1U;
             }
-            std::memcpy(static_cast<uint8_t*>(frame.VertexBuffer.Mapped) + geometryBaseOffset, geometry.Payload.data(),
-                        geometry.Payload.size());
-            frame.VertexBytesUsed = geometryBaseOffset + geometry.Payload.size();
-            cpuTimings.GeometryTransientUploadBytes += geometry.Payload.size();
-            cpuTimings.GeometryTransientDraws = 1U;
-            geometryBuffer = frame.VertexBuffer.Buffer;
-            geometryBufferSize = frame.VertexBuffer.Size;
-            geometryMappedMemory = static_cast<uint8_t*>(frame.VertexBuffer.Mapped);
         }
 
         std::vector<std::pair<uint32_t, VkDeviceSize>> bindingOffsets;

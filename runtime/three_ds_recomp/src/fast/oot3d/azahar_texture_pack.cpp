@@ -24,6 +24,7 @@
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace Oot3d::Renderer {
 namespace {
@@ -533,9 +534,11 @@ std::string MakeAzaharTextureFilename(uint16_t width, uint16_t height, uint64_t 
 class AzaharTexturePackRuntime::Impl {
   public:
     Impl() {
-        // Constructor-body startup guarantees every queue and stop flag exists
-        // before WorkerMain can inspect them.
-        mWorker = std::thread([this] { WorkerMain(); });
+        const unsigned int count = std::clamp(std::thread::hardware_concurrency() / 2, 2U, 3U);
+        mWorkers.reserve(count);
+        for (unsigned int i = 0; i < count; ++i) {
+            mWorkers.emplace_back([this] { WorkerMain(); });
+        }
     }
 
     ~Impl() {
@@ -544,8 +547,10 @@ class AzaharTexturePackRuntime::Impl {
             mStopping = true;
         }
         mWorkAvailable.notify_all();
-        if (mWorker.joinable()) {
-            mWorker.join();
+        for (auto& worker : mWorkers) {
+            if (worker.joinable()) {
+                worker.join();
+            }
         }
     }
 
@@ -771,6 +776,11 @@ class AzaharTexturePackRuntime::Impl {
                 AzaharTextureResolveState::Disabled,
                 targetHash, nullptr};
         }
+        if (mMissingHashes.contains(targetHash)) {
+            return {
+                AzaharTextureResolveState::Missing,
+                targetHash, nullptr};
+        }
         if (const auto cached = mReplacementCache.find(targetHash);
             cached != mReplacementCache.end()) {
             return {
@@ -795,6 +805,7 @@ class AzaharTexturePackRuntime::Impl {
             }
         }
         if (indexed == mIndex.end()) {
+            mMissingHashes.insert(targetHash);
             return {
                 AzaharTextureResolveState::Missing,
                 targetHash, nullptr};
@@ -900,6 +911,7 @@ class AzaharTexturePackRuntime::Impl {
     void RebuildLocked() {
         mIndex.clear();
         mReplacementCache.clear();
+        mMissingHashes.clear();
         mFailedLoadHashes.clear();
         mPendingLoadGenerations.clear();
         mDumpedHashes.clear();
@@ -1102,7 +1114,7 @@ class AzaharTexturePackRuntime::Impl {
     mutable std::mutex mMutex;
     std::condition_variable mWorkAvailable;
     std::condition_variable mIdle;
-    std::thread mWorker;
+    std::vector<std::thread> mWorkers;
     bool mStopping = false;
     bool mConfigured = false;
     AzaharTexturePackConfiguration mConfiguration;
@@ -1114,6 +1126,7 @@ class AzaharTexturePackRuntime::Impl {
     std::unordered_map<uint64_t, IndexedTexture> mIndex;
     std::unordered_map<uint64_t, std::shared_ptr<const AzaharTextureReplacement>> mReplacementCache;
     std::unordered_map<uint64_t, uint64_t> mPendingLoadGenerations;
+    std::unordered_set<uint64_t> mMissingHashes;
     std::unordered_set<uint64_t> mFailedLoadHashes;
     std::unordered_set<uint64_t> mDumpedHashes;
     std::deque<LoadJob> mLoadJobs;
