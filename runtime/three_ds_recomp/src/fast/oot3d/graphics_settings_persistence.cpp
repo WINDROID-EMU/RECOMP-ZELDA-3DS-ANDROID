@@ -1429,7 +1429,7 @@ GraphicsSettingsLoadResult DeserializeGraphicsSettings(
                         .LoadCustomTextures,
                     "Graphics.TexturePacks.Azahar.LoadCustomTextures",
                     result);
-                if (version >= 9U) {
+                if (version >= 9U || version == 0U) {
                     ReadScalar(
                         *azahar, "LoadDirectory",
                         result.Value.TexturePacks.Azahar

@@ -106,6 +106,10 @@ std::filesystem::path ResolveDefaultUserDirectory() {
         overridePath != nullptr && *overridePath != '\0') {
         return std::filesystem::path(overridePath);
     }
+    if (const char* triaevumStorage = std::getenv("TRIAEVUM_STORAGE_PATH");
+        triaevumStorage != nullptr && *triaevumStorage != '\0') {
+        return std::filesystem::path(triaevumStorage);
+    }
 #ifdef _WIN32
     if (const char* appData = std::getenv("APPDATA"); appData != nullptr && *appData != '\0') {
         return std::filesystem::path(appData) / "Azahar";

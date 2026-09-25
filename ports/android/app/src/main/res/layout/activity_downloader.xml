@@ -28,9 +28,9 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:orientation="vertical"
-        android:paddingStart="48dp"
-        android:paddingEnd="48dp"
-        android:paddingBottom="36dp">
+        android:paddingStart="20dp"
+        android:paddingEnd="25dp"
+        android:paddingBottom="46dp">
 
         <TextView
             android:id="@+id/tv_download_title"
@@ -115,7 +115,7 @@
                 android:id="@+id/btn_change_directory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="20dp"
                 android:background="@drawable/btn_gold"
                 android:paddingStart="20dp"
                 android:paddingEnd="20dp"

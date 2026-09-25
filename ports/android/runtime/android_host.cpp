@@ -197,8 +197,17 @@ Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
       const auto loaded = Fast::Oot3d::LoadGraphicsSettingsConfig(root, runtime.Snapshot());
       if (loaded.Found && !loaded.UnsupportedFutureVersion) {
         runtime.Apply(loaded.Value, false);
-        ::Oot3d::Renderer::AzaharTexturePackRuntime::Instance().Reload();
-        __android_log_print(ANDROID_LOG_INFO, "TriAevum", "Live graphics settings reloaded and applied successfully");
+        ::Oot3d::Renderer::AzaharTexturePackRuntime::Instance().Configure({
+            .DumpTextures = loaded.Value.TexturePacks.Azahar.DumpTextures,
+            .LoadCustomTextures = loaded.Value.TexturePacks.Azahar.LoadCustomTextures,
+            .LoadDirectory = loaded.Value.TexturePacks.Azahar.LoadDirectory,
+            .DumpDirectory = loaded.Value.TexturePacks.Azahar.DumpDirectory,
+        });
+        __android_log_print(
+            ANDROID_LOG_INFO, "TriAevum",
+            "Live graphics settings reloaded and applied successfully (custom textures: %d, dir: %s)",
+            loaded.Value.TexturePacks.Azahar.LoadCustomTextures,
+            loaded.Value.TexturePacks.Azahar.LoadDirectory.c_str());
       }
     }
   } catch (const std::exception &e) {

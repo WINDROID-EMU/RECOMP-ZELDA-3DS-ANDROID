@@ -134,11 +134,23 @@ public final class TriAevumConfigManager {
             : new JSONObject();
     }
 
+    public static final int GRAPHICS_SCHEMA_VERSION = 11;
+
+    private JSONObject getOrCreateGraphics(JSONObject root) {
+        JSONObject gfx = root.optJSONObject("Graphics");
+        if (gfx == null) {
+            gfx = new JSONObject();
+        }
+        try {
+            gfx.put("SchemaVersion", GRAPHICS_SCHEMA_VERSION);
+        } catch (JSONException ignored) {}
+        return gfx;
+    }
+
     private void patchGraphics(String key, Object value) {
         JSONObject root = readJson("oot3d_native_game.json");
         try {
-            JSONObject gfx = root.optJSONObject("Graphics");
-            if (gfx == null) gfx = new JSONObject();
+            JSONObject gfx = getOrCreateGraphics(root);
             gfx.put(key, value);
             root.put("Graphics", gfx);
         } catch (JSONException ignored) {}
@@ -148,8 +160,7 @@ public final class TriAevumConfigManager {
     private void patchGraphicsNested(String parentKey, String childKey, Object value) {
         JSONObject root = readJson("oot3d_native_game.json");
         try {
-            JSONObject gfx = root.optJSONObject("Graphics");
-            if (gfx == null) gfx = new JSONObject();
+            JSONObject gfx = getOrCreateGraphics(root);
             JSONObject parent = gfx.optJSONObject(parentKey);
             if (parent == null) parent = new JSONObject();
             parent.put(childKey, value);
@@ -181,8 +192,7 @@ public final class TriAevumConfigManager {
     public void setAAMode(String modeValue) {
         JSONObject root = readJson("oot3d_native_game.json");
         try {
-            JSONObject gfx = root.optJSONObject("Graphics");
-            if (gfx == null) gfx = new JSONObject();
+            JSONObject gfx = getOrCreateGraphics(root);
             JSONObject aa = gfx.optJSONObject("AA");
             if (aa == null) aa = new JSONObject();
             if ("MSAA2x".equals(modeValue)) {
@@ -234,8 +244,7 @@ public final class TriAevumConfigManager {
     public void setCustomTexturesEnabled(boolean v) {
         JSONObject root = readJson("oot3d_native_game.json");
         try {
-            JSONObject gfx = root.optJSONObject("Graphics");
-            if (gfx == null) gfx = new JSONObject();
+            JSONObject gfx = getOrCreateGraphics(root);
             JSONObject tp = gfx.optJSONObject("TexturePacks");
             if (tp == null) tp = new JSONObject();
             JSONObject az = tp.optJSONObject("Azahar");
@@ -259,8 +268,7 @@ public final class TriAevumConfigManager {
     public void setCustomTexturesPath(String path) {
         JSONObject root = readJson("oot3d_native_game.json");
         try {
-            JSONObject gfx = root.optJSONObject("Graphics");
-            if (gfx == null) gfx = new JSONObject();
+            JSONObject gfx = getOrCreateGraphics(root);
             JSONObject tp = gfx.optJSONObject("TexturePacks");
             if (tp == null) tp = new JSONObject();
             JSONObject az = tp.optJSONObject("Azahar");
