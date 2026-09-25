@@ -16,6 +16,7 @@
 
 #include "oot3d_demo_host_context.h"
 #if defined(__ANDROID__)
+#include <android/log.h>
 #include "android_host.h"
 #endif
 #include "oot3d_native_game_bootstrap.h"
@@ -258,11 +259,16 @@ int RunOot3dNativeGameMain(int argc, char** argv) {
 #endif
     } catch (const std::exception& ex) {
         std::cerr << "oot3d_native_game: " << ex.what() << '\n';
+#if defined(__ANDROID__)
+        __android_log_print(ANDROID_LOG_ERROR, "TriAevum", "FATAL: oot3d_native_game exception: %s", ex.what());
+#endif
 #if defined(__SWITCH__)
         WriteSwitchBootStatus("failed", ex.what());
 #endif
         DestroyContextForDemo();
+        return 1;
     }
+    return 0;
 }
 
 int main(int argc, char** argv) {

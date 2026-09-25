@@ -64,7 +64,7 @@ namespace Fast {
 namespace {
 
 constexpr uint64_t kCustomTextureUploadBudgetBytes =
-    32ULL * 1024ULL * 1024ULL;
+    64ULL * 1024ULL * 1024ULL;
 
 void CheckNativeVk(VkResult result, const char* operation) {
     if (result != VK_SUCCESS) {
@@ -2647,8 +2647,13 @@ GfxRenderingAPIVulkan::GetOrCreateNativePicaTexture(
                     ? texture.MaxMipLevel : 0U;
                 record.CustomReplacementHash = replacementHash;
                 record.CustomReplacementReady = replacement;
-                CreateNativePicaTextureImage(
-                    record, pixels, width, height, mipLevels, format);
+                try {
+                    CreateNativePicaTextureImage(
+                        record, pixels, width, height, mipLevels, format);
+                } catch (...) {
+                    mNativePicaTextures.erase(inserted);
+                    throw;
+                }
                 return &record;
             };
 
@@ -2748,19 +2753,27 @@ GfxRenderingAPIVulkan::GetOrCreateNativePicaTexture(
                         return ensureTextureUploaded(found->first, record);
                     }
                     bool inserted = false;
-                    TextureRecord* promoted = createTexture(
-                        replacementKey,
-                        *resolved.Replacement->Rgba8,
-                        resolved.Replacement->Width,
-                        resolved.Replacement->Height,
-                        1U,
-                        VK_FORMAT_R8G8B8A8_UNORM,
-                        resolved.NativeHash, true, &inserted);
-                    if (inserted) {
-                        mCustomTextureUploadBytesThisFrame +=
-                            replacementBytes;
+                    try {
+                        TextureRecord* promoted = createTexture(
+                            replacementKey,
+                            *resolved.Replacement->Rgba8,
+                            resolved.Replacement->Width,
+                            resolved.Replacement->Height,
+                            1U,
+                            VK_FORMAT_R8G8B8A8_UNORM,
+                            resolved.NativeHash, true, &inserted);
+                        if (inserted) {
+                            mCustomTextureUploadBytesThisFrame +=
+                                replacementBytes;
+                        }
+                        return promoted;
+                    } catch (const std::exception& ex) {
+                        SPDLOG_WARN("Failed to upload custom texture replacement {:#x}: {}",
+                            resolved.NativeHash, ex.what());
+                        record.CustomReplacementPending = false;
+                        record.CustomReplacementReady = false;
+                        return ensureTextureUploaded(found->first, record);
                     }
-                    return promoted;
                 }
                 if (resolved.State !=
                     ::Oot3d::Renderer::
@@ -2919,20 +2932,25 @@ GfxRenderingAPIVulkan::GetOrCreateNativePicaTexture(
                              mCustomTextureUploadBytesThisFrame);
                 if (budgetAvailable) {
                     bool inserted = false;
-                    TextureRecord* promoted = createTexture(
-                        replacementKey,
-                        *replacementResult.Replacement->Rgba8,
-                        replacementResult.Replacement->Width,
-                        replacementResult.Replacement->Height,
-                        1U,
-                        VK_FORMAT_R8G8B8A8_UNORM,
-                        replacementResult.NativeHash, true,
-                        &inserted);
-                    if (inserted) {
-                        mCustomTextureUploadBytesThisFrame +=
-                            replacementBytes;
+                    try {
+                        TextureRecord* promoted = createTexture(
+                            replacementKey,
+                            *replacementResult.Replacement->Rgba8,
+                            replacementResult.Replacement->Width,
+                            replacementResult.Replacement->Height,
+                            1U,
+                            VK_FORMAT_R8G8B8A8_UNORM,
+                            replacementResult.NativeHash, true,
+                            &inserted);
+                        if (inserted) {
+                            mCustomTextureUploadBytesThisFrame +=
+                                replacementBytes;
+                        }
+                        return promoted;
+                    } catch (const std::exception& ex) {
+                        SPDLOG_WARN("Failed to upload custom texture replacement {:#x}: {}",
+                            replacementResult.NativeHash, ex.what());
                     }
-                    return promoted;
                 }
             }
         }
@@ -3099,15 +3117,27 @@ void GfxRenderingAPIVulkan::CreateNativePicaTextureImage(
             auto& frame = mFrameResources[mCurrentFrame];
             const VkDeviceSize uploadOffset =
                 (frame.VertexBytesUsed + 15U) & ~VkDeviceSize(15U);
-            if (uploadOffset + byteCount > frame.VertexBuffer.Size) {
-                throw std::runtime_error(
-                    "native PICA texture exceeds the per-frame upload arena");
+            VkBuffer sourceBuffer = VK_NULL_HANDLE;
+            VkDeviceSize bufferCopyOffset = 0;
+            if (uploadOffset + byteCount <= frame.VertexBuffer.Size) {
+                std::memcpy(
+                    static_cast<uint8_t*>(frame.VertexBuffer.Mapped) +
+                        uploadOffset,
+                    mipPixels.data(), mipPixels.size());
+                frame.VertexBytesUsed = uploadOffset + byteCount;
+                sourceBuffer = frame.VertexBuffer.Buffer;
+                bufferCopyOffset = uploadOffset;
+            } else {
+                auto stagingBuffer = CreateBuffer(
+                    byteCount,
+                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                    true);
+                std::memcpy(stagingBuffer.Mapped, mipPixels.data(), mipPixels.size());
+                sourceBuffer = stagingBuffer.Buffer;
+                bufferCopyOffset = 0;
+                frame.TemporaryStagingBuffers.push_back(stagingBuffer);
             }
-            std::memcpy(
-                static_cast<uint8_t*>(frame.VertexBuffer.Mapped) +
-                    uploadOffset,
-                mipPixels.data(), mipPixels.size());
-            frame.VertexBytesUsed = uploadOffset + byteCount;
 
             VkCommandBuffer commandBuffer = mCommandBuffers[mCurrentFrame];
             VkImageMemoryBarrier toTransfer{
@@ -3129,13 +3159,13 @@ void GfxRenderingAPIVulkan::CreateNativePicaTextureImage(
                 nullptr, 1, &toTransfer);
 
             VkBufferImageCopy copy{};
-            copy.bufferOffset = uploadOffset;
+            copy.bufferOffset = bufferCopyOffset;
             copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             copy.imageSubresource.mipLevel = level;
             copy.imageSubresource.layerCount = 1U;
             copy.imageExtent = {mipWidth, mipHeight, 1U};
             vkCmdCopyBufferToImage(
-                commandBuffer, frame.VertexBuffer.Buffer, texture.Image,
+                commandBuffer, sourceBuffer, texture.Image,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1U, &copy);
 
             VkImageMemoryBarrier toShaderRead{

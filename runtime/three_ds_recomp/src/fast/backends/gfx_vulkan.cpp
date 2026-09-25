@@ -1127,6 +1127,10 @@ void GfxRenderingAPIVulkan::Shutdown() {
         }
         mRetiredSamplers.clear();
         for (auto& frame : mFrameResources) {
+            for (auto& tempBuffer : frame.TemporaryStagingBuffers) {
+                DestroyBuffer(tempBuffer);
+            }
+            frame.TemporaryStagingBuffers.clear();
             if (frame.DescriptorPool != VK_NULL_HANDLE) {
                 vkDestroyDescriptorPool(mDevice, frame.DescriptorPool, nullptr);
                 frame.DescriptorPool = VK_NULL_HANDLE;
@@ -1778,6 +1782,10 @@ void GfxRenderingAPIVulkan::StartFrame() {
             "vkWaitForFences(image)");
     }
     mImagesInFlight[mCurrentImage] = mInFlightFences[mCurrentFrame];
+    for (auto& tempBuffer : frame.TemporaryStagingBuffers) {
+        DestroyBuffer(tempBuffer);
+    }
+    frame.TemporaryStagingBuffers.clear();
     frame.VertexBytesUsed = 0;
     frame.UniformBytesUsed = 0;
     CheckVk(vkResetDescriptorPool(mDevice, frame.DescriptorPool, 0), "vkResetDescriptorPool");

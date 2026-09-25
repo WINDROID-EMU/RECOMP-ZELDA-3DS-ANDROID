@@ -289,6 +289,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI, public Oot3d::TitleR
     struct FrameResources {
         BufferAllocation VertexBuffer;
         BufferAllocation UniformBuffer;
+        std::vector<BufferAllocation> TemporaryStagingBuffers;
         VkDeviceSize VertexBytesUsed = 0;
         VkDeviceSize UniformBytesUsed = 0;
         VkDescriptorPool DescriptorPool = VK_NULL_HANDLE;

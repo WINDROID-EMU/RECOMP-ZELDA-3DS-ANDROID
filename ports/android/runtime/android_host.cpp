@@ -298,8 +298,14 @@ Java_org_triaevum_android_TriAevumActivity_nativeMain(
 
   int argc = static_cast<int>(argv.size());
   __android_log_print(ANDROID_LOG_INFO, "TriAevum", "Starting RunOot3dNativeGameMain with %d args", argc);
-  int result = RunOot3dNativeGameMain(argc, argv.data());
-  __android_log_print(ANDROID_LOG_INFO, "TriAevum", "RunOot3dNativeGameMain exited with code %d", result);
+  try {
+    int result = RunOot3dNativeGameMain(argc, argv.data());
+    __android_log_print(ANDROID_LOG_INFO, "TriAevum", "RunOot3dNativeGameMain exited with code %d", result);
+  } catch (const std::exception &e) {
+    __android_log_print(ANDROID_LOG_ERROR, "TriAevum", "FATAL unhandled exception in RunOot3dNativeGameMain: %s", e.what());
+  } catch (...) {
+    __android_log_print(ANDROID_LOG_ERROR, "TriAevum", "FATAL unknown exception in RunOot3dNativeGameMain");
+  }
 }
 
 } // extern "C"
