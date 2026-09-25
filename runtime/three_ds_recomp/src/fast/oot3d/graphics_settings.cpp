@@ -189,7 +189,7 @@ GraphicsSettingsValidation GraphicsSettingsService::Validate(
     value.OutputHeight = std::max(240U, value.OutputHeight);
     value.RefreshRate = std::clamp(value.RefreshRate, 30U, 1000U);
     value.InternalResolutionScale =
-        std::clamp(value.InternalResolutionScale, 0.5F, 2.0F);
+        std::clamp(value.InternalResolutionScale, 0.5F, 4.0F);
     value.FovMultiplier = std::clamp(value.FovMultiplier, 1.0F, 1.5F);
     value.TaaHistoryWeight =
         std::clamp(value.TaaHistoryWeight, 0.0F, 0.98F);

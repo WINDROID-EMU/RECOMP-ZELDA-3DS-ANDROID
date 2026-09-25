@@ -610,30 +610,25 @@ public final class TriAevumConfigDialog extends Dialog {
 
         // Gráficos
         int rsIdx = mSpRenderScale.getSelectedItemPosition();
-        if (rsIdx >= 0 && rsIdx < TriAevumConfigManager.RENDER_SCALE_VALUES.length) {
-            float rs = TriAevumConfigManager.RENDER_SCALE_VALUES[rsIdx];
-            Log.d(TAG, "  SET renderScale -> " + rs);
-            mConfig.setRenderScale(rs);
-        }
+        float rs = (rsIdx >= 0 && rsIdx < TriAevumConfigManager.RENDER_SCALE_VALUES.length)
+                ? TriAevumConfigManager.RENDER_SCALE_VALUES[rsIdx]
+                : 1.0f;
 
         int aaIdx = mSpAAMode.getSelectedItemPosition();
-        if (aaIdx >= 0 && aaIdx < TriAevumConfigManager.AA_MODE_VALUES.length) {
-            String aa = TriAevumConfigManager.AA_MODE_VALUES[aaIdx];
-            Log.d(TAG, "  SET AA -> " + aa);
-            mConfig.setAAMode(aa);
-        }
+        String aa = (aaIdx >= 0 && aaIdx < TriAevumConfigManager.AA_MODE_VALUES.length)
+                ? TriAevumConfigManager.AA_MODE_VALUES[aaIdx]
+                : "Off";
 
         int frIdx = mSpFramerate.getSelectedItemPosition();
-        if (frIdx >= 0 && frIdx < TriAevumConfigManager.FRAMERATE_VALUES.length) {
-            String fr = TriAevumConfigManager.FRAMERATE_VALUES[frIdx];
-            Log.d(TAG, "  SET frameRate -> " + fr);
-            mConfig.setFrameRateMode(fr);
-        }
+        String fr = (frIdx >= 0 && frIdx < TriAevumConfigManager.FRAMERATE_VALUES.length)
+                ? TriAevumConfigManager.FRAMERATE_VALUES[frIdx]
+                : "Original30";
 
-        Log.d(TAG, "  SET vsync -> " + mCbVSync.isChecked());
-        mConfig.setVSync(mCbVSync.isChecked());
-        Log.d(TAG, "  SET customTextures -> " + mCbCustomTextures.isChecked());
-        mConfig.setCustomTexturesEnabled(mCbCustomTextures.isChecked());
+        boolean vsync = mCbVSync.isChecked();
+        boolean customTextures = mCbCustomTextures.isChecked();
+
+        Log.d(TAG, "  SET graphics batch -> scale=" + rs + ", aa=" + aa + ", fr=" + fr + ", vsync=" + vsync + ", customTextures=" + customTextures);
+        mConfig.saveGraphicsSettings(rs, aa, fr, vsync, customTextures);
 
         // Câmera / HUD
         Log.d(TAG, "  SET freeCamera -> " + mCbFreeCamera.isChecked());

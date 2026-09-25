@@ -89,10 +89,30 @@ public final class TriAevumConfigManager {
     private void writeJson(String filename, JSONObject obj) {
         if (mExternalDir == null) return;
         File f = new File(mExternalDir, filename);
-        try (FileOutputStream fos = new FileOutputStream(f)) {
-            fos.write(obj.toString(2).getBytes(StandardCharsets.UTF_8));
+        File temp = new File(mExternalDir, filename + ".tmp");
+        try {
+            try (FileOutputStream fos = new FileOutputStream(temp)) {
+                fos.write(obj.toString(2).getBytes(StandardCharsets.UTF_8));
+                fos.flush();
+                try {
+                    fos.getFD().sync();
+                } catch (Exception ignored) {}
+            }
+            if (!temp.renameTo(f)) {
+                try (FileOutputStream fos = new FileOutputStream(f)) {
+                    fos.write(obj.toString(2).getBytes(StandardCharsets.UTF_8));
+                    fos.flush();
+                    try {
+                        fos.getFD().sync();
+                    } catch (Exception ignored) {}
+                }
+            }
         } catch (IOException | JSONException e) {
             Log.e(TAG, "Cannot write " + filename, e);
+        } finally {
+            if (temp.exists()) {
+                temp.delete();
+            }
         }
     }
 
@@ -129,9 +149,9 @@ public final class TriAevumConfigManager {
     // =========================================================================
 
     private JSONObject getGraphics() {
-        return readJson("oot3d_native_game.json").optJSONObject("Graphics") != null
-            ? readJson("oot3d_native_game.json").optJSONObject("Graphics")
-            : new JSONObject();
+        JSONObject root = readJson("oot3d_native_game.json");
+        JSONObject gfx = root.optJSONObject("Graphics");
+        return gfx != null ? gfx : new JSONObject();
     }
 
     public static final int GRAPHICS_SCHEMA_VERSION = 11;
@@ -151,6 +171,7 @@ public final class TriAevumConfigManager {
         JSONObject root = readJson("oot3d_native_game.json");
         try {
             JSONObject gfx = getOrCreateGraphics(root);
+            gfx.put("Preset", "Custom");
             gfx.put(key, value);
             root.put("Graphics", gfx);
         } catch (JSONException ignored) {}
@@ -165,6 +186,7 @@ public final class TriAevumConfigManager {
             if (parent == null) parent = new JSONObject();
             parent.put(childKey, value);
             gfx.put(parentKey, parent);
+            gfx.put("Preset", "Custom");
             root.put("Graphics", gfx);
         } catch (JSONException ignored) {}
         writeJson("oot3d_native_game.json", root);
@@ -175,7 +197,7 @@ public final class TriAevumConfigManager {
     }
 
     public void setRenderScale(float v) {
-        patchGraphics("RenderScale", v);
+        patchGraphics("RenderScale", (double) v);
     }
 
     public String getAAMode() {
@@ -193,6 +215,7 @@ public final class TriAevumConfigManager {
         JSONObject root = readJson("oot3d_native_game.json");
         try {
             JSONObject gfx = getOrCreateGraphics(root);
+            gfx.put("Preset", "Custom");
             JSONObject aa = gfx.optJSONObject("AA");
             if (aa == null) aa = new JSONObject();
             if ("MSAA2x".equals(modeValue)) {
@@ -222,7 +245,17 @@ public final class TriAevumConfigManager {
     }
 
     public void setFrameRateMode(String mode) {
-        patchGraphicsNested("FrameRate", "Mode", mode);
+        JSONObject root = readJson("oot3d_native_game.json");
+        try {
+            JSONObject gfx = getOrCreateGraphics(root);
+            gfx.put("Preset", "Custom");
+            JSONObject fr = gfx.optJSONObject("FrameRate");
+            if (fr == null) fr = new JSONObject();
+            fr.put("Mode", mode);
+            gfx.put("FrameRate", fr);
+            root.put("Graphics", gfx);
+        } catch (JSONException ignored) {}
+        writeJson("oot3d_native_game.json", root);
     }
 
     public boolean isVSync() {
@@ -232,6 +265,50 @@ public final class TriAevumConfigManager {
 
     public void setVSync(boolean v) {
         patchGraphicsNested("Presentation", "VSync", v);
+    }
+
+    public void saveGraphicsSettings(float renderScale, String aaMode, String frameRateMode, boolean vsync, boolean customTextures) {
+        JSONObject root = readJson("oot3d_native_game.json");
+        try {
+            JSONObject gfx = getOrCreateGraphics(root);
+            gfx.put("Preset", "Custom");
+            gfx.put("RenderScale", (double) renderScale);
+
+            JSONObject aa = gfx.optJSONObject("AA");
+            if (aa == null) aa = new JSONObject();
+            if ("MSAA2x".equals(aaMode)) {
+                aa.put("Mode", "MSAA");
+                aa.put("MsaaSamples", 2);
+            } else if ("MSAA4x".equals(aaMode)) {
+                aa.put("Mode", "MSAA");
+                aa.put("MsaaSamples", 4);
+            } else {
+                aa.put("Mode", aaMode);
+                aa.put("MsaaSamples", 1);
+            }
+            gfx.put("AA", aa);
+
+            JSONObject fr = gfx.optJSONObject("FrameRate");
+            if (fr == null) fr = new JSONObject();
+            fr.put("Mode", frameRateMode);
+            gfx.put("FrameRate", fr);
+
+            JSONObject pres = gfx.optJSONObject("Presentation");
+            if (pres == null) pres = new JSONObject();
+            pres.put("VSync", vsync);
+            gfx.put("Presentation", pres);
+
+            JSONObject tp = gfx.optJSONObject("TexturePacks");
+            if (tp == null) tp = new JSONObject();
+            JSONObject az = tp.optJSONObject("Azahar");
+            if (az == null) az = new JSONObject();
+            az.put("LoadCustomTextures", customTextures);
+            tp.put("Azahar", az);
+            gfx.put("TexturePacks", tp);
+
+            root.put("Graphics", gfx);
+        } catch (JSONException ignored) {}
+        writeJson("oot3d_native_game.json", root);
     }
 
     public boolean isCustomTexturesEnabled() {
@@ -452,11 +529,7 @@ public final class TriAevumConfigManager {
         // Surface
         setSurfaceMaxShortEdge(720);
         // Graphics
-        setRenderScale(1.0f);
-        setAAMode("Off");
-        setFrameRateMode("Original30");
-        setVSync(true);
-        setCustomTexturesEnabled(false);
+        saveGraphicsSettings(1.0f, "Off", "Original30", true, false);
         // Topscreen
         setHudLayout("normal");
         setHudMarginX(4);

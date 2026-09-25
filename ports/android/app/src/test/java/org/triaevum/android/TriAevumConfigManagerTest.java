@@ -47,4 +47,38 @@ public final class TriAevumConfigManagerTest {
         assertEquals("/storage/emulated/0/Textures/ZeldaPack", configManager.getCustomTexturesPath());
         assertTrue(configManager.isCustomTexturesEnabled());
     }
+
+    @Test
+    public void savesAndPersistsCustomGraphicsSettings() throws Exception {
+        File filesDir = mFolder.newFolder("files_gfx");
+        Context mockContext = new ContextWrapper(null) {
+            @Override
+            public File getExternalFilesDir(String type) {
+                return filesDir;
+            }
+        };
+
+        TriAevumConfigManager configManager = new TriAevumConfigManager(mockContext);
+        configManager.saveGraphicsSettings(2.0f, "FXAA", "Interpolated2x", true, true);
+
+        File configFile = new File(filesDir, "oot3d_native_game.json");
+        assertTrue(configFile.exists());
+
+        String raw = new String(Files.readAllBytes(configFile.toPath()), StandardCharsets.UTF_8);
+        JSONObject root = new JSONObject(raw);
+        JSONObject gfx = root.getJSONObject("Graphics");
+
+        assertEquals("Custom", gfx.getString("Preset"));
+        assertEquals(2.0, gfx.getDouble("RenderScale"), 0.001);
+        assertEquals("FXAA", gfx.getJSONObject("AA").getString("Mode"));
+        assertEquals("Interpolated2x", gfx.getJSONObject("FrameRate").getString("Mode"));
+        assertTrue(gfx.getJSONObject("Presentation").getBoolean("VSync"));
+        assertTrue(gfx.getJSONObject("TexturePacks").getJSONObject("Azahar").getBoolean("LoadCustomTextures"));
+
+        assertEquals(2.0f, configManager.getRenderScale(), 0.001f);
+        assertEquals("FXAA", configManager.getAAMode());
+        assertEquals("Interpolated2x", configManager.getFrameRateMode());
+        assertTrue(configManager.isVSync());
+        assertTrue(configManager.isCustomTexturesEnabled());
+    }
 }

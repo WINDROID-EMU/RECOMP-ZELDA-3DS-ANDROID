@@ -196,7 +196,13 @@ Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
       auto &runtime = Fast::Oot3d::GraphicsSettingsRuntime::Instance();
       const auto loaded = Fast::Oot3d::LoadGraphicsSettingsConfig(root, runtime.Snapshot());
       if (loaded.Found && !loaded.UnsupportedFutureVersion) {
-        runtime.Apply(loaded.Value, false);
+        auto settingsToApply = loaded.Value;
+        if (settingsToApply.InternalResolutionScale != 1.0f ||
+            settingsToApply.AntiAliasing != Fast::Oot3d::AntiAliasingMode::Off ||
+            settingsToApply.FrameRate != Fast::Oot3d::FrameRateMode::Original30) {
+          settingsToApply.Preset = Fast::Oot3d::GraphicsPreset::Custom;
+        }
+        runtime.Apply(settingsToApply, true);
         ::Oot3d::Renderer::AzaharTexturePackRuntime::Instance().Configure({
             .DumpTextures = loaded.Value.TexturePacks.Azahar.DumpTextures,
             .LoadCustomTextures = loaded.Value.TexturePacks.Azahar.LoadCustomTextures,
@@ -205,7 +211,12 @@ Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
         });
         __android_log_print(
             ANDROID_LOG_INFO, "TriAevum",
-            "Live graphics settings reloaded and applied successfully (custom textures: %d, dir: %s)",
+            "Live graphics settings reloaded and applied: preset=%d scale=%.2f aa=%d fps=%d vsync=%d (custom textures: %d, dir: %s)",
+            static_cast<int>(settingsToApply.Preset),
+            settingsToApply.InternalResolutionScale,
+            static_cast<int>(settingsToApply.AntiAliasing),
+            static_cast<int>(settingsToApply.FrameRate),
+            settingsToApply.VSync,
             loaded.Value.TexturePacks.Azahar.LoadCustomTextures,
             loaded.Value.TexturePacks.Azahar.LoadDirectory.c_str());
       }
