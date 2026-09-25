@@ -170,9 +170,9 @@ std::size_t AppendTopScreenDpadPresentation(
       const auto q =
           BuildTopScreenAuxiliaryTouchGeometry(viewState, {}, alpha).Quads[4];
       p.texture = pauseTopPage;
-      // Retain native view/gyro/telescope variants and move their anchor only.
-      p.destination = {q.Position.X + curCenterX - kCenterX[0],
-                       q.Position.Y + curCenterY - kCenterY[0],
+      // Center the view/gyro/telescope quad on the current direction's slot.
+      p.destination = {curCenterX - q.Size.X * 0.5F,
+                       curCenterY - q.Size.Y * 0.5F,
                        q.Size.X, q.Size.Y};
       p.uv = {q.AtlasOrigin.X / 512, q.AtlasOrigin.Y / 256, q.AtlasSize.X / 512,
               q.AtlasSize.Y / 256};

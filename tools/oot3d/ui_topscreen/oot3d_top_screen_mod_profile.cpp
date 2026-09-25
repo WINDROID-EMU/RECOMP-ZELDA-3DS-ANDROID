@@ -1050,9 +1050,9 @@ TopScreenTouchClusterGeometry BuildTopScreenTouchClusterGeometry(
   result.AtlasSizes[4] = {48.0F, 48.0F};
   result.Alpha[4] = 1.0F;
 
-  if (custom != nullptr && custom->BtnB.Valid) {
-    result.Positions[5] = TopScreenVec2{custom->BtnB.X, custom->BtnB.Y};
-    result.Sizes[5] = {custom->BtnB.Width, custom->BtnB.Height};
+  if (custom != nullptr && custom->DpadItems.Valid) {
+    result.Positions[5] = TopScreenVec2{custom->DpadItems.X, custom->DpadItems.Y};
+    result.Sizes[5] = {custom->DpadItems.Width, custom->DpadItems.Height};
   } else {
     result.Positions[5] = {14.0F, 52.0F};
     result.Sizes[5] = {30.0F, 30.0F};
@@ -1653,17 +1653,20 @@ bool AppendTopScreenNativeItemIconCopies(
              : 0.0F);
     if (custom != nullptr && region != nullptr) {
       if (regionIndex == 0U && custom->BtnZr.Valid) {
-        destinationCenterX = custom->BtnZr.X - 16.0F + (custom->BtnZr.Width - 32.0F) * 0.5F;
-        destinationY = custom->BtnZr.Y - 16.0F + (custom->BtnZr.Height - 32.0F) * 0.5F + nativeVerticalOffsets[0];
+        destinationCenterX = custom->BtnZr.X + custom->BtnZr.Width * 0.5F - 16.0F;
+        destinationY = custom->BtnZr.Y + custom->BtnZr.Height * 0.5F - 16.0F + nativeVerticalOffsets[0];
       } else if (regionIndex == 1U && custom->BtnX.Valid) {
-        destinationCenterX = custom->BtnX.X - 11.0F + (custom->BtnX.Width - 32.0F) * 0.5F;
-        destinationY = custom->BtnX.Y - 11.0F + (custom->BtnX.Height - 32.0F) * 0.5F + nativeVerticalOffsets[1];
+        destinationCenterX = custom->BtnX.X + custom->BtnX.Width * 0.5F - 11.0F;
+        destinationY = custom->BtnX.Y + custom->BtnX.Height * 0.5F - 11.0F + nativeVerticalOffsets[1];
       } else if (regionIndex == 2U && custom->BtnY.Valid) {
-        destinationCenterX = custom->BtnY.X - 11.0F + (custom->BtnY.Width - 32.0F) * 0.5F;
-        destinationY = custom->BtnY.Y - 11.0F + (custom->BtnY.Height - 32.0F) * 0.5F + nativeVerticalOffsets[2];
+        destinationCenterX = custom->BtnY.X + custom->BtnY.Width * 0.5F - 11.0F;
+        destinationY = custom->BtnY.Y + custom->BtnY.Height * 0.5F - 11.0F + nativeVerticalOffsets[2];
       } else if (regionIndex == 3U && custom->BtnZl.Valid) {
-        destinationCenterX = custom->BtnZl.X - 16.0F + (custom->BtnZl.Width - 32.0F) * 0.5F;
-        destinationY = custom->BtnZl.Y - 16.0F + (custom->BtnZl.Height - 32.0F) * 0.5F + nativeVerticalOffsets[3];
+        destinationCenterX = custom->BtnZl.X + custom->BtnZl.Width * 0.5F - 16.0F;
+        destinationY = custom->BtnZl.Y + custom->BtnZl.Height * 0.5F - 16.0F + nativeVerticalOffsets[3];
+      } else if (regionIndex == 4U && custom->DpadItems.Valid) {
+        destinationCenterX = custom->DpadItems.X + custom->DpadItems.Width * 0.5F - 7.0F;
+        destinationY = custom->DpadItems.Y + custom->DpadItems.Height * 0.5F + 9.0F;
       }
     }
     const float scale = region != nullptr ? region->Scale : 1.0F;
