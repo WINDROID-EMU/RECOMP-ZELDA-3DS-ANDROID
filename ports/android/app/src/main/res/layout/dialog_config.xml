@@ -492,6 +492,183 @@
                                     android:textColor="#C8D8E8"
                                     android:textSize="11sp" />
                             </LinearLayout>
+
+                            <!-- Precarregar Texturas antes da gameplay -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:layout_marginTop="6dp">
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="⚡ Pré-carregar antes da gameplay"
+                                    android:textColor="#C8D8E8"
+                                    android:textSize="11sp"
+                                    android:layout_gravity="center_vertical" />
+                                <CheckBox
+                                    android:id="@+id/cb_preload_textures"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:buttonTint="#FFD700" />
+                            </LinearLayout>
+
+                            <Button
+                                android:id="@+id/btn_preload_now"
+                                android:layout_width="match_parent"
+                                android:layout_height="36dp"
+                                android:layout_marginTop="6dp"
+                                android:background="@drawable/btn_dark"
+                                android:text="⚡ Pré-carregar Texturas Agora"
+                                android:textColor="#FFD700"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Mods Visuais (PC Enhancements) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/card_bg"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="✨ MODS VISUAIS (PC ENHANCEMENTS)"
+                            android:textColor="#FFC107"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="10dp" />
+
+                        <!-- Cel-Shading / Toon -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="10dp">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical"
+                                android:layout_gravity="center_vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Cel-Shading (Estilo Anime / Toon)"
+                                    android:textColor="#C8D8E8"
+                                    android:textSize="12sp" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Iluminação estilizada em faixas tipo desenho animado"
+                                    android:textColor="#8B9BB4"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+                            <CheckBox
+                                android:id="@+id/cb_toon_shading"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:buttonTint="#FFD700" />
+                        </LinearLayout>
+
+                        <!-- Contorno Preto (Outline) -->
+                        <LinearLayout
+                            android:id="@+id/layout_toon_outline"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="10dp">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical"
+                                android:layout_gravity="center_vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Contorno de Silhueta (Cel Outline)"
+                                    android:textColor="#C8D8E8"
+                                    android:textSize="12sp" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Linhas pretas ao redor dos personagens e cenário"
+                                    android:textColor="#8B9BB4"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+                            <CheckBox
+                                android:id="@+id/cb_toon_outline"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:buttonTint="#FFD700" />
+                        </LinearLayout>
+
+                        <!-- Grama 3D Interativa -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="10dp">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical"
+                                android:layout_gravity="center_vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Grama 3D Interativa"
+                                    android:textColor="#C8D8E8"
+                                    android:textSize="12sp" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Lâminas 3D que balançam com vento e reagem aos passos"
+                                    android:textColor="#8B9BB4"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+                            <Spinner
+                                android:id="@+id/sp_grass_quality"
+                                android:layout_width="140dp"
+                                android:layout_height="36dp"
+                                android:background="@drawable/btn_dark"
+                                android:paddingLeft="8dp" />
+                        </LinearLayout>
+
+                        <!-- Campo de Visão (FOV Panorâmico) -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+                            <TextView
+                                android:id="@+id/tv_fov_label"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Campo de Visão (FOV): 100% (Padrão)"
+                                android:textColor="#C8D8E8"
+                                android:textSize="12sp"
+                                android:layout_marginBottom="2dp" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Expande o ângulo da câmera para visão panorâmica (100% a 125%)"
+                                android:textColor="#8B9BB4"
+                                android:textSize="10sp"
+                                android:layout_marginBottom="6dp" />
+                            <SeekBar
+                                android:id="@+id/sb_fov"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:max="5"
+                                android:progress="0" />
                         </LinearLayout>
                     </LinearLayout>
 

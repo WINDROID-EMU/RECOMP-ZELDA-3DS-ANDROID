@@ -199,13 +199,20 @@ Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
         auto settingsToApply = loaded.Value;
         if (settingsToApply.InternalResolutionScale != 1.0f ||
             settingsToApply.AntiAliasing != Fast::Oot3d::AntiAliasingMode::Off ||
-            settingsToApply.FrameRate != Fast::Oot3d::FrameRateMode::Original30) {
+            settingsToApply.FrameRate != Fast::Oot3d::FrameRateMode::Original30 ||
+            settingsToApply.Grass.Quality != Fast::Oot3d::GrassQuality::Off ||
+            settingsToApply.Effects.Toon != Fast::Oot3d::ToonMode::Off) {
           settingsToApply.Preset = Fast::Oot3d::GraphicsPreset::Custom;
         }
+        if (runtime.NativePresentationOverrideActive()) {
+          runtime.ToggleNativePresentationOverride();
+        }
+        setenv("OOT3D_GRAPHICS_GRASS_AUTO", "1", 0);
         runtime.Apply(settingsToApply, true);
         ::Oot3d::Renderer::AzaharTexturePackRuntime::Instance().Configure({
             .DumpTextures = loaded.Value.TexturePacks.Azahar.DumpTextures,
             .LoadCustomTextures = loaded.Value.TexturePacks.Azahar.LoadCustomTextures,
+            .PreloadTextures = loaded.Value.TexturePacks.Azahar.PreloadTextures,
             .LoadDirectory = loaded.Value.TexturePacks.Azahar.LoadDirectory,
             .DumpDirectory = loaded.Value.TexturePacks.Azahar.DumpDirectory,
         });
@@ -317,6 +324,56 @@ Java_org_triaevum_android_TriAevumActivity_nativeMain(
   } catch (...) {
     __android_log_print(ANDROID_LOG_ERROR, "TriAevum", "FATAL unknown exception in RunOot3dNativeGameMain");
   }
+}
+
+JNIEXPORT jint JNICALL
+Java_org_triaevum_android_TriAevumActivity_nativePreloadCustomTextures(
+    JNIEnv *env, jclass /*clazz*/, jstring loadDirectory, jobject callback) {
+  std::string dirStr;
+  if (loadDirectory != nullptr) {
+    const char *chars = env->GetStringUTFChars(loadDirectory, nullptr);
+    if (chars != nullptr) {
+      dirStr = chars;
+      env->ReleaseStringUTFChars(loadDirectory, chars);
+    }
+  }
+
+  __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                      "nativePreloadCustomTextures starting for directory: %s",
+                      dirStr.c_str());
+
+  auto &textureRuntime = ::Oot3d::Renderer::AzaharTexturePackRuntime::Instance();
+  textureRuntime.Configure({
+      .DumpTextures = false,
+      .LoadCustomTextures = true,
+      .PreloadTextures = true,
+      .LoadDirectory = dirStr.empty() ? std::filesystem::path{} : std::filesystem::path{dirStr},
+  });
+
+  const auto snap = textureRuntime.Snapshot();
+  __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                      "nativePreloadCustomTextures snapshot: indexed=%zu, dir=%s, err=%s",
+                      snap.IndexedTextures, snap.LoadDirectory.c_str(), snap.LastError.c_str());
+
+  jclass callbackClass = callback != nullptr ? env->GetObjectClass(callback) : nullptr;
+  jmethodID onProgressMethod = callbackClass != nullptr
+                                   ? env->GetMethodID(callbackClass, "onProgress", "(II)V")
+                                   : nullptr;
+
+  size_t loaded = textureRuntime.PreloadAll([&](size_t current, size_t total) {
+    if (env != nullptr && callback != nullptr && onProgressMethod != nullptr) {
+      env->CallVoidMethod(callback, onProgressMethod, static_cast<jint>(current),
+                          static_cast<jint>(total));
+      if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+      }
+    }
+  });
+
+  __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                      "nativePreloadCustomTextures completed: %zu textures preloaded into cache",
+                      loaded);
+  return static_cast<jint>(loaded);
 }
 
 } // extern "C"

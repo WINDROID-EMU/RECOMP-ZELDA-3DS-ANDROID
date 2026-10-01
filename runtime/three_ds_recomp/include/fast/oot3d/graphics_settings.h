@@ -162,6 +162,7 @@ struct EffectsSettings {
 struct AzaharTexturePackSettings {
     bool DumpTextures = false;
     bool LoadCustomTextures = false;
+    bool PreloadTextures = true;
     std::string LoadDirectory;
     std::string DumpDirectory;
 };

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <bit>
 #include <cctype>
 #include <condition_variable>
@@ -380,10 +381,24 @@ std::optional<uint64_t> ParseFilenameHash(const std::filesystem::path& path) {
     unsigned int height = 0;
     unsigned int format = 0;
     unsigned long long hash = 0;
-    if (std::sscanf(stem.c_str(), "tex1_%ux%u_%llX_%u", &width, &height, &hash, &format) != 4) {
-        return std::nullopt;
+    if (std::sscanf(stem.c_str(), "tex1_%ux%u_%llx_%u", &width, &height, &hash, &format) == 4 ||
+        std::sscanf(stem.c_str(), "tex1_%ux%u_%llX_%u", &width, &height, &hash, &format) == 4 ||
+        std::sscanf(stem.c_str(), "tex1_%ux%u_%llx", &width, &height, &hash) == 3 ||
+        std::sscanf(stem.c_str(), "tex1_%ux%u_%llX", &width, &height, &hash) == 3) {
+        return static_cast<uint64_t>(hash);
     }
-    return static_cast<uint64_t>(hash);
+    std::string_view sv = stem;
+    if (sv.starts_with("0x") || sv.starts_with("0X")) {
+        sv.remove_prefix(2);
+    }
+    if (sv.length() == 16 && std::all_of(sv.begin(), sv.end(), [](char c) {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    })) {
+        try {
+            return std::stoull(std::string(sv), nullptr, 16);
+        } catch (...) {}
+    }
+    return std::nullopt;
 }
 
 std::unordered_map<uint64_t, IndexedTexture> IndexTexturePack(const std::filesystem::path& loadDirectory,
@@ -907,6 +922,145 @@ class AzaharTexturePackRuntime::Impl {
         mIdle.wait(lock, [&] { return mPendingLoads == 0U; });
     }
 
+    size_t PreloadAll(std::function<void(size_t loaded, size_t total)> progressCallback) {
+        struct PreloadItem {
+            IndexedTexture Texture;
+            std::vector<uint64_t> Hashes;
+        };
+
+        std::vector<PreloadItem> items;
+        size_t totalHashes = 0;
+        uint64_t generation = 0;
+        {
+            std::scoped_lock lock(mMutex);
+            if (!mConfigured || !mConfiguration.LoadCustomTextures) {
+                if (progressCallback) {
+                    progressCallback(0, 0);
+                }
+                return 0;
+            }
+            if (mIndex.empty()) {
+                try {
+                    RebuildLocked();
+                } catch (...) {}
+            }
+            if (mIndex.empty()) {
+                if (progressCallback) {
+                    progressCallback(0, 0);
+                }
+                return 0;
+            }
+            generation = mGeneration;
+
+            std::unordered_map<std::string, PreloadItem> grouped;
+            for (const auto& [hash, indexed] : mIndex) {
+                if (mReplacementCache.contains(hash) || mFailedLoadHashes.contains(hash)) {
+                    continue;
+                }
+                auto& entry = grouped[indexed.Path.string()];
+                entry.Texture = indexed;
+                entry.Hashes.push_back(hash);
+                totalHashes++;
+            }
+            items.reserve(grouped.size());
+            for (auto& [pathStr, item] : grouped) {
+                items.push_back(std::move(item));
+            }
+        }
+
+        if (items.empty()) {
+            if (progressCallback) {
+                progressCallback(0, 0);
+            }
+            return 0;
+        }
+
+        const unsigned int concurrency = std::clamp(std::thread::hardware_concurrency(), 2U, 8U);
+        const size_t itemCount = items.size();
+        std::atomic<size_t> nextIndex{0};
+        std::atomic<size_t> completedHashes{0};
+        std::atomic<bool> memoryExhausted{false};
+
+        std::vector<std::thread> workers;
+        workers.reserve(concurrency);
+
+        for (unsigned int t = 0; t < concurrency; ++t) {
+            workers.emplace_back([&]() {
+                for (;;) {
+                    if (memoryExhausted.load(std::memory_order_relaxed)) {
+                        break;
+                    }
+                    const size_t idx = nextIndex.fetch_add(1, std::memory_order_relaxed);
+                    if (idx >= itemCount) {
+                        break;
+                    }
+                    const auto& item = items[idx];
+                    std::shared_ptr<const AzaharTextureReplacement> replacement;
+                    std::string failure;
+                    try {
+                        replacement = DecodeReplacement(item.Texture, item.Hashes.front());
+                    } catch (const std::bad_alloc&) {
+                        memoryExhausted.store(true, std::memory_order_relaxed);
+                        break;
+                    } catch (const std::exception& ex) {
+                        failure = ex.what();
+                    }
+
+                    {
+                        std::scoped_lock lock(mMutex);
+                        if (generation == mGeneration && mConfiguration.LoadCustomTextures) {
+                            if (replacement != nullptr) {
+                                for (uint64_t h : item.Hashes) {
+                                    mReplacementCache.insert_or_assign(h, replacement);
+                                    mFailedLoadHashes.erase(h);
+                                    mPendingLoadGenerations.erase(h);
+                                }
+                            } else {
+                                for (uint64_t h : item.Hashes) {
+                                    mFailedLoadHashes.insert(h);
+                                    mPendingLoadGenerations.erase(h);
+                                }
+                                if (!failure.empty()) {
+                                    mLastError = std::move(failure);
+                                }
+                            }
+                        }
+                    }
+
+                    completedHashes.fetch_add(item.Hashes.size(), std::memory_order_relaxed);
+                }
+            });
+        }
+
+        size_t lastReported = 0;
+        for (;;) {
+            const size_t current = completedHashes.load(std::memory_order_relaxed);
+            if (progressCallback && current != lastReported) {
+                progressCallback(current, totalHashes);
+                lastReported = current;
+            }
+
+            const size_t checked = nextIndex.load(std::memory_order_relaxed);
+            if (checked >= itemCount || memoryExhausted.load(std::memory_order_relaxed)) {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+        }
+
+        for (auto& w : workers) {
+            if (w.joinable()) {
+                w.join();
+            }
+        }
+
+        const size_t finalCount = completedHashes.load(std::memory_order_relaxed);
+        if (progressCallback) {
+            progressCallback(finalCount, totalHashes);
+        }
+
+        return finalCount;
+    }
+
   private:
     void RebuildLocked() {
         mIndex.clear();
@@ -965,6 +1119,18 @@ class AzaharTexturePackRuntime::Impl {
 
         if (mConfiguration.LoadCustomTextures) {
             mIndex = IndexTexturePack(mLoadDirectory, mPack, mUnsupportedFiles, &mLastError);
+            if (mConfiguration.PreloadTextures) {
+                for (const auto& [hash, indexed] : mIndex) {
+                    if (!mReplacementCache.contains(hash) && !mPendingLoadGenerations.contains(hash)) {
+                        mPendingLoadGenerations.insert_or_assign(hash, mGeneration);
+                        mLoadJobs.push_back({hash, mGeneration, indexed});
+                        ++mPendingLoads;
+                    }
+                }
+                if (!mLoadJobs.empty()) {
+                    mWorkAvailable.notify_all();
+                }
+            }
         }
         if (mConfiguration.DumpTextures) {
             try {
@@ -1187,6 +1353,10 @@ void AzaharTexturePackRuntime::WaitForPendingDumps() {
 
 void AzaharTexturePackRuntime::WaitForPendingLoads() {
     mImpl->WaitForPendingLoads();
+}
+
+size_t AzaharTexturePackRuntime::PreloadAll(std::function<void(size_t loaded, size_t total)> progressCallback) {
+    return mImpl->PreloadAll(std::move(progressCallback));
 }
 
 } // namespace Oot3d::Renderer

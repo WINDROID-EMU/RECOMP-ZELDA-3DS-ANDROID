@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,6 +17,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.core.view.WindowCompat;
@@ -28,6 +30,7 @@ import org.triaevum.android.controls.WindroidVirtualControllerView;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Locale;
 
 /**
  * Pure Android Activity hosting TriAevum.
@@ -50,6 +53,11 @@ public final class TriAevumActivity extends Activity {
     public static native void nativeOnPause();
     public static native void nativeOnResume();
     public static native void nativeMain(String[] args);
+
+    public interface PreloadProgressCallback {
+        void onProgress(int loaded, int total);
+    }
+    public static native int nativePreloadCustomTextures(String loadDirectory, PreloadProgressCallback callback);
 
     private FrameLayout mLayout;
     private TriAevumSurface mSurface;
@@ -152,7 +160,133 @@ public final class TriAevumActivity extends Activity {
     }
 
     void onSurfaceReady() {
-        ensureGameStarted();
+        checkPreloadAndStartGame();
+    }
+
+    private void checkPreloadAndStartGame() {
+        TriAevumConfigManager config = new TriAevumConfigManager(this);
+        if (!config.isCustomTexturesEnabled() || !config.isCustomTexturesPreloadEnabled()) {
+            ensureGameStarted();
+            return;
+        }
+
+        String customPath = config.getCustomTexturesPath();
+        File texturesDir;
+        if (customPath != null && !customPath.trim().isEmpty()) {
+            texturesDir = new File(customPath);
+        } else {
+            texturesDir = TriAevumTextureManager.getDefaultTexturesDir(this);
+        }
+
+        if (!texturesDir.exists() || !texturesDir.isDirectory()) {
+            ensureGameStarted();
+            return;
+        }
+
+        showPreloadOverlayAndStart(texturesDir.getAbsolutePath());
+    }
+
+    private void showPreloadOverlayAndStart(String texturesDirPath) {
+        FrameLayout preloadOverlay = new FrameLayout(this);
+        preloadOverlay.setBackgroundColor(0xF20B0E14);
+        preloadOverlay.setClickable(true);
+        preloadOverlay.setFocusable(true);
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setGravity(Gravity.CENTER);
+        content.setPadding(48, 32, 48, 32);
+
+        FrameLayout.LayoutParams contentLp = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+        contentLp.leftMargin = 80;
+        contentLp.rightMargin = 80;
+
+        TextView title = new TextView(this);
+        title.setText("TRIAEVUM 3D");
+        title.setTextColor(0xFFFFD700);
+        title.setTextSize(22);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER);
+
+        TextView subtitle = new TextView(this);
+        subtitle.setText("⚡ Pré-carregando texturas personalizadas...");
+        subtitle.setTextColor(0xFFECEFF4);
+        subtitle.setTextSize(14);
+        subtitle.setGravity(Gravity.CENTER);
+        subtitle.setPadding(0, 12, 0, 18);
+
+        ProgressBar progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progressBar.setMax(100);
+        progressBar.setProgress(0);
+        progressBar.setIndeterminate(false);
+        LinearLayout.LayoutParams pbLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 24);
+        progressBar.setLayoutParams(pbLp);
+
+        TextView tvDetails = new TextView(this);
+        tvDetails.setText("Indexando texturas...");
+        tvDetails.setTextColor(0xFF90A4AE);
+        tvDetails.setTextSize(12);
+        tvDetails.setGravity(Gravity.CENTER);
+        tvDetails.setPadding(0, 10, 0, 16);
+
+        Button btnSkip = new Button(this);
+        btnSkip.setText("Pular e Iniciar");
+        btnSkip.setTextColor(0xFFCFD8DC);
+        btnSkip.setTextSize(12);
+        btnSkip.setBackgroundColor(0x33FFFFFF);
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnLp.gravity = Gravity.CENTER;
+        btnSkip.setLayoutParams(btnLp);
+
+        content.addView(title);
+        content.addView(subtitle);
+        content.addView(progressBar);
+        content.addView(tvDetails);
+        content.addView(btnSkip);
+        preloadOverlay.addView(content, contentLp);
+
+        mLayout.addView(preloadOverlay, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        java.util.concurrent.atomic.AtomicBoolean finishedOrSkipped = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+        Runnable finishLoading = () -> {
+            if (finishedOrSkipped.compareAndSet(false, true)) {
+                preloadOverlay.animate()
+                    .alpha(0.0f)
+                    .setDuration(300)
+                    .withEndAction(() -> {
+                        mLayout.removeView(preloadOverlay);
+                        ensureGameStarted();
+                    })
+                    .start();
+            }
+        };
+
+        btnSkip.setOnClickListener(v -> finishLoading.run());
+
+        new Thread(() -> {
+            try {
+                int count = nativePreloadCustomTextures(texturesDirPath, (loaded, total) -> {
+                    if (finishedOrSkipped.get()) return;
+                    runOnUiThread(() -> {
+                        if (total > 0) {
+                            int pct = (int)((loaded * 100L) / total);
+                            progressBar.setProgress(pct);
+                            tvDetails.setText(String.format(Locale.getDefault(), "%d / %d texturas (%d%%)", loaded, total, pct));
+                        }
+                    });
+                });
+                Log.i(TAG, "Texture preloading completed: " + count + " textures loaded");
+            } catch (Throwable t) {
+                Log.w(TAG, "Texture preloading encountered issue: " + t.getMessage());
+            }
+
+            runOnUiThread(finishLoading);
+        }, "TriAevumTexturePreloader").start();
     }
 
     private synchronized void ensureGameStarted() {

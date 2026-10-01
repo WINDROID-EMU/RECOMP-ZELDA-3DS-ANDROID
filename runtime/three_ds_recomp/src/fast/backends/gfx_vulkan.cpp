@@ -1565,6 +1565,7 @@ void GfxRenderingAPIVulkan::StartFrame() {
         azaharTexturePacks.Configure({
             .DumpTextures = graphicsSettings.TexturePacks.Azahar.DumpTextures,
             .LoadCustomTextures = graphicsSettings.TexturePacks.Azahar.LoadCustomTextures,
+            .PreloadTextures = graphicsSettings.TexturePacks.Azahar.PreloadTextures,
             .LoadDirectory = graphicsSettings.TexturePacks.Azahar.LoadDirectory,
             .DumpDirectory = graphicsSettings.TexturePacks.Azahar.DumpDirectory,
         });

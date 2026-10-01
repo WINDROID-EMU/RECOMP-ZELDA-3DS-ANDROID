@@ -5,11 +5,7 @@
 namespace Fast::Oot3d {
 
 inline constexpr bool BuildRequiresNativePresentation() {
-#if defined(__ANDROID__)
-    return true;
-#else
     return false;
-#endif
 }
 
 // The mobile baseline uses the exact F2 mask, not the Authentic preset. Keep

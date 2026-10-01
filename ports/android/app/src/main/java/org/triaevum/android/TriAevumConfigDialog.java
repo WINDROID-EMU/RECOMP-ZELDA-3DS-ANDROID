@@ -60,10 +60,20 @@ public final class TriAevumConfigDialog extends Dialog {
     private Spinner mSpFramerate;
     private CheckBox mCbVSync;
     private CheckBox mCbCustomTextures;
+    private CheckBox mCbPreloadTextures;
     private TextView mTvCustomTexturesPath;
     private TextView mTvCustomTexturesCount;
     private Button   mBtnSelectTexturesDir;
     private Button   mBtnResetTexturesDir;
+    private Button   mBtnPreloadNow;
+
+    // Mods Visuais
+    private CheckBox mCbToonShading;
+    private CheckBox mCbToonOutline;
+    private View     mLayoutToonOutline;
+    private Spinner  mSpGrassQuality;
+    private SeekBar  mSbFov;
+    private TextView mTvFovLabel;
 
     // Câmera / HUD
     private CheckBox mCbFreeCamera;
@@ -161,10 +171,20 @@ public final class TriAevumConfigDialog extends Dialog {
         mSpFramerate      = findViewById(R.id.sp_framerate);
         mCbVSync          = findViewById(R.id.cb_vsync);
         mCbCustomTextures = findViewById(R.id.cb_custom_textures);
+        mCbPreloadTextures = findViewById(R.id.cb_preload_textures);
         mTvCustomTexturesPath = findViewById(R.id.tv_custom_textures_path);
         mTvCustomTexturesCount = findViewById(R.id.tv_custom_textures_count);
         mBtnSelectTexturesDir = findViewById(R.id.btn_select_textures_dir);
         mBtnResetTexturesDir  = findViewById(R.id.btn_reset_textures_dir);
+        mBtnPreloadNow = findViewById(R.id.btn_preload_now);
+
+        // Mods Visuais
+        mCbToonShading     = findViewById(R.id.cb_toon_shading);
+        mCbToonOutline     = findViewById(R.id.cb_toon_outline);
+        mLayoutToonOutline = findViewById(R.id.layout_toon_outline);
+        mSpGrassQuality    = findViewById(R.id.sp_grass_quality);
+        mSbFov             = findViewById(R.id.sb_fov);
+        mTvFovLabel        = findViewById(R.id.tv_fov_label);
 
         // Câmera / HUD
         mCbFreeCamera      = findViewById(R.id.cb_free_camera);
@@ -254,12 +274,55 @@ public final class TriAevumConfigDialog extends Dialog {
 
         mCbVSync.setChecked(mConfig.isVSync());
         mCbCustomTextures.setChecked(mConfig.isCustomTexturesEnabled());
+        if (mCbPreloadTextures != null) {
+            mCbPreloadTextures.setChecked(mConfig.isCustomTexturesPreloadEnabled());
+        }
         updateTextureDirectoryDisplay();
         Log.d(TAG, "  renderScale=" + mConfig.getRenderScale()
             + " AA=" + mConfig.getAAMode()
             + " FR=" + mConfig.getFrameRateMode()
             + " vsync=" + mConfig.isVSync()
             + " customTex=" + mConfig.isCustomTexturesEnabled());
+
+        // Visual Mods (Toon, Grass, FOV)
+        boolean toon = mConfig.isToonEnabled();
+        boolean outline = mConfig.isToonOutlineEnabled();
+        mCbToonShading.setChecked(toon);
+        mCbToonOutline.setChecked(outline);
+        mCbToonOutline.setEnabled(toon);
+        if (mLayoutToonOutline != null) {
+            mLayoutToonOutline.setAlpha(toon ? 1.0f : 0.45f);
+        }
+        mCbToonShading.setOnCheckedChangeListener((btn, isChecked) -> {
+            mCbToonOutline.setEnabled(isChecked);
+            if (mLayoutToonOutline != null) {
+                mLayoutToonOutline.setAlpha(isChecked ? 1.0f : 0.45f);
+            }
+        });
+
+        setupSpinner(mSpGrassQuality, TriAevumConfigManager.GRASS_QUALITY_LABELS, null);
+        String grass = mConfig.getGrassQuality();
+        for (int i = 0; i < TriAevumConfigManager.GRASS_QUALITY_VALUES.length; i++) {
+            if (TriAevumConfigManager.GRASS_QUALITY_VALUES[i].equalsIgnoreCase(grass)) {
+                mSpGrassQuality.setSelection(i);
+                break;
+            }
+        }
+
+        float fov = mConfig.getFovMultiplier();
+        int fovProgress = Math.max(0, Math.min(5, Math.round((fov - 1.0f) / 0.05f)));
+        mSbFov.setProgress(fovProgress);
+        int fovPct = 100 + (fovProgress * 5);
+        mTvFovLabel.setText("Campo de Visão (FOV): " + fovPct + "%" + (fovProgress == 0 ? " (Padrão)" : ""));
+
+        mSbFov.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
+                int p = 100 + (progress * 5);
+                mTvFovLabel.setText("Campo de Visão (FOV): " + p + "%" + (progress == 0 ? " (Padrão)" : ""));
+            }
+            @Override public void onStartTrackingTouch(SeekBar sb) {}
+            @Override public void onStopTrackingTouch(SeekBar sb) {}
+        });
 
         // Camera / HUD
         mCbFreeCamera.setChecked(mConfig.isFreeCameraEnabled());
@@ -562,6 +625,56 @@ public final class TriAevumConfigDialog extends Dialog {
                 Toast.makeText(getContext(), "Diretório de texturas redefinido para a pasta padrão do aplicativo!", Toast.LENGTH_SHORT).show();
             });
         }
+
+        if (mBtnPreloadNow != null) {
+            mBtnPreloadNow.setOnClickListener(v -> performManualPreload());
+        }
+    }
+
+    private void performManualPreload() {
+        String path = mConfig.getCustomTexturesPath();
+        java.io.File dir;
+        if (path != null && !path.trim().isEmpty()) {
+            dir = new java.io.File(path);
+        } else {
+            dir = TriAevumTextureManager.getDefaultTexturesDir(getContext());
+        }
+
+        if (!dir.exists() || !dir.isDirectory()) {
+            Toast.makeText(getContext(), "Pasta de texturas não encontrada: " + dir.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        android.app.ProgressDialog progress = new android.app.ProgressDialog(getContext(), android.R.style.Theme_DeviceDefault_Dialog_Alert);
+        progress.setTitle("⚡ Pré-carregando Texturas");
+        progress.setMessage("Indexando e carregando texturas na memória...");
+        progress.setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL);
+        progress.setMax(100);
+        progress.setCancelable(false);
+        progress.show();
+
+        new Thread(() -> {
+            try {
+                int loaded = TriAevumActivity.nativePreloadCustomTextures(dir.getAbsolutePath(), (current, total) -> {
+                    int percent = total > 0 ? (int)((current * 100L) / total) : 0;
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                        progress.setProgress(percent);
+                        progress.setMessage(String.format(java.util.Locale.getDefault(), "%d / %d texturas (%d%%)", current, total, percent));
+                    });
+                });
+
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    progress.dismiss();
+                    Toast.makeText(getContext(), "✅ " + loaded + " texturas pré-carregadas na memória com sucesso!", Toast.LENGTH_LONG).show();
+                    updateTextureDirectoryDisplay();
+                });
+            } catch (Throwable t) {
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    progress.dismiss();
+                    Toast.makeText(getContext(), "Erro ao pré-carregar: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        }).start();
     }
 
     private void updateTextureDirectoryDisplay() {
@@ -629,6 +742,20 @@ public final class TriAevumConfigDialog extends Dialog {
 
         Log.d(TAG, "  SET graphics batch -> scale=" + rs + ", aa=" + aa + ", fr=" + fr + ", vsync=" + vsync + ", customTextures=" + customTextures);
         mConfig.saveGraphicsSettings(rs, aa, fr, vsync, customTextures);
+        if (mCbPreloadTextures != null) {
+            mConfig.setCustomTexturesPreloadEnabled(mCbPreloadTextures.isChecked());
+        }
+
+        // Visual Mods
+        boolean toonEnabled = mCbToonShading.isChecked();
+        boolean toonOutline = mCbToonOutline.isChecked();
+        int grassIdx = mSpGrassQuality.getSelectedItemPosition();
+        String grassQuality = (grassIdx >= 0 && grassIdx < TriAevumConfigManager.GRASS_QUALITY_VALUES.length)
+                ? TriAevumConfigManager.GRASS_QUALITY_VALUES[grassIdx]
+                : "Off";
+        float fovVal = 1.0f + (mSbFov.getProgress() * 0.05f);
+        Log.d(TAG, "  SET visual mods -> toon=" + toonEnabled + ", outline=" + toonOutline + ", grass=" + grassQuality + ", fov=" + fovVal);
+        mConfig.saveVisualMods(toonEnabled, toonOutline, grassQuality, fovVal);
 
         // Câmera / HUD
         Log.d(TAG, "  SET freeCamera -> " + mCbFreeCamera.isChecked());

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <span>
 #include <string>
@@ -14,6 +15,7 @@ inline constexpr uint64_t kOot3dEuropeanTitleId = 0x0004000000033600ULL;
 struct AzaharTexturePackConfiguration {
     bool DumpTextures = false;
     bool LoadCustomTextures = false;
+    bool PreloadTextures = false;
     uint64_t TitleId = kOot3dEuropeanTitleId;
     std::filesystem::path UserDirectory;
     std::filesystem::path LoadDirectory;
@@ -111,6 +113,11 @@ class AzaharTexturePackRuntime final {
     // Intended for deterministic tests and orderly shutdown, not frame code.
     void WaitForPendingDumps();
     void WaitForPendingLoads();
+
+    // Preloads all indexed custom textures into memory before gameplay starts.
+    // Reports progress via optional callback(loadedCount, totalCount).
+    // Returns the number of successfully preloaded textures.
+    size_t PreloadAll(std::function<void(size_t loaded, size_t total)> progressCallback = nullptr);
 
   private:
     class Impl;

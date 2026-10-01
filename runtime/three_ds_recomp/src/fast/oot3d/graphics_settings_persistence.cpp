@@ -1190,6 +1190,9 @@ SerializeGraphicsSettings(const GraphicsSettings& settings) {
                   {"LoadCustomTextures",
                    settings.TexturePacks.Azahar
                        .LoadCustomTextures},
+                  {"PreloadTextures",
+                   settings.TexturePacks.Azahar
+                       .PreloadTextures},
                   {"LoadDirectory",
                    settings.TexturePacks.Azahar.LoadDirectory},
                   {"DumpDirectory",
@@ -1428,6 +1431,12 @@ GraphicsSettingsLoadResult DeserializeGraphicsSettings(
                     result.Value.TexturePacks.Azahar
                         .LoadCustomTextures,
                     "Graphics.TexturePacks.Azahar.LoadCustomTextures",
+                    result);
+                ReadScalar(
+                    *azahar, "PreloadTextures",
+                    result.Value.TexturePacks.Azahar
+                        .PreloadTextures,
+                    "Graphics.TexturePacks.Azahar.PreloadTextures",
                     result);
                 if (version >= 9U || version == 0U) {
                     ReadScalar(

@@ -485,3 +485,5 @@ _packages
 /clang-format
 /clang-format.exe
 *.o2r
+
+ports/android/staged_native_libs/

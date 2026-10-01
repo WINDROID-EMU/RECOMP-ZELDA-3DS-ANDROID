@@ -2,6 +2,7 @@ package org.triaevum.android;
 
 import android.content.Context;
 import android.util.Log;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.File;
@@ -38,6 +39,10 @@ public final class TriAevumConfigManager {
 
     public static final String[] FRAMERATE_LABELS = { "30 FPS (Original)", "60 FPS (Nativo)" };
     public static final String[] FRAMERATE_VALUES = { "Original30",         "Interpolated2x" };
+
+    // ------- oot3d_native_game.json (Visual Mods) ---
+    public static final String[] GRASS_QUALITY_LABELS = { "Desligada", "Baixa", "Média", "Alta" };
+    public static final String[] GRASS_QUALITY_VALUES = { "Off",       "Low",   "Medium", "High" };
 
     // ------- TriAevum.android.host.json ---
     public static final String[] SURFACE_RES_LABELS = { "720p (Padrão)", "1080p (Nativo Moto G100)", "Sem Limite" };
@@ -334,6 +339,29 @@ public final class TriAevumConfigManager {
         writeJson("oot3d_native_game.json", root);
     }
 
+    public boolean isCustomTexturesPreloadEnabled() {
+        JSONObject tp = getGraphics().optJSONObject("TexturePacks");
+        if (tp == null) return true;
+        JSONObject az = tp.optJSONObject("Azahar");
+        return az == null || az.optBoolean("PreloadTextures", true);
+    }
+
+    public void setCustomTexturesPreloadEnabled(boolean v) {
+        JSONObject root = readJson("oot3d_native_game.json");
+        try {
+            JSONObject gfx = getOrCreateGraphics(root);
+            JSONObject tp = gfx.optJSONObject("TexturePacks");
+            if (tp == null) tp = new JSONObject();
+            JSONObject az = tp.optJSONObject("Azahar");
+            if (az == null) az = new JSONObject();
+            az.put("PreloadTextures", v);
+            tp.put("Azahar", az);
+            gfx.put("TexturePacks", tp);
+            root.put("Graphics", gfx);
+        } catch (JSONException ignored) {}
+        writeJson("oot3d_native_game.json", root);
+    }
+
     public String getCustomTexturesPath() {
         JSONObject tp = getGraphics().optJSONObject("TexturePacks");
         if (tp == null) return "";
@@ -356,6 +384,291 @@ public final class TriAevumConfigManager {
             }
             tp.put("Azahar", az);
             gfx.put("TexturePacks", tp);
+            root.put("Graphics", gfx);
+        } catch (JSONException ignored) {}
+        writeJson("oot3d_native_game.json", root);
+    }
+
+    // =========================================================================
+    // Visual Mods (Cel-Shading, Grama 3D, FOV Multiplier)
+    // =========================================================================
+
+    public boolean isToonEnabled() {
+        JSONObject fx = getGraphics().optJSONObject("Effects");
+        if (fx == null) return false;
+        JSONObject toon = fx.optJSONObject("Toon");
+        if (toon == null) return false;
+        String mode = toon.optString("Mode", "Off");
+        return !"Off".equalsIgnoreCase(mode);
+    }
+
+    public boolean isToonOutlineEnabled() {
+        JSONObject fx = getGraphics().optJSONObject("Effects");
+        if (fx == null) return false;
+        JSONObject toon = fx.optJSONObject("Toon");
+        return toon != null && toon.optBoolean("OutlineEnabled", false);
+    }
+
+    public void setToonSettings(boolean enabled, boolean outline) {
+        JSONObject root = readJson("oot3d_native_game.json");
+        try {
+            JSONObject gfx = getOrCreateGraphics(root);
+            gfx.put("Preset", "Custom");
+            JSONObject fx = gfx.optJSONObject("Effects");
+            if (fx == null) fx = new JSONObject();
+            JSONObject toon = fx.optJSONObject("Toon");
+            if (toon == null) toon = new JSONObject();
+
+            if (enabled) {
+                toon.put("Mode", "PicaMaterial");
+                toon.put("LightBands", 4);
+                toon.put("BandSoftness", 0.228);
+                toon.put("Saturation", 1.09);
+                toon.put("RimStrength", 0.34);
+                toon.put("RimWidth", 3.17);
+                toon.put("OutlineEnabled", outline);
+                toon.put("OutlineWidth", 1.0);
+                toon.put("OutlineOpacity", 1.0);
+            } else {
+                toon.put("Mode", "Off");
+                toon.put("OutlineEnabled", false);
+            }
+            fx.put("Toon", toon);
+            gfx.put("Effects", fx);
+            root.put("Graphics", gfx);
+        } catch (JSONException ignored) {}
+        writeJson("oot3d_native_game.json", root);
+    }
+
+    public String getGrassQuality() {
+        JSONObject grass = getGraphics().optJSONObject("Grass");
+        if (grass == null) return "Off";
+        return grass.optString("Quality", "Off");
+    }
+
+    public void setGrassQuality(String quality) {
+        JSONObject root = readJson("oot3d_native_game.json");
+        try {
+            JSONObject gfx = getOrCreateGraphics(root);
+            gfx.put("Preset", "Custom");
+            JSONObject grass = buildGrassObject(quality);
+            gfx.put("Grass", grass);
+            gfx.put("GrassSavedPreset", grass);
+            root.put("Graphics", gfx);
+        } catch (JSONException ignored) {}
+        writeJson("oot3d_native_game.json", root);
+    }
+
+    private JSONObject buildGrassObject(String quality) throws JSONException {
+        JSONObject grass = new JSONObject();
+        grass.put("Quality", quality);
+        if ("Off".equalsIgnoreCase(quality)) {
+            return grass;
+        }
+
+        JSONObject appearance = new JSONObject();
+        appearance.put("BladeCurvature", 0.64);
+        appearance.put("BladeDroop", 0.35);
+        appearance.put("BladeSegments", 5);
+        appearance.put("BladeTwistDegrees", 141.0);
+        appearance.put("HeightScale", 1.15);
+        appearance.put("ReceiveFog", true);
+        appearance.put("ReceiveLighting", true);
+        JSONArray rootColor = new JSONArray();
+        rootColor.put(0.0988); rootColor.put(0.19); rootColor.put(0.035);
+        appearance.put("RootColor", rootColor);
+        appearance.put("ShapeVariation", 0.38);
+        appearance.put("TextureColorInfluence", 0.75);
+        appearance.put("TextureRootBrightness", 1.01);
+        appearance.put("TextureTipBrightness", 1.74);
+        JSONArray tipColor = new JSONArray();
+        tipColor.put(0.1906); tipColor.put(0.72); tipColor.put(0.12);
+        appearance.put("TipColor", tipColor);
+        appearance.put("ToonRimEnabled", false);
+        appearance.put("ToonRimFadeEnd", 901.0);
+        appearance.put("ToonRimFadeStart", 0.0);
+        grass.put("Appearance", appearance);
+
+        JSONObject generation = new JSONObject();
+        generation.put("BladeHeightMax", 12.51);
+        generation.put("BladeHeightMin", 7.68);
+        generation.put("BladeWidthMax", 1.94);
+        generation.put("BladeWidthMin", 1.80);
+        generation.put("ClusterCoverage", 0.65);
+        generation.put("ClusterScale", 300.0);
+        generation.put("ClusterStrength", 0.0);
+        generation.put("IndividualRandomness", 1.0);
+        generation.put("InstancesPerSquareMeter", "High".equalsIgnoreCase(quality) ? 1024.0 : ("Medium".equalsIgnoreCase(quality) ? 512.0 : 256.0));
+        generation.put("MinimumSpacing", 0.0);
+        generation.put("Seed", 1);
+        grass.put("Generation", generation);
+
+        JSONObject interaction = new JSONObject();
+        interaction.put("ColliderHeightMultiplier", 1.69);
+        interaction.put("ColliderRadiusMultiplier", 1.19);
+        interaction.put("CollisionPush", 1.66);
+        interaction.put("Damping", 1.46);
+        interaction.put("FieldRadius", 600.0);
+        interaction.put("FieldResolution", 256);
+        interaction.put("MaximumBend", 0.85);
+        interaction.put("RecoverySeconds", 1.0);
+        interaction.put("VelocityResponse", 0.87);
+        interaction.put("VerticalMargin", 69.0);
+        grass.put("LinkInteraction", interaction);
+
+        JSONObject wind = new JSONObject();
+        wind.put("DirectionDegrees", 0.0);
+        wind.put("GustFrequency", 0.35);
+        wind.put("GustStrength", 0.35);
+        wind.put("Randomness", 0.44);
+        wind.put("SpatialScale", 1.0);
+        wind.put("Speed", 2.84);
+        wind.put("Strength", 0.56);
+        wind.put("Turbulence", 0.42);
+        grass.put("Wind", wind);
+
+        JSONObject budget = new JSONObject();
+        JSONObject perf = new JSONObject();
+        perf.put("FrustumCulling", true);
+        perf.put("CullingClusterSize", 25.0);
+        perf.put("DrawFadeFraction", 0.15);
+        perf.put("DensityFadeFraction", 0.30);
+        perf.put("TuftTransitionFraction", 0.34);
+        perf.put("FarTuftsEnabled", false);
+        perf.put("MidrangeClustersEnabled", true);
+        perf.put("MidrangeAdaptiveEnabled", true);
+        perf.put("MidrangeAdaptiveCapacity", 10000);
+        perf.put("MidrangeClusterCellExtent", 88.0);
+        perf.put("MidrangeFarBladeFraction", 1.0);
+        perf.put("SegmentLodStartDistance", 501.0);
+        perf.put("SegmentLodEndDistance", 1000.0);
+        perf.put("SegmentLodSoftness", 0.75);
+        perf.put("FarBladeSegments", 1);
+
+        if ("Low".equalsIgnoreCase(quality)) {
+            budget.put("MaxInstancesPerRoom", 50000);
+            budget.put("DrawDistance", 5000.0);
+            perf.put("LodStartFraction", 0.50);
+            perf.put("LodEndFraction", 1.0);
+            perf.put("FarDensity", 0.30);
+        } else if ("Medium".equalsIgnoreCase(quality)) {
+            budget.put("MaxInstancesPerRoom", 150000);
+            budget.put("DrawDistance", 15000.0);
+            perf.put("LodStartFraction", 0.75);
+            perf.put("LodEndFraction", 1.0);
+            perf.put("FarDensity", 0.45);
+        } else {
+            budget.put("MaxInstancesPerRoom", 500000);
+            budget.put("DrawDistance", 50000.0);
+            perf.put("LodStartFraction", 1.0);
+            perf.put("LodEndFraction", 1.0);
+            perf.put("FarDensity", 0.62);
+        }
+        grass.put("Budget", budget);
+        grass.put("Performance", perf);
+
+        grass.put("Sources", getDefaultGrassSources());
+        return grass;
+    }
+
+    private JSONArray getDefaultGrassSources() throws JSONException {
+        JSONArray sources = new JSONArray();
+
+        String[][] rules = new String[][] {
+            {"be15aff93dfdcd88", "256", "256", "0.0", "0.252", "false", "65.0", "-0.15", "8.0"},
+            {"2321986eb9820c29", "128", "128", "0.759", "0.836", "true", "48.0", "0.5", "1.0"},
+            {"4b8941fd174516b0", "256", "256", "0.0", "0.572", "false", "48.0", "0.5", "8.0"},
+            {"0a29e93a3b0742b3", "256", "256", "0.484", "0.485", "true", "48.0", "0.5", "8.0"},
+            {"bd769b9ce136d73a", "256", "128", "0.498", "0.499", "true", "48.0", "0.5", "8.0"},
+            {"d13528cd4896c851", "128", "128", "0.503", "0.504", "true", "48.0", "0.5", "8.0"}
+        };
+
+        for (int i = 0; i < rules.length; i++) {
+            JSONObject rule = new JSONObject();
+            rule.put("RuleId", i + 1);
+            rule.put("Channel", "Green");
+            rule.put("InputBlack", Double.parseDouble(rules[i][3]));
+            rule.put("InputWhite", Double.parseDouble(rules[i][4]));
+            rule.put("Invert", Boolean.parseBoolean(rules[i][5]));
+            rule.put("MaximumSlopeDegrees", Double.parseDouble(rules[i][6]));
+            rule.put("NormalOffset", Double.parseDouble(rules[i][7]));
+            rule.put("OutputBlack", 0.0);
+            rule.put("OutputWhite", 1.0);
+            rule.put("ResponseExponent", Double.parseDouble(rules[i][8]));
+            rule.put("Wrap", "Material");
+
+            JSONObject target = new JSONObject();
+            target.put("AssetName", "");
+            target.put("Rgba8Hash", rules[i][0]);
+            target.put("Width", Integer.parseInt(rules[i][1]));
+            target.put("Height", Integer.parseInt(rules[i][2]));
+            target.put("MapperSlotMask", 7);
+            rule.put("Target", target);
+
+            sources.put(rule);
+        }
+        return sources;
+    }
+
+    public float getFovMultiplier() {
+        JSONObject cam = getGraphics().optJSONObject("Camera");
+        if (cam == null) return 1.0f;
+        return (float) cam.optDouble("FovMultiplier", 1.0);
+    }
+
+    public void setFovMultiplier(float fov) {
+        JSONObject root = readJson("oot3d_native_game.json");
+        try {
+            JSONObject gfx = getOrCreateGraphics(root);
+            gfx.put("Preset", "Custom");
+            JSONObject cam = gfx.optJSONObject("Camera");
+            if (cam == null) cam = new JSONObject();
+            cam.put("FovMultiplier", (double) fov);
+            gfx.put("Camera", cam);
+            root.put("Graphics", gfx);
+        } catch (JSONException ignored) {}
+        writeJson("oot3d_native_game.json", root);
+    }
+
+    public void saveVisualMods(boolean toonEnabled, boolean toonOutline, String grassQuality, float fovMultiplier) {
+        JSONObject root = readJson("oot3d_native_game.json");
+        try {
+            JSONObject gfx = getOrCreateGraphics(root);
+            gfx.put("Preset", "Custom");
+
+            // Toon
+            JSONObject fx = gfx.optJSONObject("Effects");
+            if (fx == null) fx = new JSONObject();
+            JSONObject toon = fx.optJSONObject("Toon");
+            if (toon == null) toon = new JSONObject();
+            if (toonEnabled) {
+                toon.put("Mode", "PostProcessPreview");
+                toon.put("LightBands", 4);
+                toon.put("BandSoftness", 0.15);
+                toon.put("Saturation", 1.09);
+                toon.put("RimStrength", 0.34);
+                toon.put("RimWidth", 3.17);
+                toon.put("OutlineEnabled", toonOutline);
+                toon.put("OutlineWidth", 1.0);
+                toon.put("OutlineOpacity", 1.0);
+            } else {
+                toon.put("Mode", "Off");
+                toon.put("OutlineEnabled", false);
+            }
+            fx.put("Toon", toon);
+            gfx.put("Effects", fx);
+
+            // Grass
+            JSONObject grass = buildGrassObject(grassQuality);
+            gfx.put("Grass", grass);
+            gfx.put("GrassSavedPreset", grass);
+
+            // Camera FOV
+            JSONObject cam = gfx.optJSONObject("Camera");
+            if (cam == null) cam = new JSONObject();
+            cam.put("FovMultiplier", (double) fovMultiplier);
+            gfx.put("Camera", cam);
+
             root.put("Graphics", gfx);
         } catch (JSONException ignored) {}
         writeJson("oot3d_native_game.json", root);
@@ -530,6 +843,7 @@ public final class TriAevumConfigManager {
         setSurfaceMaxShortEdge(720);
         // Graphics
         saveGraphicsSettings(1.0f, "Off", "Original30", true, false);
+        saveVisualMods(false, false, "Off", 1.0f);
         // Topscreen
         setHudLayout("normal");
         setHudMarginX(4);

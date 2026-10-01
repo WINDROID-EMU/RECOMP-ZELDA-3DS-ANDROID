@@ -1,6 +1,7 @@
 package org.triaevum.android;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
@@ -80,5 +81,78 @@ public final class TriAevumConfigManagerTest {
         assertEquals("Interpolated2x", configManager.getFrameRateMode());
         assertTrue(configManager.isVSync());
         assertTrue(configManager.isCustomTexturesEnabled());
+    }
+
+    @Test
+    public void savesAndPersistsVisualModsSettings() throws Exception {
+        File filesDir = mFolder.newFolder("files_visual_mods");
+        Context mockContext = new ContextWrapper(null) {
+            @Override
+            public File getExternalFilesDir(String type) {
+                return filesDir;
+            }
+        };
+
+        TriAevumConfigManager configManager = new TriAevumConfigManager(mockContext);
+        configManager.saveVisualMods(true, true, "Medium", 1.15f);
+
+        File configFile = new File(filesDir, "oot3d_native_game.json");
+        assertTrue(configFile.exists());
+
+        String raw = new String(Files.readAllBytes(configFile.toPath()), StandardCharsets.UTF_8);
+        JSONObject root = new JSONObject(raw);
+        JSONObject gfx = root.getJSONObject("Graphics");
+
+        JSONObject toon = gfx.getJSONObject("Effects").getJSONObject("Toon");
+        assertEquals("PostProcessPreview", toon.getString("Mode"));
+        assertTrue(toon.getBoolean("OutlineEnabled"));
+        assertEquals(1.0, toon.getDouble("OutlineWidth"), 0.001);
+
+        JSONObject grass = gfx.getJSONObject("Grass");
+        assertEquals("Medium", grass.getString("Quality"));
+        assertEquals(150000, grass.getJSONObject("Budget").getInt("MaxInstancesPerRoom"));
+        assertEquals(6, grass.getJSONArray("Sources").length());
+
+        JSONObject cam = gfx.getJSONObject("Camera");
+        assertEquals(1.15, cam.getDouble("FovMultiplier"), 0.001);
+
+        assertTrue(configManager.isToonEnabled());
+        assertTrue(configManager.isToonOutlineEnabled());
+        assertEquals("Medium", configManager.getGrassQuality());
+        assertEquals(1.15f, configManager.getFovMultiplier(), 0.001f);
+
+        // Test disabling Toon
+        configManager.setToonSettings(false, false);
+        assertFalse(configManager.isToonEnabled());
+        assertFalse(configManager.isToonOutlineEnabled());
+    }
+
+    @Test
+    public void persistsCustomTexturesPreloadSetting() throws Exception {
+        File filesDir = mFolder.newFolder("files_preload");
+        Context mockContext = new ContextWrapper(null) {
+            @Override
+            public File getExternalFilesDir(String type) {
+                return filesDir;
+            }
+        };
+
+        TriAevumConfigManager configManager = new TriAevumConfigManager(mockContext);
+        // Default should be true
+        assertTrue(configManager.isCustomTexturesPreloadEnabled());
+
+        configManager.setCustomTexturesPreloadEnabled(false);
+        assertFalse(configManager.isCustomTexturesPreloadEnabled());
+
+        File configFile = new File(filesDir, "oot3d_native_game.json");
+        assertTrue(configFile.exists());
+
+        String raw = new String(Files.readAllBytes(configFile.toPath()), StandardCharsets.UTF_8);
+        JSONObject root = new JSONObject(raw);
+        JSONObject azahar = root.getJSONObject("Graphics").getJSONObject("TexturePacks").getJSONObject("Azahar");
+        assertFalse(azahar.getBoolean("PreloadTextures"));
+
+        configManager.setCustomTexturesPreloadEnabled(true);
+        assertTrue(configManager.isCustomTexturesPreloadEnabled());
     }
 }

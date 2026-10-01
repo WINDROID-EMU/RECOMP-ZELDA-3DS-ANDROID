@@ -12,7 +12,10 @@ dependencies {
 }
 
 // Native compilation is a separate incremental build, never a Gradle side effect.
-val nativeStage = providers.gradleProperty("triaevumNativeStage")
+val defaultStage = File(projectDir.parentFile, "staged_native_libs")
+val nativeStage = providers.gradleProperty("triaevumNativeStage").orElse(
+    providers.provider { if (defaultStage.isDirectory) defaultStage.absolutePath else null }
+)
 android {
     namespace = "org.triaevum.android"
     compileSdk = 35
