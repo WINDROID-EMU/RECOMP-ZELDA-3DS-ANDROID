@@ -1181,6 +1181,7 @@ void GfxRenderingAPIVulkan::Shutdown() {
             vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
         }
         if (mPipelineCache != VK_NULL_HANDLE) {
+            std::lock_guard lock(mPipelineCacheMutex);
             vkDestroyPipelineCache(mDevice, mPipelineCache, nullptr);
             mPipelineCache = VK_NULL_HANDLE;
         }
@@ -1980,6 +1981,17 @@ void GfxRenderingAPIVulkan::FinishRender() {
     mDiagnostics.EndFrame();
     mFrameSubmitted = false;
     mCurrentFrame = (mCurrentFrame + 1) % kFramesInFlight;
+
+    const uint32_t newPipelines = mNewPipelinesSinceLastSave.load(std::memory_order_relaxed);
+    if (newPipelines > 0) {
+        const auto now = std::chrono::steady_clock::now();
+        const auto elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(now - mLastPipelineCacheSave).count();
+        if (newPipelines >= 8 || elapsedSeconds >= 20) {
+            mNewPipelinesSinceLastSave.store(0, std::memory_order_relaxed);
+            mLastPipelineCacheSave = now;
+            StorePipelineCache();
+        }
+    }
 }
 
 int GfxRenderingAPIVulkan::CreateFramebuffer() {
@@ -2709,9 +2721,15 @@ void GfxRenderingAPIVulkan::CreatePipelineCache() {
     CheckVk(result, "vkCreatePipelineCache");
     SPDLOG_INFO("OOT3D Vulkan pipeline cache: {}{}", loaded ? "loaded " : "new",
                 loaded ? "(" + std::to_string(cachedData.size()) + " bytes)" : "");
+#if defined(__ANDROID__)
+    __android_log_print(ANDROID_LOG_INFO, "TriAevum", "OOT3D Vulkan pipeline cache: %s%s",
+                        loaded ? "loaded " : "new",
+                        loaded ? ("(" + std::to_string(cachedData.size()) + " bytes)").c_str() : "");
+#endif
 }
 
 void GfxRenderingAPIVulkan::StorePipelineCache() {
+    std::lock_guard lock(mPipelineCacheMutex);
     const auto statistics = mNriPicaPipelineBridge.PipelineStatistics();
     mDiagnostics.SetNriPipelineStatistics(statistics.InitialCacheBytes, statistics.CreationAttempts, statistics.Created,
                                           statistics.CreationNanoseconds);
@@ -2728,10 +2746,17 @@ void GfxRenderingAPIVulkan::StorePipelineCache() {
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(mPhysicalDevice, &properties);
         std::string error;
-        if (StorePipelineCacheData(VulkanPipelineCachePath(true), MakePipelineCacheHeader(properties), nriData, &error))
+        if (StorePipelineCacheData(VulkanPipelineCachePath(true), MakePipelineCacheHeader(properties), nriData, &error)) {
             SPDLOG_INFO("NRI PICA pipeline cache: stored {} bytes", nriData.size());
-        else
+#if defined(__ANDROID__)
+            __android_log_print(ANDROID_LOG_INFO, "TriAevum", "NRI PICA pipeline cache: stored %zu bytes", nriData.size());
+#endif
+        } else {
             SPDLOG_WARN("NRI PICA pipeline cache: {}", error);
+#if defined(__ANDROID__)
+            __android_log_print(ANDROID_LOG_WARN, "TriAevum", "NRI PICA pipeline cache store warning: %s", error.c_str());
+#endif
+        }
     }
     if (mPipelineCache == VK_NULL_HANDLE) {
         return;
@@ -2760,10 +2785,17 @@ void GfxRenderingAPIVulkan::StorePipelineCache() {
     vkGetPhysicalDeviceProperties(mPhysicalDevice, &properties);
     const std::filesystem::path path = VulkanPipelineCachePath();
     std::string error;
-    if (StorePipelineCacheData(path, MakePipelineCacheHeader(properties), data, &error))
+    if (StorePipelineCacheData(path, MakePipelineCacheHeader(properties), data, &error)) {
         SPDLOG_INFO("OOT3D Vulkan pipeline cache: stored {} bytes", data.size());
-    else
+#if defined(__ANDROID__)
+        __android_log_print(ANDROID_LOG_INFO, "TriAevum", "OOT3D Vulkan pipeline cache: stored %zu bytes to %s", data.size(), path.c_str());
+#endif
+    } else {
         SPDLOG_WARN("OOT3D Vulkan pipeline cache: {}", error);
+#if defined(__ANDROID__)
+        __android_log_print(ANDROID_LOG_WARN, "TriAevum", "OOT3D Vulkan pipeline cache store warning: %s", error.c_str());
+#endif
+    }
 }
 
 void GfxRenderingAPIVulkan::StartPresentWorker() {
@@ -3866,8 +3898,15 @@ void main() {
     pipelineInfo.layout = mPipelineLayout;
     pipelineInfo.renderPass = mOot3dShadow2dRenderPass;
     pipelineInfo.subpass = 0;
-    const VkResult result = vkCreateGraphicsPipelines(mDevice, mPipelineCache, 1, &pipelineInfo, nullptr,
-                                                      &mOot3dShadow2dDepthEncodePipeline);
+    VkResult result;
+    {
+        std::lock_guard lock(mPipelineCacheMutex);
+        result = vkCreateGraphicsPipelines(mDevice, mPipelineCache, 1, &pipelineInfo, nullptr,
+                                           &mOot3dShadow2dDepthEncodePipeline);
+        if (result == VK_SUCCESS) {
+            mNewPipelinesSinceLastSave.fetch_add(1, std::memory_order_relaxed);
+        }
+    }
     vkDestroyShaderModule(mDevice, vertexShader, nullptr);
     vkDestroyShaderModule(mDevice, fragmentShader, nullptr);
     CheckVk(result, "vkCreateGraphicsPipelines(OOT3D Shadow2D depth encode)");
@@ -4284,8 +4323,12 @@ VkPipeline GfxRenderingAPIVulkan::GetOrCreatePipeline(const VulkanShaderProgram&
     pipelineInfo.renderPass = mRenderPass;
     pipelineInfo.subpass = 0;
     VkPipeline pipeline = VK_NULL_HANDLE;
-    CheckVk(vkCreateGraphicsPipelines(mDevice, mPipelineCache, 1, &pipelineInfo, nullptr, &pipeline),
-            "vkCreateGraphicsPipelines");
+    {
+        std::lock_guard lock(mPipelineCacheMutex);
+        CheckVk(vkCreateGraphicsPipelines(mDevice, mPipelineCache, 1, &pipelineInfo, nullptr, &pipeline),
+                "vkCreateGraphicsPipelines");
+        mNewPipelinesSinceLastSave.fetch_add(1, std::memory_order_relaxed);
+    }
     mPipelines.emplace(key, pipeline);
     return pipeline;
 }

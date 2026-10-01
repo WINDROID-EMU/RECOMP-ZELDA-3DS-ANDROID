@@ -19,6 +19,8 @@
 #include <ship/config/Config.h>
 
 #include "fast/backends/gfx_android.h"
+#include "fast/Fast3dWindow.h"
+#include "fast/backends/gfx_rendering_api.h"
 #include "fast/oot3d/graphics_settings_persistence.h"
 #include "fast/oot3d/graphics_settings_runtime.h"
 #include "oot3d/renderer/azahar_texture_pack.h"
@@ -270,17 +272,39 @@ Java_org_triaevum_android_TriAevumActivity_nativeSurfaceChanged(
   }
 }
 
+static void FlushAndroidPipelineCache() {
+  try {
+    auto ctx = Ship::Context::GetRawInstance();
+    if (!ctx) return;
+    auto window = ctx->GetWindow();
+    if (!window) return;
+    auto fastWindow = std::dynamic_pointer_cast<Fast::Fast3dWindow>(window);
+    if (!fastWindow) return;
+    auto rapi = fastWindow->GetCurrentRenderingAPI();
+    if (rapi) {
+      __android_log_print(ANDROID_LOG_INFO, "TriAevum", "Flushing Vulkan pipeline cache from Android lifecycle");
+      rapi->FlushPipelineCache();
+    }
+  } catch (const std::exception &e) {
+    __android_log_print(ANDROID_LOG_WARN, "TriAevum", "Failed to flush pipeline cache: %s", e.what());
+  } catch (...) {
+    __android_log_print(ANDROID_LOG_WARN, "TriAevum", "Unknown error while flushing pipeline cache");
+  }
+}
+
 JNIEXPORT void JNICALL
 Java_org_triaevum_android_TriAevumActivity_nativeSurfaceDestroyed(
     JNIEnv * /*env*/, jclass /*clazz*/) {
   __android_log_print(ANDROID_LOG_INFO, "TriAevum", "nativeSurfaceDestroyed");
   Fast::GfxWindowBackendAndroid::NotifySurfaceDestroyed();
+  FlushAndroidPipelineCache();
 }
 
 JNIEXPORT void JNICALL
 Java_org_triaevum_android_TriAevumActivity_nativeOnPause(
     JNIEnv * /*env*/, jclass /*clazz*/) {
   __android_log_print(ANDROID_LOG_INFO, "TriAevum", "nativeOnPause");
+  FlushAndroidPipelineCache();
 }
 
 JNIEXPORT void JNICALL

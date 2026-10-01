@@ -507,6 +507,7 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI, public Oot3d::TitleR
     void CreateLogicalDevice();
     void CreatePipelineCache();
     void StorePipelineCache();
+    void FlushPipelineCache() override { StorePipelineCache(); }
     void CreateCommandResources();
     VkCommandBuffer SplitFrameForExternalCompute(VkSemaphore timelineSemaphore, uint64_t vulkanSignalValue,
                                                  uint64_t externalCompletionValue);
@@ -683,6 +684,9 @@ class GfxRenderingAPIVulkan final : public GfxRenderingAPI, public Oot3d::TitleR
     std::thread mPresentThread;
     std::mutex mSwapchainCallMutex;
     std::mutex mPresentMutex;
+    std::mutex mPipelineCacheMutex;
+    std::atomic<uint32_t> mNewPipelinesSinceLastSave{0};
+    std::chrono::steady_clock::time_point mLastPipelineCacheSave{std::chrono::steady_clock::now()};
     std::condition_variable mPresentRequestCondition;
     std::condition_variable mPresentCompleteCondition;
     std::deque<PresentRequest> mPresentRequests;

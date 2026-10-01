@@ -653,6 +653,7 @@ void GfxRenderingAPIVulkan::CreateNativePicaScanoutPipeline() {
     pipelineInfo.renderPass = mRenderPass;
     VkResult result = VK_SUCCESS;
     if (mNativePicaScanoutPipeline == VK_NULL_HANDLE) {
+        std::lock_guard lock(mPipelineCacheMutex);
         result = vkCreateGraphicsPipelines(
             mDevice, mPipelineCache, 1, &pipelineInfo, nullptr,
             &mNativePicaScanoutPipeline);
@@ -669,6 +670,7 @@ void GfxRenderingAPIVulkan::CreateNativePicaScanoutPipeline() {
             VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
         pipelineInfo.renderPass = mOverlayRenderPass;
+        std::lock_guard lock(mPipelineCacheMutex);
         result = vkCreateGraphicsPipelines(
             mDevice, mPipelineCache, 1, &pipelineInfo, nullptr,
             &mNativePicaScanoutOverlayPipeline);
@@ -3433,9 +3435,12 @@ VkPipeline GfxRenderingAPIVulkan::GetOrCreateNativePicaPipeline(
                 : mNativePicaRenderPass;
     }
     VkPipeline pipeline = VK_NULL_HANDLE;
-    CheckNativeVk(vkCreateGraphicsPipelines(mDevice, mPipelineCache, 1,
-                                            &pipelineInfo, nullptr, &pipeline),
-                  "vkCreateGraphicsPipelines(native PICA)");
+    {
+        std::lock_guard lock(mPipelineCacheMutex);
+        CheckNativeVk(vkCreateGraphicsPipelines(mDevice, mPipelineCache, 1,
+                                                &pipelineInfo, nullptr, &pipeline),
+                      "vkCreateGraphicsPipelines(native PICA)");
+    }
     if (shader.NriDescriptorContract) {
         auto nriPipeline = resolvedState;
         nriPipeline.VertexSpirv = shader.NriVertexSpirv;
@@ -3450,6 +3455,7 @@ VkPipeline GfxRenderingAPIVulkan::GetOrCreateNativePicaPipeline(
         }
     }
     mNativePicaPipelines.emplace(std::move(key), pipeline);
+    mNewPipelinesSinceLastSave.fetch_add(1, std::memory_order_relaxed);
     return pipeline;
 }
 
