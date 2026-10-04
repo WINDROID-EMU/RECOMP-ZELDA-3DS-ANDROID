@@ -2,7 +2,7 @@
 
 Última atualização: 2026-10-04  
 Branch ativa: `feature/native-render-phase4-fragment-shaders`  
-Fase atual: **Fase 6 — Render passes amigáveis à Adreno** (Concluída) -> Próxima: **Fase 7 — Pipelines, cache e stutter**
+Fase atual: **Fase 7 — Pipelines, cache e stutter** (Concluída) -> Próxima: **Fase 8 — Rumo ao nativo de verdade (HLE)**
 
 ---
 
@@ -17,8 +17,8 @@ Fase atual: **Fase 6 — Render passes amigáveis à Adreno** (Concluída) -> Pr
 | **4** | **Gerador de fragment shader** | Diff por pixel dentro da tolerância (< 1/255); cada função TEV e cada config de lighting testada; 0 erros no `spirv-val` | **CONCLUÍDO** | `PicaFragmentGenerator`: 10 operações TEV em 6 estágios, combiner buffer com delay de 2 estágios, iluminação LUT configs 0–7, fog blending, alpha test com discard, precisão `mediump`/`RelaxedPrecision` (R27) e 0 erros no `spirv-val`. |
 | **5** | **Rasterização, profundidade e blending** | Cenas de z/alpha/stencil sem regressão | **CONCLUÍDO** | `PicaRasterPipeline`: Mapeamento de Viewport (Y-flip Adreno), Scissor, 8 Compare Ops, 8 Stencil Ops, 5 Blend Equations, 15 Blend Factors, 16 Logic Ops, Polygon Offset para Decals (elimina Z-fighting), e oráculo CPU validado em `pica_raster_pipeline_tests`. |
 | **6** | **Render passes amigáveis à Adreno** | GMEM loads/stores medidos e registrados; sem leitura de RT externo no meio do pass | **CONCLUÍDO** | `PicaRenderPassScheduler`: Agrupamento de draws por alvo, política `DepthStoreOp = DONT_CARE` para evitar despejo de GMEM na DRAM, subpasses com input attachment para feedback de cor local (`VK_DEPENDENCY_BY_REGION_BIT`), 0 violações de mid-pass reads, validado em `pica_render_pass_scheduler_tests`. |
-| **7** | Pipelines, cache e stutter | Sem hitch acima do limite em teste de 5 min; cache corrompido não causa crash | **PRÓXIMA** | Pipeline Cache persistente em disco com validação de driver, ubershader fallback e warm-up. |
-| **8** | Rumo ao nativo de verdade (HLE) | Frame idêntico entre o caminho HLE e o nível 2 | PENDENTE | Depende da Fase 7 |
+| **7** | **Pipelines, cache e stutter** | Sem hitch acima do limite em teste de 5 min; cache corrompido não causa crash | **CONCLUÍDO** | `PicaPipelineManager`: Cache em disco com cabeçalho de driver e checksum FNV-1a, tolerância a arquivos truncados/corrompidos (R15), teto de 64 MB (R14), warm-up do corpus de pipelines, compilação assíncrona com ubershader fallback (< 1 ms, R16) e 0 hitches > 33.3 ms validado em `pica_pipeline_manager_tests`. |
+| **8** | Rumo ao nativo de verdade (HLE) | Frame idêntico entre o caminho HLE e o nível 2 | **PRÓXIMA** | Mapeamento direto de chamadas SDK de gráficos para draws nativas sem passar pela decodificação intermediária de registradores. |
 | **9** | Validação contínua | Matriz de aparelhos/drivers executada | PENDENTE | Depende da Fase 8 |
 | **10** | Otimização Adreno | Ganho medido contra o baseline, sem regressão de correção | PENDENTE | Depende da Fase 9 |
 
@@ -84,7 +84,21 @@ Fase atual: **Fase 6 — Render passes amigáveis à Adreno** (Concluída) -> Pr
 
 ---
 
-## 6. Registro de Fallbacks e Alertas (R26)
+## 6. Acompanhamento da Fase 7
+
+- [x] **7.1** `PicaPipelineManager`: Cache de pipelines persistente em disco com cabeçalho contendo `Magic`, `CacheVersion` e `DriverIdentity` (`VendorId`, `DeviceId`, `DriverVersion`, `PipelineCacheUuid`).
+- [x] **7.2** Invalidação automática de driver: Detecção de atualizações de driver ou GPU para descarte transparente de pipelines obsoletos.
+- [x] **7.3** Tolerância a corrupção e arquivos truncados (R15): Checksum de integridade FNV-1a com verificação de tamanho de payload, descartando arquivos inválidos sem abortos ou crashes.
+- [x] **7.4** Limite de orçamento de memória (R14): Teto de 64 MB configurável para cache de pipelines.
+- [x] **7.5** Pré-aquecimento de corpus (Warm-up): Pré-compilação em lote do corpus de shaders conhecidos (Fases 3 e 4) antes do gameplay, garantindo 100% de cache hits nas cenas indexadas.
+- [x] **7.6** Compilação assíncrona com Ubershader Fallback (R16): Despacho imediato de ubershader rápido (< 1 ms) na thread de renderização enquanto variantes especializadas compilam em thread de background, eliminando travamentos de compilação.
+- [x] **7.7** Medição e rastreamento de Stutter: Rastreamento contínuo de hitches com verificação estrita de **0 hitches acima do limite de 33.3 ms** ao longo da execução.
+- [x] **7.8** Suíte de testes automatizados [`pica_pipeline_manager_tests.cpp`](runtime/three_ds_recomp/tests/pica_pipeline_manager_tests.cpp) aprovada com 100% de sucesso.
+- [x] **7.9** Decisões técnicas registradas em [`DECISIONS.md`](DECISIONS.md) (ADR-0010).
+
+---
+
+## 7. Registro de Fallbacks e Alertas (R26)
 
 - `NATIVE_FALLBACK`: 0 ativos no hot path.
 - Orçamento de memória: 128 MB para texturas, 64 MB para superfícies de renderização, 32 MB para corpus de shaders (R14).

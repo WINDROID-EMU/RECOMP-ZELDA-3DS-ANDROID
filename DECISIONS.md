@@ -111,7 +111,19 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
   3. Para leituras de feedback local do pixel desenhado (fog/gas compositing, pós-processamento de tela), o scheduler utiliza `ScheduledSubpass` com `VkAttachmentReference` de input attachment (`VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`) e dependência `VK_DEPENDENCY_BY_REGION_BIT`. Isso mantém os pixels na GMEM sem quebrar o render pass e sem leituras de RT externo (`ExternalMidPassReadViolations == 0`).
   4. Isolamento de transferências: uploads de texturas e buffers são enfileirados estritamente antes do início dos passes (`outUploads` pré-render-pass), impedindo que quebras de render pass ocorram por transferências de barramento.
   5. Rastreamento formal de métricas de GMEM (`GmemMetrics`), comprovando a economia de largura de banda DRAM e o atendimento do Quality Gate 6.
-- **Evidência:** Suíte de testes `pica_render_pass_scheduler_tests` aprovada com 0 violações de mid-pass reads e consolidando 20 draws em 1 pass único.
+### ADR-0010: Cache de Pipelines Persistente em Disco, Pré-aquecimento do Corpus e Eliminação de Stutter com Ubershader Assíncrono (Fase 7)
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** A compilação de pipelines Vulkan em runtime é a principal fonte de travamentos bruscos (stutter/hitches) em jogos no Android com GPUs Adreno (R16, Seção 5 Fase 7). O carregamento de cenas exige pré-aquecimento dos shaders conhecidos e, para qualquer variante inédita, a thread gráfica não pode esperar a compilação pesada do driver Qualcomm (> 33 ms).
+- **Decisão:**
+  1. `PicaPipelineManager` gerencia cache persistente em disco com cabeçalho contendo `Magic`, `CacheVersion`, `DriverIdentity` (`VendorId`, `DeviceId`, `DriverVersion`, `PipelineCacheUuid`) e checksum de integridade (FNV-1a).
+  2. Invalidação automática: Qualquer alteração de driver, GPU ou versão invalida o cache antigo com log informativo sem quebrar a execução.
+  3. Tolerância a corrupção (R15): Arquivos truncados ou corrompidos em disco são detectados e descartados graciosamente, recriando o cache sem abortar nem travar.
+  4. Orçamento de memória (R14): Limite de memória configurável (padrão 64 MB) para cache de pipeline em disco e memória de processo.
+  5. Pré-aquecimento de corpus (Warm-up): Compilação em lote do corpus de pipelines conhecidos (Fases 3 e 4) antes do início do gameplay, alcançando 100% de hits nas cenas mapeadas.
+  6. Compilação Assíncrona com Ubershader Fallback (R16): Ao detectar um cache miss na thread de renderização, o scheduler despacha imediatamente o ubershader síncrono rápido (retornando em < 1 ms) e enfileira a compilação especializada em thread de background. Quando concluída, o pipeline especializado substitui o fallback sem que o jogador perceba qualquer engasgo.
+  7. Validação de Stutter: Rastreamento contínuo de hitches com verificação estrita de 0 frames excedendo 33.3 ms (30 FPS budget).
+- **Evidência:** Suíte de testes `pica_pipeline_manager_tests` 100% aprovada com retorno de fallback em < 1ms e 0 hitches > 33.3ms.
 
 ---
 
