@@ -2,7 +2,7 @@
 
 Última atualização: 2026-10-04  
 Branch ativa: `feature/native-render-phase4-fragment-shaders`  
-Fase atual: **Fase 5 — Rasterização, profundidade e blending** (Concluída) -> Próxima: **Fase 6 — Render passes amigáveis à Adreno**
+Fase atual: **Fase 6 — Render passes amigáveis à Adreno** (Concluída) -> Próxima: **Fase 7 — Pipelines, cache e stutter**
 
 ---
 
@@ -16,8 +16,8 @@ Fase atual: **Fase 5 — Rasterização, profundidade e blending** (Concluída) 
 | **3** | **Shaders de vértice (e geometria)** | Posições de vértice dentro da tolerância registrada; 0 erros no `spirv-val` | **CONCLUÍDO** | `PicaShaderTranslator` (decodificador de bytecode, reestruturação de fluxo JMP/CALL/LOOP, sanitize_mul, std140 UBO 1616B e mapeamento de profundidade em vertex stage sem `gl_FragDepth`) e `PicaShaderCorpus` validados com 100% de sucesso e 0 erros no `spirv-val`. |
 | **4** | **Gerador de fragment shader** | Diff por pixel dentro da tolerância (< 1/255); cada função TEV e cada config de lighting testada; 0 erros no `spirv-val` | **CONCLUÍDO** | `PicaFragmentGenerator`: 10 operações TEV em 6 estágios, combiner buffer com delay de 2 estágios, iluminação LUT configs 0–7, fog blending, alpha test com discard, precisão `mediump`/`RelaxedPrecision` (R27) e 0 erros no `spirv-val`. |
 | **5** | **Rasterização, profundidade e blending** | Cenas de z/alpha/stencil sem regressão | **CONCLUÍDO** | `PicaRasterPipeline`: Mapeamento de Viewport (Y-flip Adreno), Scissor, 8 Compare Ops, 8 Stencil Ops, 5 Blend Equations, 15 Blend Factors, 16 Logic Ops, Polygon Offset para Decals (elimina Z-fighting), e oráculo CPU validado em `pica_raster_pipeline_tests`. |
-| **6** | Render passes amigáveis à Adreno | GMEM loads/stores medidos e registrados; sem leitura de RT externo no meio do pass | **PRÓXIMA** | Render passes com subpasses, transient attachments e tile-memory budget. |
-| **7** | Pipelines, cache e stutter | Sem hitch acima do limite em teste de 5 min; cache corrompido não causa crash | PENDENTE | Depende da Fase 6 |
+| **6** | **Render passes amigáveis à Adreno** | GMEM loads/stores medidos e registrados; sem leitura de RT externo no meio do pass | **CONCLUÍDO** | `PicaRenderPassScheduler`: Agrupamento de draws por alvo, política `DepthStoreOp = DONT_CARE` para evitar despejo de GMEM na DRAM, subpasses com input attachment para feedback de cor local (`VK_DEPENDENCY_BY_REGION_BIT`), 0 violações de mid-pass reads, validado em `pica_render_pass_scheduler_tests`. |
+| **7** | Pipelines, cache e stutter | Sem hitch acima do limite em teste de 5 min; cache corrompido não causa crash | **PRÓXIMA** | Pipeline Cache persistente em disco com validação de driver, ubershader fallback e warm-up. |
 | **8** | Rumo ao nativo de verdade (HLE) | Frame idêntico entre o caminho HLE e o nível 2 | PENDENTE | Depende da Fase 7 |
 | **9** | Validação contínua | Matriz de aparelhos/drivers executada | PENDENTE | Depende da Fase 8 |
 | **10** | Otimização Adreno | Ganho medido contra o baseline, sem regressão de correção | PENDENTE | Depende da Fase 9 |
@@ -71,7 +71,20 @@ Fase atual: **Fase 5 — Rasterização, profundidade e blending** (Concluída) 
 
 ---
 
-## 5. Registro de Fallbacks e Alertas (R26)
+## 5. Acompanhamento da Fase 6
+
+- [x] **6.1** `PicaRenderPassScheduler`: Agrupamento e consolidação de draw calls consecutivas que visam o mesmo framebuffer (`RenderTargetSignature`), minimizando a troca de render passes no hardware móvel.
+- [x] **6.2** Política de Depth/Stencil `DONT_CARE`: Configuração padrão de `DepthStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE` e `StencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE`, eliminando o custo de despejo do depth buffer da GMEM para a DRAM externa.
+- [x] **6.3** Política de Load de Framebuffer: Aplicação de `VK_ATTACHMENT_LOAD_OP_CLEAR` no primeiro pass em que o alvo é acessado no frame, e `VK_ATTACHMENT_LOAD_OP_LOAD` em passes subsequentes, mantendo a consistência visual.
+- [x] **6.4** Subpasses locais com Input Attachments: Detecção automática de leitura de textura apontando para o próprio framebuffer ativo e divisão em `ScheduledSubpass` com `UsesInputAttachment = true` e dependência `VK_DEPENDENCY_BY_REGION_BIT`, eliminando quebras de render pass e vazamentos para a DRAM.
+- [x] **6.5** Isolamento de transferências de textura: Enfileiramento de cópias e uploads de textura estritamente antes do início de qualquer render pass (`outUploads` pré-pass), garantindo conformidade com a Seção 5 item 4 das regras.
+- [x] **6.6** Medição e rastreamento de métricas GMEM (`GmemMetrics`): Comprovação de 0 violações de mid-pass reads (`ExternalMidPassReadViolations == 0`), dezenas de draw calls agrupadas e gigabytes de largura de banda DRAM economizados por segundo.
+- [x] **6.7** Suíte de testes automatizados [`pica_render_pass_scheduler_tests.cpp`](runtime/three_ds_recomp/tests/pica_render_pass_scheduler_tests.cpp) aprovada com 100% de sucesso.
+- [x] **6.8** Decisões técnicas registradas em [`DECISIONS.md`](DECISIONS.md) (ADR-0009).
+
+---
+
+## 6. Registro de Fallbacks e Alertas (R26)
 
 - `NATIVE_FALLBACK`: 0 ativos no hot path.
 - Orçamento de memória: 128 MB para texturas, 64 MB para superfícies de renderização, 32 MB para corpus de shaders (R14).

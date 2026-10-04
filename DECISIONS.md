@@ -101,7 +101,17 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
   5. Scissor com clamping estrito aos limites do framebuffer (`VkRect2D`).
   6. Color write mask por canal (R, G, B, A) permitindo passes de escrita seletiva de profundidade ou cor.
   7. Oráculo CPU de rasterização e output-merger (`PicaRasterOracle`) validado em 8 cenários sem regressões numéricas.
-- **Evidência:** Suíte de testes `pica_raster_pipeline_tests` 100% aprovada.
+### ADR-0009: Agrupamento de Render Passes, Subpasses com Input Attachments e Política GMEM para Adreno TBDR (Fase 6)
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** A GPU Qualcomm Adreno é um TBDR (Tile-Based Deferred Renderer) no qual o tráfego entre a GMEM (on-chip tile memory) e a DRAM externa é o principal gargalo de largura de banda e consumo de bateria. Render passes ingênuos com quebras a cada draw call, `STORE_OP_STORE` em buffers de profundidade transitórios e leituras de RT externo no meio do pass causam descarregamentos de tiles (GMEM spills) que degradam o framerate em dispositivos móveis (R17, Seção 5 Fase 6).
+- **Decisão:**
+  1. `PicaRenderPassScheduler` consolida draw calls consecutivas destinadas ao mesmo framebuffer (`RenderTargetSignature`) em um único `ScheduledRenderPass`, reduzindo dezenas de passes redundantes para 1 por render target.
+  2. Política estrita de Depth/Stencil: `DepthStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE` e `StencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE` por padrão, evitando que a Adreno gaste largura de banda descarregando o depth buffer para a memória externa.
+  3. Para leituras de feedback local do pixel desenhado (fog/gas compositing, pós-processamento de tela), o scheduler utiliza `ScheduledSubpass` com `VkAttachmentReference` de input attachment (`VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`) e dependência `VK_DEPENDENCY_BY_REGION_BIT`. Isso mantém os pixels na GMEM sem quebrar o render pass e sem leituras de RT externo (`ExternalMidPassReadViolations == 0`).
+  4. Isolamento de transferências: uploads de texturas e buffers são enfileirados estritamente antes do início dos passes (`outUploads` pré-render-pass), impedindo que quebras de render pass ocorram por transferências de barramento.
+  5. Rastreamento formal de métricas de GMEM (`GmemMetrics`), comprovando a economia de largura de banda DRAM e o atendimento do Quality Gate 6.
+- **Evidência:** Suíte de testes `pica_render_pass_scheduler_tests` aprovada com 0 violações de mid-pass reads e consolidando 20 draws em 1 pass único.
 
 ---
 

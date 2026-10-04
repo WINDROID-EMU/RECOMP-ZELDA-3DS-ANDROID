@@ -67,6 +67,15 @@ target_include_directories(pica_raster_pipeline_tests PRIVATE
     ../../tools/oot3d/third_party/azahar_pica)
 add_test(NAME pica_raster_pipeline_tests COMMAND pica_raster_pipeline_tests)
 
+add_executable(pica_render_pass_scheduler_tests
+    pica_render_pass_scheduler_tests.cpp
+    ../src/pica/pica_render_pass_scheduler.cpp)
+target_compile_features(pica_render_pass_scheduler_tests PRIVATE cxx_std_20)
+target_include_directories(pica_render_pass_scheduler_tests PRIVATE
+    ../include
+    ../../tools/oot3d/third_party/azahar_pica)
+add_test(NAME pica_render_pass_scheduler_tests COMMAND pica_render_pass_scheduler_tests)
+
 add_executable(vulkan_present_dispatch_tests
     vulkan_present_dispatch_tests.cpp
     ../src/fast/oot3d/vulkan_adapter_policy.cpp)
