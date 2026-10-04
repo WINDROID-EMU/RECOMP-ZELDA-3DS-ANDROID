@@ -8,10 +8,14 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Process;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.Surface;
+import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -58,6 +62,7 @@ public final class TriAevumActivity extends Activity {
         void onProgress(int loaded, int total);
     }
     public static native int nativePreloadCustomTextures(String loadDirectory, PreloadProgressCallback callback);
+    public static native float nativeGetGameFps();
 
     private FrameLayout mLayout;
     private TriAevumSurface mSurface;
@@ -65,6 +70,38 @@ public final class TriAevumActivity extends Activity {
     private AndroidNativeInputTarget mInputTarget;
     private Thread mGameThread;
     private boolean mGameStarted = false;
+
+    private TextView mTvFpsCounter;
+    private final Handler mFpsHandler = new Handler(Looper.getMainLooper());
+    private boolean mShowGameFps = false;
+    private final Runnable mFpsUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mShowGameFps && mTvFpsCounter != null) {
+                float fps = nativeGetGameFps();
+                mTvFpsCounter.setText(String.format(Locale.US, "🎮 %.1f FPS", fps));
+                mTvFpsCounter.bringToFront();
+                mFpsHandler.postDelayed(this, 500);
+            }
+        }
+    };
+
+    public void updateFpsCounterVisibility() {
+        android.content.SharedPreferences prefs = getApplicationContext()
+            .getSharedPreferences("org.triaevum.android_preferences", Context.MODE_PRIVATE);
+        mShowGameFps = prefs.getBoolean("show_game_fps_counter", false);
+        Log.i(TAG, "updateFpsCounterVisibility: show=" + mShowGameFps);
+        mFpsHandler.removeCallbacks(mFpsUpdateRunnable);
+        if (mTvFpsCounter != null) {
+            if (mShowGameFps) {
+                mTvFpsCounter.bringToFront();
+                mTvFpsCounter.setVisibility(View.VISIBLE);
+                mFpsHandler.post(mFpsUpdateRunnable);
+            } else {
+                mTvFpsCounter.setVisibility(View.GONE);
+            }
+        }
+    }
 
     @Override
     protected void onCreate(Bundle state) {
@@ -155,6 +192,26 @@ public final class TriAevumActivity extends Activity {
         } catch (Exception error) {
             Log.e(TAG, "Failed to initialize Windroid virtual controller overlay", error);
         }
+
+        // Create game FPS counter overlay
+        mTvFpsCounter = new TextView(this);
+        mTvFpsCounter.setText("0.0 FPS");
+        mTvFpsCounter.setTextColor(0xFF00E676);
+        mTvFpsCounter.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        mTvFpsCounter.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        mTvFpsCounter.setShadowLayer(4.0f, 1.5f, 1.5f, 0xFF000000);
+        mTvFpsCounter.setBackgroundColor(0x77000000);
+        mTvFpsCounter.setPadding(20, 10, 20, 10);
+        FrameLayout.LayoutParams fpsParams = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        fpsParams.gravity = Gravity.TOP | Gravity.START;
+        fpsParams.setMargins(260, 24, 0, 0);
+        mTvFpsCounter.setLayoutParams(fpsParams);
+        mTvFpsCounter.setElevation(50.0f);
+        mTvFpsCounter.setVisibility(View.GONE);
+        mLayout.addView(mTvFpsCounter);
+        mTvFpsCounter.bringToFront();
+        updateFpsCounterVisibility();
 
         setContentView(mLayout);
     }
@@ -334,6 +391,7 @@ public final class TriAevumActivity extends Activity {
         super.onResume();
         hideSystemBars();
         nativeOnResume();
+        updateFpsCounterVisibility();
     }
 
     @Override
@@ -361,6 +419,7 @@ public final class TriAevumActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        mFpsHandler.removeCallbacks(mFpsUpdateRunnable);
         nativeOnPause();
         if (mWindroidOverlay != null) {
             mWindroidOverlay.releaseAll();

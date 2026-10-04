@@ -162,3 +162,9 @@ Fase atual: **Fase 10 — Otimização Adreno** (Concluída) -> **Todas as Fases
   - **Percentil 95 (95th percentile):** 9 ms.
   - **Missed Vsync frames:** 0 (60 FPS contínuos e travados na taxa de atualização nativa).
 - [x] **11.7** Interface de usuário e gameplay: Cutscenes e cenas 3D com iluminação PICA LUT, névoa, texturas ETC2 e sobreposição de controles transparentes renderizando perfeitamente na resolução nativa do aparelho. Menu de configurações com abas de áudio, gráficos, câmera e controles 100% responsivo.
+- [x] **11.8** Contador de FPS Nativo do Jogo (Desacoplado do Display Android):
+  - **Medição do Swapchain Vulkan:** Contador atômico implementado em C++ (`RecordAndroidGamePresentationFrame`) acoplado diretamente a `presentationFrameCount` no loop central de renderização PICA/Vulkan (`oot3d_native_a32_window.cpp`). Janela deslizante de 500 ms com cálculo real de frames apresentados.
+  - **Desacoplamento de Display:** Não mede a taxa de atualização do painel do Android (120 Hz do Xiaomi 12 / SurfaceFlinger), mas sim a taxa real de quadros do jogo (60.1 FPS interpolado / 30 FPS canônico).
+  - **Exposição JNI & UI:** Exposto via `nativeGetGameFps()`, configurável com toggle "Exibir FPS do Jogo" nas configurações gráficas e salvo em SharedPreferences (`show_game_fps_counter`).
+  - **Overlay OSD:** Widget `TextView` estilizado (`🎮 60.1 FPS`) com borda arredondada dourada, fundo translúcido, elevação 50.0f e `bringToFront()` para garantir visibilidade desobstruída sem colidir com controles virtuais. Validado com screenshot em hardware real.
+

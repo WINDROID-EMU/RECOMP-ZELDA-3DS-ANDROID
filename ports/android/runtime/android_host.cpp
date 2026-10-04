@@ -3,6 +3,7 @@
 #include <android/log.h>
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -398,6 +399,33 @@ Java_org_triaevum_android_TriAevumActivity_nativePreloadCustomTextures(
                       "nativePreloadCustomTextures completed: %zu textures preloaded into cache",
                       loaded);
   return static_cast<jint>(loaded);
+}
+
+static std::atomic<float> gAndroidGameFps{0.0f};
+
+void RecordAndroidGamePresentationFrame() {
+  static auto sLastFpsTime = std::chrono::steady_clock::now();
+  static uint32_t sFrameCount = 0;
+
+  sFrameCount++;
+  auto now = std::chrono::steady_clock::now();
+  auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - sLastFpsTime).count();
+  if (elapsedMs >= 500) {
+    float fps = (static_cast<float>(sFrameCount) * 1000.0f) / static_cast<float>(elapsedMs);
+    gAndroidGameFps.store(fps, std::memory_order_relaxed);
+    sFrameCount = 0;
+    sLastFpsTime = now;
+  }
+}
+
+float GetAndroidGameFps() {
+  return gAndroidGameFps.load(std::memory_order_relaxed);
+}
+
+JNIEXPORT jfloat JNICALL
+Java_org_triaevum_android_TriAevumActivity_nativeGetGameFps(
+    JNIEnv * /*env*/, jclass /*clazz*/) {
+  return GetAndroidGameFps();
 }
 
 } // extern "C"

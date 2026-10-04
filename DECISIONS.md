@@ -174,6 +174,20 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
 
 ---
 
+### ADR-0015: Medição de FPS Nativo do Jogo Desacoplada da Taxa de Atualização do Display Android
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** Em dispositivos Android com telas de alta taxa de atualização (como os 120 Hz do Xiaomi 12), monitores de FPS convencionais do sistema operacional (e.g. SurfaceFlinger / FPSMonitor / Game Turbo) medem a cadência de compositing e refresh do display da tela (~120 FPS), mascarando a taxa de quadros real gerada e apresentada pelo motor do jogo. O usuário necessitava de um medidor estrito de quadros do jogo (e.g. 30 FPS original ou 60 FPS interpolado).
+- **Decisão:**
+  1. **Acoplamento à Apresentação Vulkan:** Implementado contador atômico em C++ (`RecordAndroidGamePresentationFrame`) chamado diretamente no loop central de renderização (`oot3d_native_a32_window.cpp`) logo após o incremento de `presentationFrameCount` no momento do swap de imagem Vulkan.
+  2. **Janela Deslizante de 500 ms:** Cálculo por amostragem temporal de alta precisão (`std::chrono::steady_clock`) medindo a frequência real de apresentação do jogo em `float` com leitura atômica não-bloqueante (`std::memory_order_relaxed`).
+  3. **Ponte JNI e OSD Android:** Método `nativeGetGameFps()` exposto para a UI Java, sincronizado com o ciclo de vida (`onResume`/`onPause`) a cada 500 ms.
+  4. **Controle por Preferência e Z-Order:** Checkbox "Exibir FPS do Jogo" nas configurações gráficas persistido via `SharedPreferences`. Overlay OSD posicionado em coordenadas desobstruídas com elevação `50.0f` e `bringToFront()`, evitando conflito com botões virtuais `ZL/L` e botão de menu.
+- **Evidência:** Validação no Xiaomi 12 executando Zelda OoT 3D comprovando exibição estável de `🎮 60.1 FPS` na tela de título e cutscenes, sem qualquer confusão com os 120 Hz do painel OLED.
+
+---
+
+
 ## 2. Matriz de Hipóteses e Validação Técnica (Itens ⚠)
 
 | ID | Item / Hipótese | Origem | Teste / Validação Exigida | Status | Resolução / Notas |

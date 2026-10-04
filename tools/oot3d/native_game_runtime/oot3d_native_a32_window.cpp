@@ -6242,6 +6242,9 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
     phaseTiming.PresentSeconds += SecondsSince(phaseStart);
     ++presentationFrameCount;
     ++runFrameCount;
+#if defined(__ANDROID__)
+    RecordAndroidGamePresentationFrame();
+#endif
 #if defined(__SWITCH__)
     gSwitchRuntimeHostFrames = runFrameCount;
     gSwitchRuntimeGuestFrames = frameCount;

@@ -32,3 +32,12 @@ int RunOot3dNativeGameMain(int argc, char** argv);
 void RegisterAndroidTopScreenConfigRuntime(
     std::shared_ptr<Oot3dNativeGame::TopScreenUiConfigRuntime> runtime);
 void NotifyAndroidTopScreenConfigChanged();
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+void RecordAndroidGamePresentationFrame();
+float GetAndroidGameFps();
+#ifdef __cplusplus
+}
+#endif

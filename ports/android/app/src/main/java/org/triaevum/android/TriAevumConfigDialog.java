@@ -59,6 +59,7 @@ public final class TriAevumConfigDialog extends Dialog {
     private Spinner mSpAAMode;
     private Spinner mSpFramerate;
     private CheckBox mCbVSync;
+    private CheckBox mCbShowFps;
     private CheckBox mCbCustomTextures;
     private CheckBox mCbPreloadTextures;
     private TextView mTvCustomTexturesPath;
@@ -170,6 +171,7 @@ public final class TriAevumConfigDialog extends Dialog {
         mSpAAMode         = findViewById(R.id.sp_aa_mode);
         mSpFramerate      = findViewById(R.id.sp_framerate);
         mCbVSync          = findViewById(R.id.cb_vsync);
+        mCbShowFps        = findViewById(R.id.cb_show_fps);
         mCbCustomTextures = findViewById(R.id.cb_custom_textures);
         mCbPreloadTextures = findViewById(R.id.cb_preload_textures);
         mTvCustomTexturesPath = findViewById(R.id.tv_custom_textures_path);
@@ -273,6 +275,11 @@ public final class TriAevumConfigDialog extends Dialog {
         }
 
         mCbVSync.setChecked(mConfig.isVSync());
+        if (mCbShowFps != null) {
+            android.content.SharedPreferences prefs = getContext().getSharedPreferences(
+                "org.triaevum.android_preferences", Context.MODE_PRIVATE);
+            mCbShowFps.setChecked(prefs.getBoolean("show_game_fps_counter", false));
+        }
         mCbCustomTextures.setChecked(mConfig.isCustomTexturesEnabled());
         if (mCbPreloadTextures != null) {
             mCbPreloadTextures.setChecked(mConfig.isCustomTexturesPreloadEnabled());
@@ -738,6 +745,13 @@ public final class TriAevumConfigDialog extends Dialog {
                 : "Original30";
 
         boolean vsync = mCbVSync.isChecked();
+        if (mCbShowFps != null) {
+            getContext().getSharedPreferences("org.triaevum.android_preferences", Context.MODE_PRIVATE)
+                .edit().putBoolean("show_game_fps_counter", mCbShowFps.isChecked()).apply();
+            if (getContext() instanceof TriAevumActivity) {
+                ((TriAevumActivity) getContext()).updateFpsCounterVisibility();
+            }
+        }
         boolean customTextures = mCbCustomTextures.isChecked();
 
         Log.d(TAG, "  SET graphics batch -> scale=" + rs + ", aa=" + aa + ", fr=" + fr + ", vsync=" + vsync + ", customTextures=" + customTextures);
