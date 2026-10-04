@@ -21,6 +21,14 @@ target_compile_features(native_render_control_tests PRIVATE cxx_std_20)
 target_include_directories(native_render_control_tests PRIVATE ../include)
 add_test(NAME native_render_control_tests COMMAND native_render_control_tests)
 
+add_executable(pica_state_decoder_tests
+    pica_state_decoder_tests.cpp
+    ../src/pica/pica_command_processor.cpp
+    ../src/pica/pica_state_decoder.cpp)
+target_compile_features(pica_state_decoder_tests PRIVATE cxx_std_20)
+target_include_directories(pica_state_decoder_tests PRIVATE ../include)
+add_test(NAME pica_state_decoder_tests COMMAND pica_state_decoder_tests)
+
 add_executable(vulkan_present_dispatch_tests
     vulkan_present_dispatch_tests.cpp
     ../src/fast/oot3d/vulkan_adapter_policy.cpp)

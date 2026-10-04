@@ -36,6 +36,18 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
 
 ---
 
+### ADR-0004: Decodificador Canônico de Estado PICA200 e Geração Determinística de Hash
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** A Fase 1 exige decodificar comandos PICA em structs de estado fortemente tipadas (`VertexState`, `TexState[3]`, `TevState[6]`, `LightingState`, `FogState`, `FramebufferState`, `DepthStencilState`, `BlendState`) e gerar uma chave de estado determinística por draw call para indexação do pipeline cache Vulkan do Nível 2.
+- **Decisão:**
+  1. `PicaCommandHeader` decodifica e codifica o layout canônico de 32 bits de hardware (ID do registrador em 16 bits, máscara de 4 bytes, contagem de parâmetros em 11 bits e flag de modo consecutivo no bit 31).
+  2. `PicaCommandProcessor` processa sequências de comandos preservando o estado de 0x300 registradores, aplicando máscaras parciais de bytes e nunca abortando em registradores fora de limite (R12).
+  3. `ComputePicaStateHash` utiliza algoritmo de hash de 64 bits (FNV-1a) de alta dispersão cobrindo toda a configuração rasterizada, de profundidade, stencil, blending, texturas, TEV e iluminação.
+- **Evidência:** Suíte de testes `pica_state_decoder_tests` com 100% de sucesso em validação de decodificação, idempotência de hash e sensibilidade a mutações de estado.
+
+---
+
 ## 2. Matriz de Hipóteses e Validação Técnica (Itens ⚠)
 
 | ID | Item / Hipótese | Origem | Teste / Validação Exigida | Status | Resolução / Notas |
