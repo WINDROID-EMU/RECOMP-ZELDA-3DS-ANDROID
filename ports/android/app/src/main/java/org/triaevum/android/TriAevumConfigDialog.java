@@ -276,9 +276,16 @@ public final class TriAevumConfigDialog extends Dialog {
 
         mCbVSync.setChecked(mConfig.isVSync());
         if (mCbShowFps != null) {
-            android.content.SharedPreferences prefs = getContext().getSharedPreferences(
+            android.content.SharedPreferences fpsPrefs = mActivity.getApplicationContext().getSharedPreferences(
                 "org.triaevum.android_preferences", Context.MODE_PRIVATE);
-            mCbShowFps.setChecked(prefs.getBoolean("show_game_fps_counter", false));
+            mCbShowFps.setOnCheckedChangeListener(null);
+            mCbShowFps.setChecked(fpsPrefs.getBoolean("show_game_fps_counter", false));
+            mCbShowFps.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                fpsPrefs.edit().putBoolean("show_game_fps_counter", isChecked).apply();
+                if (mActivity instanceof TriAevumActivity) {
+                    ((TriAevumActivity) mActivity).updateFpsCounterVisibility();
+                }
+            });
         }
         mCbCustomTextures.setChecked(mConfig.isCustomTexturesEnabled());
         if (mCbPreloadTextures != null) {
@@ -512,7 +519,12 @@ public final class TriAevumConfigDialog extends Dialog {
             dismiss();
         });
 
-        btnClose.setOnClickListener(v -> dismiss());
+        btnClose.setOnClickListener(v -> {
+            if (mActivity instanceof TriAevumActivity) {
+                ((TriAevumActivity) mActivity).updateFpsCounterVisibility();
+            }
+            dismiss();
+        });
 
         btnRestore.setOnClickListener(v -> {
             mConfig.restoreDefaults();
@@ -746,10 +758,10 @@ public final class TriAevumConfigDialog extends Dialog {
 
         boolean vsync = mCbVSync.isChecked();
         if (mCbShowFps != null) {
-            getContext().getSharedPreferences("org.triaevum.android_preferences", Context.MODE_PRIVATE)
+            mActivity.getApplicationContext().getSharedPreferences("org.triaevum.android_preferences", Context.MODE_PRIVATE)
                 .edit().putBoolean("show_game_fps_counter", mCbShowFps.isChecked()).apply();
-            if (getContext() instanceof TriAevumActivity) {
-                ((TriAevumActivity) getContext()).updateFpsCounterVisibility();
+            if (mActivity instanceof TriAevumActivity) {
+                ((TriAevumActivity) mActivity).updateFpsCounterVisibility();
             }
         }
         boolean customTextures = mCbCustomTextures.isChecked();

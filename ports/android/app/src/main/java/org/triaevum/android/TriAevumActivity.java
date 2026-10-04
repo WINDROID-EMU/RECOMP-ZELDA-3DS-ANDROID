@@ -3,6 +3,7 @@ package org.triaevum.android;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -74,6 +75,7 @@ public final class TriAevumActivity extends Activity {
     private TextView mTvFpsCounter;
     private final Handler mFpsHandler = new Handler(Looper.getMainLooper());
     private boolean mShowGameFps = false;
+    private SharedPreferences.OnSharedPreferenceChangeListener mPrefsListener;
     private final Runnable mFpsUpdateRunnable = new Runnable() {
         @Override
         public void run() {
@@ -87,26 +89,38 @@ public final class TriAevumActivity extends Activity {
     };
 
     public void updateFpsCounterVisibility() {
-        android.content.SharedPreferences prefs = getApplicationContext()
-            .getSharedPreferences("org.triaevum.android_preferences", Context.MODE_PRIVATE);
-        mShowGameFps = prefs.getBoolean("show_game_fps_counter", false);
-        Log.i(TAG, "updateFpsCounterVisibility: show=" + mShowGameFps);
-        mFpsHandler.removeCallbacks(mFpsUpdateRunnable);
-        if (mTvFpsCounter != null) {
-            if (mShowGameFps) {
-                mTvFpsCounter.bringToFront();
-                mTvFpsCounter.setVisibility(View.VISIBLE);
-                mFpsHandler.post(mFpsUpdateRunnable);
-            } else {
-                mTvFpsCounter.setVisibility(View.GONE);
+        runOnUiThread(() -> {
+            android.content.SharedPreferences prefs = getApplicationContext()
+                .getSharedPreferences("org.triaevum.android_preferences", Context.MODE_PRIVATE);
+            mShowGameFps = prefs.getBoolean("show_game_fps_counter", false);
+            Log.i(TAG, "updateFpsCounterVisibility: show=" + mShowGameFps);
+            mFpsHandler.removeCallbacks(mFpsUpdateRunnable);
+            if (mTvFpsCounter != null) {
+                if (mShowGameFps) {
+                    mTvFpsCounter.bringToFront();
+                    mTvFpsCounter.setVisibility(View.VISIBLE);
+                    mFpsHandler.post(mFpsUpdateRunnable);
+                } else {
+                    mTvFpsCounter.setVisibility(View.GONE);
+                }
             }
-        }
+        });
     }
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        SharedPreferences appPrefs = getApplicationContext()
+            .getSharedPreferences("org.triaevum.android_preferences", Context.MODE_PRIVATE);
+        mPrefsListener = (sp, key) -> {
+            if ("show_game_fps_counter".equals(key)) {
+                Log.i(TAG, "OnSharedPreferenceChanged for show_game_fps_counter");
+                updateFpsCounterVisibility();
+            }
+        };
+        appPrefs.registerOnSharedPreferenceChangeListener(mPrefsListener);
 
         // Suppress verbose Qualcomm Adreno / Gralloc probing errors in Logcat
         try {
@@ -179,7 +193,9 @@ public final class TriAevumActivity extends Activity {
             mWindroidOverlay.setOnSettingsClickListener(() -> {
                 if (!isFinishing() && !isDestroyed()) {
                     try {
-                        new TriAevumConfigDialog(this, mWindroidOverlay).show();
+                        TriAevumConfigDialog dialog = new TriAevumConfigDialog(this, mWindroidOverlay);
+                        dialog.setOnDismissListener(d -> updateFpsCounterVisibility());
+                        dialog.show();
                     } catch (Exception err) {
                         Log.e(TAG, "Failed to open settings dialog", err);
                     }
@@ -891,6 +907,10 @@ public final class TriAevumActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (mPrefsListener != null) {
+            getApplicationContext().getSharedPreferences("org.triaevum.android_preferences", Context.MODE_PRIVATE)
+                .unregisterOnSharedPreferenceChangeListener(mPrefsListener);
+        }
         super.onDestroy();
         // Clean process termination to prevent dirty static globals from persisting
         // across consecutive app launches on Android Bionic.
