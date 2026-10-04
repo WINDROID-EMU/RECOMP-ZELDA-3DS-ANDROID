@@ -2,7 +2,7 @@
 
 Última atualização: 2026-10-04  
 Branch ativa: `feature/native-render-phase4-fragment-shaders`  
-Fase atual: **Fase 7 — Pipelines, cache e stutter** (Concluída) -> Próxima: **Fase 8 — Rumo ao nativo de verdade (HLE)**
+Fase atual: **Fase 8 — Rumo ao nativo de verdade (HLE)** (Concluída) -> Próxima: **Fase 9 — Validação contínua**
 
 ---
 
@@ -18,8 +18,8 @@ Fase atual: **Fase 7 — Pipelines, cache e stutter** (Concluída) -> Próxima: 
 | **5** | **Rasterização, profundidade e blending** | Cenas de z/alpha/stencil sem regressão | **CONCLUÍDO** | `PicaRasterPipeline`: Mapeamento de Viewport (Y-flip Adreno), Scissor, 8 Compare Ops, 8 Stencil Ops, 5 Blend Equations, 15 Blend Factors, 16 Logic Ops, Polygon Offset para Decals (elimina Z-fighting), e oráculo CPU validado em `pica_raster_pipeline_tests`. |
 | **6** | **Render passes amigáveis à Adreno** | GMEM loads/stores medidos e registrados; sem leitura de RT externo no meio do pass | **CONCLUÍDO** | `PicaRenderPassScheduler`: Agrupamento de draws por alvo, política `DepthStoreOp = DONT_CARE` para evitar despejo de GMEM na DRAM, subpasses com input attachment para feedback de cor local (`VK_DEPENDENCY_BY_REGION_BIT`), 0 violações de mid-pass reads, validado em `pica_render_pass_scheduler_tests`. |
 | **7** | **Pipelines, cache e stutter** | Sem hitch acima do limite em teste de 5 min; cache corrompido não causa crash | **CONCLUÍDO** | `PicaPipelineManager`: Cache em disco com cabeçalho de driver e checksum FNV-1a, tolerância a arquivos truncados/corrompidos (R15), teto de 64 MB (R14), warm-up do corpus de pipelines, compilação assíncrona com ubershader fallback (< 1 ms, R16) e 0 hitches > 33.3 ms validado em `pica_pipeline_manager_tests`. |
-| **8** | Rumo ao nativo de verdade (HLE) | Frame idêntico entre o caminho HLE e o nível 2 | **PRÓXIMA** | Mapeamento direto de chamadas SDK de gráficos para draws nativas sem passar pela decodificação intermediária de registradores. |
-| **9** | Validação contínua | Matriz de aparelhos/drivers executada | PENDENTE | Depende da Fase 8 |
+| **8** | **Rumo ao nativo de verdade (HLE)** | Frame idêntico entre o caminho HLE e o nível 2 | **CONCLUÍDO** | `PicaHleBridge`: Despacho direto de comandos de geometria e materiais com bypass de registradores, suporte a widescreen 16:9, e oráculo de validação comprovando frame 100% idêntico (diff máximo = 0) em `pica_hle_bridge_tests`. |
+| **9** | Validação contínua | Matriz de aparelhos/drivers executada | **PRÓXIMA** | Regressão contínua contra golden frames e matriz de perfis de driver Qualcomm stock e Turnip. |
 | **10** | Otimização Adreno | Ganho medido contra o baseline, sem regressão de correção | PENDENTE | Depende da Fase 9 |
 
 ---
@@ -98,7 +98,19 @@ Fase atual: **Fase 7 — Pipelines, cache e stutter** (Concluída) -> Próxima: 
 
 ---
 
-## 7. Registro de Fallbacks e Alertas (R26)
+## 7. Acompanhamento da Fase 8
+
+- [x] **8.1** `PicaHleBridge`: Ponte direta entre as rotinas de desenho de alto nível do recomp AOT e o renderer nativo Vulkan.
+- [x] **8.2** Bypass de registradores de hardware: Eliminação de empacotamento intermediário de comandos, poupando overhead de CPU (~16 registradores ignorados por draw call).
+- [x] **8.3** Suporte a proporção Widescreen 16:9: Renderização widescreen sem distorção e escalonamento de viewport nativo.
+- [x] **8.4** Paridade exata de frame (HLE vs Nível 2): Oráculo comparativo pixel a pixel comprovando que o frame renderizado por HLE é rigorosamente idêntico ao do Nível 2 (diff máximo = 0).
+- [x] **8.5** Fallback dinâmico seguro para Nível 2 (R22): Proteção e contingência para permitir retorno imediato à emulação de Nível 2.
+- [x] **8.6** Suíte de testes automatizados [`pica_hle_bridge_tests.cpp`](runtime/three_ds_recomp/tests/pica_hle_bridge_tests.cpp) aprovada com 100% de sucesso.
+- [x] **8.7** Decisões técnicas registradas em [`DECISIONS.md`](DECISIONS.md) (ADR-0011).
+
+---
+
+## 8. Registro de Fallbacks e Alertas (R26)
 
 - `NATIVE_FALLBACK`: 0 ativos no hot path.
 - Orçamento de memória: 128 MB para texturas, 64 MB para superfícies de renderização, 32 MB para corpus de shaders (R14).

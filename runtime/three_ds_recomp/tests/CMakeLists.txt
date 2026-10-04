@@ -86,6 +86,17 @@ target_include_directories(pica_pipeline_manager_tests PRIVATE
 target_link_libraries(pica_pipeline_manager_tests PRIVATE Threads::Threads)
 add_test(NAME pica_pipeline_manager_tests COMMAND pica_pipeline_manager_tests)
 
+add_executable(pica_hle_bridge_tests
+    pica_hle_bridge_tests.cpp
+    ../src/pica/pica_hle_bridge.cpp
+    ../src/pica/pica_raster_pipeline.cpp
+    ../src/pica/pica_state_decoder.cpp)
+target_compile_features(pica_hle_bridge_tests PRIVATE cxx_std_20)
+target_include_directories(pica_hle_bridge_tests PRIVATE
+    ../include
+    ../../tools/oot3d/third_party/azahar_pica)
+add_test(NAME pica_hle_bridge_tests COMMAND pica_hle_bridge_tests)
+
 add_executable(vulkan_present_dispatch_tests
     vulkan_present_dispatch_tests.cpp
     ../src/fast/oot3d/vulkan_adapter_policy.cpp)

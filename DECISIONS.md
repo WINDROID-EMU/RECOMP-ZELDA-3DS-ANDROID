@@ -123,7 +123,16 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
   5. Pré-aquecimento de corpus (Warm-up): Compilação em lote do corpus de pipelines conhecidos (Fases 3 e 4) antes do início do gameplay, alcançando 100% de hits nas cenas mapeadas.
   6. Compilação Assíncrona com Ubershader Fallback (R16): Ao detectar um cache miss na thread de renderização, o scheduler despacha imediatamente o ubershader síncrono rápido (retornando em < 1 ms) e enfileira a compilação especializada em thread de background. Quando concluída, o pipeline especializado substitui o fallback sem que o jogador perceba qualquer engasgo.
   7. Validação de Stutter: Rastreamento contínuo de hitches com verificação estrita de 0 frames excedendo 33.3 ms (30 FPS budget).
-- **Evidência:** Suíte de testes `pica_pipeline_manager_tests` 100% aprovada com retorno de fallback em < 1ms e 0 hitches > 33.3ms.
+### ADR-0011: Ponte Gráfica HLE (Bypass de Registradores, Widescreen e Oráculo de Paridade Nível 2) (Fase 8)
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** A emulação gráfica em Nível 2 exige empacotar e decodificar continuamente listas de comandos nos 0x300 registradores de hardware da PICA200. No recomp AOT de Ocarina of Time 3D, as rotinas de renderização do jogo podem despachar diretamente geometria e materiais estruturados (`HleMeshBatch`) para o pipeline Vulkan nativo, poupando overhead de CPU, liberando suporte a widescreen 16:9 sem distorção e texturas HD (Seção 5 Fase 8).
+- **Decisão:**
+  1. `PicaHleBridge` implementa a ponte direta entre as estruturas de cena do recomp AOT e o renderer nativo, ignorando o empacotamento de comandos intermediários e poupando ~16 registradores por draw call.
+  2. Suporte a proporção widescreen 16:9 arbitrária (`TargetWidth` escalonado para `TargetHeight * 16/9`) e multiplicador de resolução interna.
+  3. Manutenção do caminho de Nível 2 (Fases 1–7) como oráculo de referência contínuo e fallback seguro (R22).
+  4. Oráculo de Paridade de Frame: Validação estrita de equivalência entre o caminho HLE direto e o caminho de Nível 2, comprovando divergência nula (`maxDiff == 0.0f <= 1/255`).
+- **Evidência:** Suíte de testes `pica_hle_bridge_tests` 100% aprovada com paridade idêntica (max pixel diff: 0).
 
 ---
 
