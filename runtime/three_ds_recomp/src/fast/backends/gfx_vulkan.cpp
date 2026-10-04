@@ -1825,6 +1825,17 @@ void GfxRenderingAPIVulkan::StartFrame() {
     mPicaSceneFrame.BeginFrame(mCurrentFrame, mFrameCounter);
     mPicaScenePublications.Reset();
     mDiagnostics.BeginFrame(mFrameCounter);
+    if (mPicaAotShaderPack.Loaded() && (mFrameCounter % 300U == 0U)) {
+        SPDLOG_WARN("Native PICA AOT shader resolution: {} hits, {} misses, {} entries",
+                    mPicaAotShaderHits, mPicaAotShaderMisses, mPicaAotShaderPack.EntryCount());
+#if defined(__ANDROID__)
+        __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                            "Native PICA AOT shader resolution: %llu hits, %llu misses, %zu entries",
+                            static_cast<unsigned long long>(mPicaAotShaderHits),
+                            static_cast<unsigned long long>(mPicaAotShaderMisses),
+                            mPicaAotShaderPack.EntryCount());
+#endif
+    }
     mDiagnostics.RecordPicaShaderProfile(mNativeFidelityProfile);
     mDiagnostics.RecordPicaAttachmentContract(mFramePicaAttachmentRequirements.ColorAttachmentCount(),
                                               mFramePicaAttachmentRequirements.Key());
@@ -3389,8 +3400,15 @@ void GfxRenderingAPIVulkan::ConfigureNativePicaAotShaders() {
         if (!mPicaAotShaderPack.Load(path, &error)) {
             throw std::runtime_error("could not load native PICA AOT shader pack: " + error);
         }
-        SPDLOG_INFO("Native PICA AOT shader pack loaded: {} entries, schema {}, {}", mPicaAotShaderPack.EntryCount(),
+        SPDLOG_WARN("Native PICA AOT shader pack loaded: {} entries, schema {}, {}", mPicaAotShaderPack.EntryCount(),
                     mPicaAotShaderPack.DescriptorSchemaVersion(), mPicaAotShaderPack.Path().string());
+#if defined(__ANDROID__)
+        __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                            "Native PICA AOT shader pack loaded: %zu entries, schema %u, %s",
+                            mPicaAotShaderPack.EntryCount(),
+                            mPicaAotShaderPack.DescriptorSchemaVersion(),
+                            mPicaAotShaderPack.Path().string().c_str());
+#endif
     } else if (mPicaAotShaderStrict) {
         throw std::runtime_error("OOT3D_PICA_AOT_SHADER_STRICT requires "
                                  "OOT3D_PICA_AOT_SHADER_PACK");
@@ -3494,7 +3512,14 @@ void GfxRenderingAPIVulkan::FinishNativePicaAotShaders() {
     }
     if (!mPicaAotShaderSummaryLogged &&
         (mPicaAotShaderPack.Loaded() || mPicaAotShaderHits != 0U || mPicaAotShaderMisses != 0U)) {
-        SPDLOG_INFO("Native PICA AOT shader resolution: {} hits, {} misses", mPicaAotShaderHits, mPicaAotShaderMisses);
+        SPDLOG_WARN("Native PICA AOT shader resolution: {} hits, {} misses", mPicaAotShaderHits, mPicaAotShaderMisses);
+#if defined(__ANDROID__)
+        __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                            "Native PICA AOT shader resolution: %llu hits, %llu misses, %zu entries",
+                            static_cast<unsigned long long>(mPicaAotShaderHits),
+                            static_cast<unsigned long long>(mPicaAotShaderMisses),
+                            mPicaAotShaderPack.EntryCount());
+#endif
         std::fprintf(stderr,
                      "OOT3D_PICA_AOT_SHADER_RESOLUTION hits=%llu misses=%llu "
                      "strict=%u entries=%zu\n",
@@ -3514,6 +3539,19 @@ std::vector<uint32_t> GfxRenderingAPIVulkan::ResolveNativePicaShaderSpirv(std::s
     const auto binary = mPicaAotShaderPack.Find(stage, source);
     if (!binary.empty()) {
         ++mPicaAotShaderHits;
+        if (mPicaAotShaderHits <= 10U || (mPicaAotShaderHits % 100U == 0U)) {
+            SPDLOG_WARN("Native PICA AOT shader HIT: stage={}, name={} (hits={}, misses={})",
+                        Oot3d::PicaAotShaderStageName(stage), sourceName ? sourceName : "unnamed",
+                        mPicaAotShaderHits, mPicaAotShaderMisses);
+#if defined(__ANDROID__)
+            __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                                "Native PICA AOT shader HIT: stage=%s name=%s (hits=%llu, misses=%llu)",
+                                std::string(Oot3d::PicaAotShaderStageName(stage)).c_str(),
+                                sourceName ? sourceName : "unnamed",
+                                static_cast<unsigned long long>(mPicaAotShaderHits),
+                                static_cast<unsigned long long>(mPicaAotShaderMisses));
+#endif
+        }
         return { binary.begin(), binary.end() };
     }
 
