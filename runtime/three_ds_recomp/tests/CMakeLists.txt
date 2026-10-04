@@ -16,6 +16,11 @@ target_compile_features(native_presentation_policy_tests PRIVATE cxx_std_20)
 target_include_directories(native_presentation_policy_tests PRIVATE ../include)
 add_test(NAME native_presentation_policy_tests COMMAND native_presentation_policy_tests)
 
+add_executable(native_render_control_tests native_render_control_tests.cpp)
+target_compile_features(native_render_control_tests PRIVATE cxx_std_20)
+target_include_directories(native_render_control_tests PRIVATE ../include)
+add_test(NAME native_render_control_tests COMMAND native_render_control_tests)
+
 add_executable(vulkan_present_dispatch_tests
     vulkan_present_dispatch_tests.cpp
     ../src/fast/oot3d/vulkan_adapter_policy.cpp)

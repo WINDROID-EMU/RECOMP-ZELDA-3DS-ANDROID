@@ -35,6 +35,13 @@ out.txt
 *.vcxproj
 *.vcxproj.user
 *.vcxproj.filters
+*.3ds
+*.cci
+*.cia
+*.cxi
+*.3dsx
+code.bin
+romfs.bin
 
 # Tool artifacts
 tools/mipspro7.2_compiler/
