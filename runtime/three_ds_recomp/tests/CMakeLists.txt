@@ -29,6 +29,15 @@ target_compile_features(pica_state_decoder_tests PRIVATE cxx_std_20)
 target_include_directories(pica_state_decoder_tests PRIVATE ../include)
 add_test(NAME pica_state_decoder_tests COMMAND pica_state_decoder_tests)
 
+add_executable(pica_data_pipeline_tests
+    pica_data_pipeline_tests.cpp
+    ../src/pica/pica_vertex_translator.cpp
+    ../src/pica/pica_texture_cache.cpp
+    ../src/pica/pica_surface_cache.cpp)
+target_compile_features(pica_data_pipeline_tests PRIVATE cxx_std_20)
+target_include_directories(pica_data_pipeline_tests PRIVATE ../include)
+add_test(NAME pica_data_pipeline_tests COMMAND pica_data_pipeline_tests)
+
 add_executable(vulkan_present_dispatch_tests
     vulkan_present_dispatch_tests.cpp
     ../src/fast/oot3d/vulkan_adapter_policy.cpp)

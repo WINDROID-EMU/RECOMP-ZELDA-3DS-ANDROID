@@ -48,15 +48,28 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
 
 ---
 
+### ADR-0005: Conversão de Vértices, Deswizzle Morton e Gerenciamento de Superfícies (Fase 2)
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** A GPU Adreno consome buffers Vulkan padrão (`VkVertexInputBindingDescription`, `VkVertexInputAttributeDescription`, `VkIndexType`), texturas lineares deswizzled ou blocos comprimidos ETC2 diretos em hardware. A PICA200 organiza memória em blocos Morton 8x8 e utiliza modos de reinterpretação depth<->cor.
+- **Decisão:**
+  1. `PicaVertexTranslator` converte dinamicamente loaders e atributos PICA para tipos de formato Vulkan (`R32G32B32_Sfloat`, `R16G16_Snorm`, `R8G8B8A8_Snorm`, etc.) e gerencia buffers de índice 8-bit e 16-bit.
+  2. `PicaTextureCache` aplica algoritmo Morton 8x8 com deswizzle eficiente e mapeamento direto de blocos ETC1 para `VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK` (resolvendo a hipótese WARN-05), poupando tempo de CPU no Android (R27).
+  3. `PicaSurfaceCache` implementa display transfers (rotação/flip para apresentação) e reinterpretação segura de D24S8 para RGBA8 sem quebras em caso de superfícies não inicializadas (R12).
+  4. Ambos os caches mantêm tetos configuráveis em bytes (128 MB texturas, 64 MB superfícies) com política de despejo automática (R14).
+- **Evidência:** Suíte de testes `pica_data_pipeline_tests` aprovada em todos os cenários.
+
+---
+
 ## 2. Matriz de Hipóteses e Validação Técnica (Itens ⚠)
 
 | ID | Item / Hipótese | Origem | Teste / Validação Exigida | Status | Resolução / Notas |
 | :--- | :--- | :---: | :--- | :---: | :--- |
 | **WARN-01** | Shaders PICA utilizam float de 24 bits (1-7-16) | 3dbrew / Seção 2.3 | Comparar aritmética com precisão `mediump` vs `highp` SPIR-V em vertex transforms | **ABERTO** | Investigar se desvios numéricos afetam z-buffer ou matriz de projeção |
 | **WARN-02** | Errata de hardware PICA (duas `mova` seguidas travam a GPU) | Seção 2.3 | Inspecionar descompilação de shaders do jogo no corpus TriAevum | **ABERTO** | Informativo para o parser do compilador de shaders |
-| **WARN-03** | Lista exata de formatos de framebuffer: RGBA8, RGB8, RGB565, RGB5A1, RGBA4 | Seção 2.4 | Verificar mapeamento em registradores PICA (0x00400000) e Azahar `framebuffer.cpp` | **ABERTO** | Será formalizado na Fase 1 / 2 |
-| **WARN-04** | Texturas e framebuffers em ordem Morton (tiles 8x8); compressão ETC1/ETC1A4 | 3dbrew / Seção 2.4 | Validar decodificador Morton e deswizzle na Fase 2 contra dump de textura Azahar | **ABERTO** | Será testado com verificação byte-a-byte na Fase 2 |
-| **WARN-05** | ETC1 nativamente suportado como subconjunto de `textureCompressionETC2` em Vulkan | Seção 4 | Checar `VkPhysicalDeviceFeatures::textureCompressionETC2` no driver Qualcomm stock e Turnip | **ABERTO** | Mapeamento direto de formatos `VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK` |
+| **WARN-03** | Lista exata de formatos de framebuffer: RGBA8, RGB8, RGB565, RGB5A1, RGBA4 | Seção 2.4 | Verificar mapeamento em registradores PICA (0x00400000) e Azahar `framebuffer.cpp` | **RESOLVIDO** | Formalizado em `FramebufferState` e `RenderSurface` (Fases 1 e 2) |
+| **WARN-04** | Texturas e framebuffers em ordem Morton (tiles 8x8); compressão ETC1/ETC1A4 | 3dbrew / Seção 2.4 | Validar decodificador Morton e deswizzle na Fase 2 contra dump de textura Azahar | **RESOLVIDO** | Validado em `PicaTextureCache::DeswizzleMorton` com teste exato de bytes na Fase 2 |
+| **WARN-05** | ETC1 nativamente suportado como subconjunto de `textureCompressionETC2` em Vulkan | Seção 4 | Checar `VkPhysicalDeviceFeatures::textureCompressionETC2` no driver Qualcomm stock e Turnip | **RESOLVIDO** | Passthrough direto de blocos ETC1 para samplers de hardware ETC2 implementado no cache |
 | **WARN-06** | Aplicação de profundidade no Vertex Shader dispensa `gl_FragDepth` sem artefatos de clipping | Seção 4 / Seção 5 | Renderizar cenas com decals e z-fighting e comparar diff de profundidade contra Azahar | **ABERTO** | Foco de validação na Fase 3 e 5 |
 | **WARN-07** | Geometry Shader em Adreno causa perda excessiva de desempenho comparado a compute/instancing | Seção 4 / Seção 6 | Benchmark comparativo no Snapdragon Profiler (Fase 6) | **ABERTO** | GS desativado por padrão conforme R17 |
 
