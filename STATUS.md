@@ -1,8 +1,8 @@
 # STATUS: Renderização Nativa PICA200 -> Adreno (Vulkan)
 
 Última atualização: 2026-10-04  
-Branch ativa: `feature/native-render-phase3-vertex-shaders`  
-Fase atual: **Fase 3 — Shaders de vértice (e geometria)** (Concluída) -> Próxima: **Fase 4 — Gerador de fragment shader**
+Branch ativa: `feature/native-render-phase4-fragment-shaders`  
+Fase atual: **Fase 4 — Gerador de fragment shader** (Concluída) -> Próxima: **Fase 5 — Rasterização, profundidade e blending**
 
 ---
 
@@ -14,8 +14,8 @@ Fase atual: **Fase 3 — Shaders de vértice (e geometria)** (Concluída) -> Pr�
 | **1** | **Decodificador de estado PICA** | Dump de estado igual à referência em todas as capturas | **CONCLUÍDO** | `PicaCommandProcessor` e `DecodePicaDrawState` implementados; structs canônicas (`VertexState`, `TexState[3]`, `TevState[6]`, etc.) e hash determinístico (`ComputePicaStateHash`) validados em `pica_state_decoder_tests`. |
 | **2** | **Dados: vértices, texturas e superfícies** | Texturas idênticas byte a byte; sem vazamento no cache de superfícies | **CONCLUÍDO** | `PicaVertexTranslator`, `PicaTextureCache` (com deswizzle Morton 8x8 e passthrough ETC1->ETC2) e `PicaSurfaceCache` (display transfer e reinterpretação D24S8) validados em `pica_data_pipeline_tests`. |
 | **3** | **Shaders de vértice (e geometria)** | Posições de vértice dentro da tolerância registrada; 0 erros no `spirv-val` | **CONCLUÍDO** | `PicaShaderTranslator` (decodificador de bytecode, reestruturação de fluxo JMP/CALL/LOOP, sanitize_mul, std140 UBO 1616B e mapeamento de profundidade em vertex stage sem `gl_FragDepth`) e `PicaShaderCorpus` validados com 100% de sucesso e 0 erros no `spirv-val`. |
-| **4** | Gerador de fragment shader | Diff por pixel dentro da tolerância; cada função TEV e cada config de lighting testada | **PRÓXIMA** | Geração a partir do estado fixo: TEV de 6 estágios, combiner buffer, LUTs de iluminação, fog, alpha test e specialization constants. |
-| **5** | Rasterização, profundidade e blending | Cenas de z/alpha/stencil sem regressão | PENDENTE | Depende da Fase 4 |
+| **4** | **Gerador de fragment shader** | Diff por pixel dentro da tolerância (< 1/255); cada função TEV e cada config de lighting testada; 0 erros no `spirv-val` | **CONCLUÍDO** | `PicaFragmentGenerator`: 10 operações TEV em 6 estágios, combiner buffer com delay de 2 estágios, iluminação LUT configs 0–7, fog blending, alpha test com discard, precisão `mediump`/`RelaxedPrecision` (R27) e 0 erros no `spirv-val`. |
+| **5** | Rasterização, profundidade e blending | Cenas de z/alpha/stencil sem regressão | **PRÓXIMA** | Viewport, scissor, depth test/write, stencil ops e blend modes PICA para Vulkan pipeline state. |
 | **6** | Render passes amigáveis à Adreno | GMEM loads/stores medidos e registrados; sem leitura de RT externo no meio do pass | PENDENTE | Depende da Fase 5 |
 | **7** | Pipelines, cache e stutter | Sem hitch acima do limite em teste de 5 min; cache corrompido não causa crash | PENDENTE | Depende da Fase 6 |
 | **8** | Rumo ao nativo de verdade (HLE) | Frame idêntico entre o caminho HLE e o nível 2 | PENDENTE | Depende da Fase 7 |
@@ -39,7 +39,23 @@ Fase atual: **Fase 3 — Shaders de vértice (e geometria)** (Concluída) -> Pr�
 
 ---
 
-## 3. Registro de Fallbacks e Alertas (R26)
+## 3. Acompanhamento da Fase 4
+
+- [x] **4.1** `PicaFragmentGenerator`: Geração de fragment shaders Vulkan GLSL `#version 450` a partir do estado fixo da PICA200.
+- [x] **4.2** TEV de 6 estágios: Implementação das 10 operações ortogonais em RGB e Alpha (`Replace`, `Modulate`, `Add`, `AddSigned`, `Interpolate`, `Subtract`, `Dot3Rgb`, `Dot3Rgba`, `MultAdd`, `AddMult`).
+- [x] **4.3** Modificadores e escalonamento TEV: Fontes de operandos (`Color`, `OneMinusColor`, `Alpha`, `OneMinusAlpha`), multiplicadores de escala (1x, 2x, 4x) e clamping estrito `[0, 1]`.
+- [x] **4.4** Combiner Buffer: Emulação do atraso de hardware de 2 estágios (`buffer_delay_2`), garantindo consistência com o pipeline original da PICA200 sem corridas de leitura de estágio anterior.
+- [x] **4.5** Iluminação LUT PICA: Suporte às tabelas de consulta D0, D1, SP, FR, RR, DA com modos de configuração 0 a 7, sintetizando luzes direcionais e pontuais com diffuse e specular.
+- [x] **4.6** Fog Blending e Alpha Test: Teste de transparência com `discard` antecipado e mistura de névoa (fog linear/LUT) com cor e fatores configuráveis.
+- [x] **4.7** Otimização Adreno FP16: Variáveis e operações de cor emuladas com qualificadores `mediump` (`RelaxedPrecision` no SPIR-V) para execução em registradores de 16 bits (R27).
+- [x] **4.8** Validação SPIR-V: Compilação via `glslangValidator` e validação com `spirv-val` com **0 erros de validação** em pipelines sintéticos e shaders reais do corpus de fragmento Kokiri/boot de OoT3D.
+- [x] **4.9** Paridade de pixel: Comparação contra o oráculo CPU de pipeline da PICA com erro absoluto inferior a `1/255` por canal de 8 bits em todos os testes.
+- [x] **4.10** Suíte de testes automatizados [`pica_fragment_shader_tests.cpp`](runtime/three_ds_recomp/tests/pica_fragment_shader_tests.cpp) aprovada com 100% de sucesso.
+- [x] **4.11** Decisões técnicas registradas em [`DECISIONS.md`](DECISIONS.md) (ADR-0007).
+
+---
+
+## 4. Registro de Fallbacks e Alertas (R26)
 
 - `NATIVE_FALLBACK`: 0 ativos no hot path.
 - Orçamento de memória: 128 MB para texturas, 64 MB para superfícies de renderização, 32 MB para corpus de shaders (R14).

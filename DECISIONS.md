@@ -75,6 +75,20 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
   7. Validação automatizada com `spirv-val`: 0 erros de validação tanto nos shaders gerados dinamicamente quanto no shader extraído do corpus Kokiri/boot de OoT3D.
 - **Evidência:** Suíte de testes `pica_shader_translator_tests` aprovada com 100% de sucesso e 0 erros no `spirv-val`.
 
+### ADR-0007: Gerador de Fragment Shader (TEV de 6 Estágios, Combiner Buffer, LUT Lighting e RelaxedPrecision na Adreno)
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** A PICA200 possui pipeline de fragmentos de função fixa composto por 6 estágios TEV sequenciais com buffer de atraso de 2 estágios, iluminação configurável via Look-Up Tables (LUTs D0, D1, SP, FR, RR, DA, configs 0–7), fog blending e alpha test. O Vulkan em Adreno não tem hardware de função fixa PICA e exige geração de fragment shader GLSL/SPIR-V dinâmico ou especializado, otimizado para registradores FP16 (`mediump` / `RelaxedPrecision`) para dobrar a vazão de ALUs (R27).
+- **Decisão:**
+  1. `PicaFragmentGenerator::GenerateGLSL` gera shaders GLSL `#version 450` especializados para a combinação de registradores de estado PICA (`TevStageConfig`, `LightingConfig`, `FogConfig`, `AlphaTestConfig`).
+  2. Implementação completa das 10 operações TEV da PICA200 (`Replace`, `Modulate`, `Add`, `AddSigned`, `Interpolate`, `Subtract`, `Dot3Rgb`, `Dot3Rgba`, `MultAdd`, `AddMult`) com suporte independente a fontes RGB e Alpha, operandos (`Color`, `OneMinusColor`, `Alpha`, etc.), escalas (1x, 2x, 4x) e clamp `[0, 1]`.
+  3. Emulação do Combiner Buffer PICA com delay estrito de 2 estágios (`buffer_delay_2 = (i >= 2) ? stage_output[i - 2] : vec4(0.0)`), permitindo que estágios posteriores reutilizem saídas computadas anteriormente sem corrida de leitura.
+  4. Módulo de iluminação por LUT sintetizando cálculos de vetores de luz, half-angle e atenção de distância/ângulo via texturas 1D LUT ou buffers de amostragem cúbica/linear.
+  5. Alpha test no início do fragment shader com `discard` antecipado e fog blending com cor programável no final do estágio 5.
+  6. Uso de qualificadores `mediump` (`RelaxedPrecision` no SPIR-V) em cálculos aritméticos de cores para permitir vetorização de 16 bits na GPU Adreno móvel (R27).
+  7. Validação automatizada contra o oráculo de pipeline CPU da PICA com divergência numérica estritamente inferior a 1/255 por canal de 8 bits e 0 erros no `spirv-val`.
+- **Evidência:** Suíte de testes `pica_fragment_shader_tests` aprovada em 100% dos testes e shaders de fragmento reais do corpus Kokiri compilados e validados pelo `spirv-val` com 0 erros.
+
 ---
 
 ## 2. Matriz de Hipóteses e Validação Técnica (Itens ⚠)

@@ -49,6 +49,15 @@ target_include_directories(pica_shader_translator_tests PRIVATE
     ../../tools/oot3d/third_party/azahar_pica)
 add_test(NAME pica_shader_translator_tests COMMAND pica_shader_translator_tests)
 
+add_executable(pica_fragment_shader_tests
+    pica_fragment_shader_tests.cpp
+    ../src/pica/pica_fragment_generator.cpp)
+target_compile_features(pica_fragment_shader_tests PRIVATE cxx_std_20)
+target_include_directories(pica_fragment_shader_tests PRIVATE
+    ../include
+    ../../tools/oot3d/third_party/azahar_pica)
+add_test(NAME pica_fragment_shader_tests COMMAND pica_fragment_shader_tests)
+
 add_executable(vulkan_present_dispatch_tests
     vulkan_present_dispatch_tests.cpp
     ../src/fast/oot3d/vulkan_adapter_policy.cpp)
