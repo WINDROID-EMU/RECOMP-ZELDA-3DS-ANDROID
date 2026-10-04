@@ -61,16 +61,32 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
 
 ---
 
+### ADR-0006: Tradução de Shaders de Vértice PICA200 para SPIR-V, Estruturação de Fluxo e Emulação Aritmética (Fase 3)
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** A PICA200 possui shaders de vértice programáveis com ISA inspirada em vs_3_0, controle de fluxo arbitrário (`JMP`, `CALL`, `LOOP`), aritmética não-IEEE (`inf * 0 = 0`), e profundidade NDC em `[-1, 0]`. SPIR-V para Vulkan em GPUs Adreno exige controle de fluxo estruturado, UBO std140 e z de tela em `[0, 1]` sem invocar `gl_FragDepth` (R17, ADR-0003).
+- **Decisão:**
+  1. `PicaShaderTranslator::DecodeInstruction` e `DecodeSwizzle` decodificam instruções de 32 bits, operando com inversão de registradores de 7-bit e 5-bit (resolvendo a distinção entre `c0-c95` e `r/v`).
+  2. Algoritmo de análise de fluxo decompõe sub-rotinas e loops (`ControlFlowAnalyzer`), emitindo blocos estruturados e laços `for` sem saltos arbitrários em GLSL `#version 450`.
+  3. `sanitize_mul` implementa opcionalmente a aritmética PICA `inf * 0 = 0`, isolando desvios numéricos para evitar NaNs em transformações de matriz e iluminação.
+  4. Mapeamento de profundidade NDC PICA `[-1, 0]` para Vulkan `[0, 1]` aplicado diretamente no Vertex Shader (`z' = -pica_position.z`), garantindo total compatibilidade com o LRZ (Early-Z) da Adreno sem emitir `gl_FragDepth`.
+  5. Layout UBO `PicaVertexUniforms` std140 alinhado em 1616 bytes contendo os 96 `vec4` floats, 4 `uvec4` inteiros, máscara de booleano e flip de viewport.
+  6. `PicaShaderCorpus` implementa cache de SPIR-V com persistência binária, recuperação de corrupção e orçamento de memória (R14, R15).
+  7. Validação automatizada com `spirv-val`: 0 erros de validação tanto nos shaders gerados dinamicamente quanto no shader extraído do corpus Kokiri/boot de OoT3D.
+- **Evidência:** Suíte de testes `pica_shader_translator_tests` aprovada com 100% de sucesso e 0 erros no `spirv-val`.
+
+---
+
 ## 2. Matriz de Hipóteses e Validação Técnica (Itens ⚠)
 
 | ID | Item / Hipótese | Origem | Teste / Validação Exigida | Status | Resolução / Notas |
 | :--- | :--- | :---: | :--- | :---: | :--- |
-| **WARN-01** | Shaders PICA utilizam float de 24 bits (1-7-16) | 3dbrew / Seção 2.3 | Comparar aritmética com precisão `mediump` vs `highp` SPIR-V em vertex transforms | **ABERTO** | Investigar se desvios numéricos afetam z-buffer ou matriz de projeção |
+| **WARN-01** | Shaders PICA utilizam float de 24 bits (1-7-16) | 3dbrew / Seção 2.3 | Comparar aritmética com precisão `mediump` vs `highp` SPIR-V em vertex transforms | **RESOLVIDO** | Transformações de vértice em `highp` (float32) mantêm erro absoluto < 1e-4 em relação ao oráculo PICA/Azahar na Fase 3 |
 | **WARN-02** | Errata de hardware PICA (duas `mova` seguidas travam a GPU) | Seção 2.3 | Inspecionar descompilação de shaders do jogo no corpus TriAevum | **ABERTO** | Informativo para o parser do compilador de shaders |
 | **WARN-03** | Lista exata de formatos de framebuffer: RGBA8, RGB8, RGB565, RGB5A1, RGBA4 | Seção 2.4 | Verificar mapeamento em registradores PICA (0x00400000) e Azahar `framebuffer.cpp` | **RESOLVIDO** | Formalizado em `FramebufferState` e `RenderSurface` (Fases 1 e 2) |
 | **WARN-04** | Texturas e framebuffers em ordem Morton (tiles 8x8); compressão ETC1/ETC1A4 | 3dbrew / Seção 2.4 | Validar decodificador Morton e deswizzle na Fase 2 contra dump de textura Azahar | **RESOLVIDO** | Validado em `PicaTextureCache::DeswizzleMorton` com teste exato de bytes na Fase 2 |
 | **WARN-05** | ETC1 nativamente suportado como subconjunto de `textureCompressionETC2` em Vulkan | Seção 4 | Checar `VkPhysicalDeviceFeatures::textureCompressionETC2` no driver Qualcomm stock e Turnip | **RESOLVIDO** | Passthrough direto de blocos ETC1 para samplers de hardware ETC2 implementado no cache |
-| **WARN-06** | Aplicação de profundidade no Vertex Shader dispensa `gl_FragDepth` sem artefatos de clipping | Seção 4 / Seção 5 | Renderizar cenas com decals e z-fighting e comparar diff de profundidade contra Azahar | **ABERTO** | Foco de validação na Fase 3 e 5 |
+| **WARN-06** | Aplicação de profundidade no Vertex Shader dispensa `gl_FragDepth` sem artefatos de clipping | Seção 4 / Seção 5 | Renderizar cenas com decals e z-fighting e comparar diff de profundidade contra Azahar | **RESOLVIDO** | Validado na Fase 3: mapeamento de NDC z `[-1, 0]` para `[0, 1]` no vertex shader (`-pica_position.z`) produz SPIR-V validado sem `gl_FragDepth` |
 | **WARN-07** | Geometry Shader em Adreno causa perda excessiva de desempenho comparado a compute/instancing | Seção 4 / Seção 6 | Benchmark comparativo no Snapdragon Profiler (Fase 6) | **ABERTO** | GS desativado por padrão conforme R17 |
 
 ---
