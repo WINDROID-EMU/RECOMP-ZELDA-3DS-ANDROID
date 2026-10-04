@@ -62,6 +62,16 @@ bool DecodePicaDrawState(
     outState.Scissor.X2 = static_cast<uint16_t>(scissor2 & 0xFFFFU);
     outState.Scissor.Y2 = static_cast<uint16_t>((scissor2 >> 16U) & 0xFFFFU);
 
+    const uint32_t polyOffsetEnableReg = registers[0x04FU];
+    outState.PolygonOffset.Enabled = (polyOffsetEnableReg & 1U) != 0U;
+    if (outState.PolygonOffset.Enabled) {
+        union FloatConv { uint32_t u; float f; } conv{};
+        conv.u = registers[0x04DU];
+        outState.PolygonOffset.Unit = conv.f;
+        conv.u = registers[0x04EU];
+        outState.PolygonOffset.Factor = conv.f;
+    }
+
     const uint32_t topologyRaw = registers[0x242U] & 0x3U;
     outState.Topology = static_cast<PrimitiveTopology>(topologyRaw);
 
@@ -240,6 +250,12 @@ uint64_t ComputePicaStateHash(const PicaDrawState& state) noexcept {
     uint64_t hash = kFnvOffsetBasis;
     hash = FnvHashValue(state.Topology, hash);
     hash = FnvHashValue(state.Culling, hash);
+    hash = FnvHashValue(state.PolygonOffset.Enabled, hash);
+    if (state.PolygonOffset.Enabled) {
+        hash = FnvHashValue(state.PolygonOffset.Unit, hash);
+        hash = FnvHashValue(state.PolygonOffset.Factor, hash);
+        hash = FnvHashValue(state.PolygonOffset.Clamp, hash);
+    }
 
     // Raster & depth/stencil
     hash = FnvHashValue(state.DepthStencil.DepthTest, hash);

@@ -328,6 +328,13 @@ struct ScissorState {
     uint16_t Y2 = 0;
 };
 
+struct PolygonOffsetState {
+    bool Enabled = false;
+    float Unit = 0.0f;    // Constant depth bias factor
+    float Factor = 0.0f;  // Slope-scaled factor
+    float Clamp = 0.0f;   // Depth bias clamp
+};
+
 // =============================================================================
 // Complete PICA Draw State
 // =============================================================================
@@ -337,6 +344,7 @@ struct PicaDrawState {
     CullMode Culling = CullMode::KeepAll;
     ViewportState Viewport;
     ScissorState Scissor;
+    PolygonOffsetState PolygonOffset;
 
     VertexState Vertex;
     std::array<TexState, 3> Textures{};

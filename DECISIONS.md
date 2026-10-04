@@ -89,6 +89,20 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
   7. Validação automatizada contra o oráculo de pipeline CPU da PICA com divergência numérica estritamente inferior a 1/255 por canal de 8 bits e 0 erros no `spirv-val`.
 - **Evidência:** Suíte de testes `pica_fragment_shader_tests` aprovada em 100% dos testes e shaders de fragmento reais do corpus Kokiri compilados e validados pelo `spirv-val` com 0 erros.
 
+### ADR-0008: Rasterização, Profundidade, Stencil, Blending e Polygon Offset para Decals (Fase 5)
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** A PICA200 possui pipeline de saída (output merger) completo com teste de profundidade em D24, stencil de 8 bits, blending com 5 equações e 15 fatores, logic ops bitwise em 16 modos e polygon offset (depth bias) para prevenir z-fighting em decals coplanares. Em Vulkan na GPU Adreno, esses estados são mapeados diretamente para estruturas de pipeline estáticas e dinâmicas (`VkPipelineRasterizationStateCreateInfo`, `VkPipelineDepthStencilStateCreateInfo`, `VkPipelineColorBlendStateCreateInfo`, `VkViewport`, `VkRect2D`).
+- **Decisão:**
+  1. Mapeamento ortogonal 1:1 de `CompareFunc` para `VkCompareOp`, `StencilOp` para `VkStencilOp`, `BlendEq` para `VkBlendOp`, `BlendFactor` para `VkBlendFactor` e `LogicOp` para `VkLogicOp`.
+  2. Polygon Offset: `depthBiasEnable` ativado conforme `PolygonOffsetState`, aplicando `depthBiasConstantFactor` e `depthBiasSlopeFactor`. Na simulação e no hardware, isso resolve o z-fighting em decals (como sombras sob personagens, pegadas e caminhos de pedra em Kokiri) deslocando coplanares sem necessidade de ajustes em shaders.
+  3. Stencil Shadow Volumes: Stencil test com `front` e `back` configurados, suportando `IncrementAndClamp`/`IncrementAndWrap` para volumes de sombra de personagens e luzes projetadas.
+  4. Viewport com Y invertido (`VkViewport.height = -height; VkViewport.y = y + height`) para respeitar a convenção do Vulkan e a orientação de framebuffer da GPU Adreno.
+  5. Scissor com clamping estrito aos limites do framebuffer (`VkRect2D`).
+  6. Color write mask por canal (R, G, B, A) permitindo passes de escrita seletiva de profundidade ou cor.
+  7. Oráculo CPU de rasterização e output-merger (`PicaRasterOracle`) validado em 8 cenários sem regressões numéricas.
+- **Evidência:** Suíte de testes `pica_raster_pipeline_tests` 100% aprovada.
+
 ---
 
 ## 2. Matriz de Hipóteses e Validação Técnica (Itens ⚠)

@@ -58,6 +58,15 @@ target_include_directories(pica_fragment_shader_tests PRIVATE
     ../../tools/oot3d/third_party/azahar_pica)
 add_test(NAME pica_fragment_shader_tests COMMAND pica_fragment_shader_tests)
 
+add_executable(pica_raster_pipeline_tests
+    pica_raster_pipeline_tests.cpp
+    ../src/pica/pica_raster_pipeline.cpp)
+target_compile_features(pica_raster_pipeline_tests PRIVATE cxx_std_20)
+target_include_directories(pica_raster_pipeline_tests PRIVATE
+    ../include
+    ../../tools/oot3d/third_party/azahar_pica)
+add_test(NAME pica_raster_pipeline_tests COMMAND pica_raster_pipeline_tests)
+
 add_executable(vulkan_present_dispatch_tests
     vulkan_present_dispatch_tests.cpp
     ../src/fast/oot3d/vulkan_adapter_policy.cpp)

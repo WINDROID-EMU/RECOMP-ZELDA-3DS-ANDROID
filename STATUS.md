@@ -2,7 +2,7 @@
 
 Última atualização: 2026-10-04  
 Branch ativa: `feature/native-render-phase4-fragment-shaders`  
-Fase atual: **Fase 4 — Gerador de fragment shader** (Concluída) -> Próxima: **Fase 5 — Rasterização, profundidade e blending**
+Fase atual: **Fase 5 — Rasterização, profundidade e blending** (Concluída) -> Próxima: **Fase 6 — Render passes amigáveis à Adreno**
 
 ---
 
@@ -15,8 +15,8 @@ Fase atual: **Fase 4 — Gerador de fragment shader** (Concluída) -> Próxima: 
 | **2** | **Dados: vértices, texturas e superfícies** | Texturas idênticas byte a byte; sem vazamento no cache de superfícies | **CONCLUÍDO** | `PicaVertexTranslator`, `PicaTextureCache` (com deswizzle Morton 8x8 e passthrough ETC1->ETC2) e `PicaSurfaceCache` (display transfer e reinterpretação D24S8) validados em `pica_data_pipeline_tests`. |
 | **3** | **Shaders de vértice (e geometria)** | Posições de vértice dentro da tolerância registrada; 0 erros no `spirv-val` | **CONCLUÍDO** | `PicaShaderTranslator` (decodificador de bytecode, reestruturação de fluxo JMP/CALL/LOOP, sanitize_mul, std140 UBO 1616B e mapeamento de profundidade em vertex stage sem `gl_FragDepth`) e `PicaShaderCorpus` validados com 100% de sucesso e 0 erros no `spirv-val`. |
 | **4** | **Gerador de fragment shader** | Diff por pixel dentro da tolerância (< 1/255); cada função TEV e cada config de lighting testada; 0 erros no `spirv-val` | **CONCLUÍDO** | `PicaFragmentGenerator`: 10 operações TEV em 6 estágios, combiner buffer com delay de 2 estágios, iluminação LUT configs 0–7, fog blending, alpha test com discard, precisão `mediump`/`RelaxedPrecision` (R27) e 0 erros no `spirv-val`. |
-| **5** | Rasterização, profundidade e blending | Cenas de z/alpha/stencil sem regressão | **PRÓXIMA** | Viewport, scissor, depth test/write, stencil ops e blend modes PICA para Vulkan pipeline state. |
-| **6** | Render passes amigáveis à Adreno | GMEM loads/stores medidos e registrados; sem leitura de RT externo no meio do pass | PENDENTE | Depende da Fase 5 |
+| **5** | **Rasterização, profundidade e blending** | Cenas de z/alpha/stencil sem regressão | **CONCLUÍDO** | `PicaRasterPipeline`: Mapeamento de Viewport (Y-flip Adreno), Scissor, 8 Compare Ops, 8 Stencil Ops, 5 Blend Equations, 15 Blend Factors, 16 Logic Ops, Polygon Offset para Decals (elimina Z-fighting), e oráculo CPU validado em `pica_raster_pipeline_tests`. |
+| **6** | Render passes amigáveis à Adreno | GMEM loads/stores medidos e registrados; sem leitura de RT externo no meio do pass | **PRÓXIMA** | Render passes com subpasses, transient attachments e tile-memory budget. |
 | **7** | Pipelines, cache e stutter | Sem hitch acima do limite em teste de 5 min; cache corrompido não causa crash | PENDENTE | Depende da Fase 6 |
 | **8** | Rumo ao nativo de verdade (HLE) | Frame idêntico entre o caminho HLE e o nível 2 | PENDENTE | Depende da Fase 7 |
 | **9** | Validação contínua | Matriz de aparelhos/drivers executada | PENDENTE | Depende da Fase 8 |
@@ -55,7 +55,23 @@ Fase atual: **Fase 4 — Gerador de fragment shader** (Concluída) -> Próxima: 
 
 ---
 
-## 4. Registro de Fallbacks e Alertas (R26)
+## 4. Acompanhamento da Fase 5
+
+- [x] **5.1** `PicaRasterPipeline`: Mapeamento de estado de rasterização, profundidade, stencil e blending para Vulkan (`VkPipelineRasterizationStateCreateInfo`, `VkPipelineDepthStencilStateCreateInfo`, `VkPipelineColorBlendStateCreateInfo`).
+- [x] **5.2** Viewport e Scissor: Mapeamento de Viewport com inversão Y (`VkViewport.height = -height; VkViewport.y = y + height`) para conformidade Vulkan/Adreno e Scissor com clamping estrito aos limites do framebuffer.
+- [x] **5.3** Teste de profundidade: Suporte a todos os 8 modos de comparação (`Never`, `Always`, `Equal`, `NotEqual`, `Less`, `LessOrEqual`, `Greater`, `GreaterOrEqual`) e controle de escrita seletiva (`DepthWrite`).
+- [x] **5.4** Polygon Offset (Depth Bias): Emulação e mapeamento de constantes e fatores de inclinação da PICA200 para eliminação comprovada de Z-fighting em decalques coplanares (pegadas, sombras de chão).
+- [x] **5.5** Teste e operações de Stencil: Mapeamento dos 8 operadores de stencil (`Keep`, `Zero`, `Replace`, `Increment`, `Decrement`, `Invert`, `IncrementWrap`, `DecrementWrap`), máscaras de leitura/escrita e suporte a volumes de sombra projetada.
+- [x] **5.6** Mistura de cores (Color Blending): Mapeamento das 5 equações de blend e 15 fatores de escala para canais RGB e Alpha de forma independente, além de Constant Color.
+- [x] **5.7** Operações Lógicas (Logic Ops): Suporte aos 16 operadores lógicos bitwise quando o blending está desativado.
+- [x] **5.8** Máscara de escrita de cor: Controle independente de escrita por canal (R, G, B, A).
+- [x] **5.9** Oráculo CPU de simulação (`PicaRasterOracle`): Validação em software do pipeline de fragmentos completo em buffer 2D (RGBA8 + D24S8).
+- [x] **5.10** Suíte de testes automatizados [`pica_raster_pipeline_tests.cpp`](runtime/three_ds_recomp/tests/pica_raster_pipeline_tests.cpp) aprovada com 100% de sucesso.
+- [x] **5.11** Decisões técnicas registradas em [`DECISIONS.md`](DECISIONS.md) (ADR-0008).
+
+---
+
+## 5. Registro de Fallbacks e Alertas (R26)
 
 - `NATIVE_FALLBACK`: 0 ativos no hot path.
 - Orçamento de memória: 128 MB para texturas, 64 MB para superfícies de renderização, 32 MB para corpus de shaders (R14).
