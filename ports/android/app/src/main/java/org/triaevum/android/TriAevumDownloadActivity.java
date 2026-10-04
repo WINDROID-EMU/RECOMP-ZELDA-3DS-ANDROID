@@ -594,11 +594,13 @@ public class TriAevumDownloadActivity extends Activity {
                     // para garantir que versões antigas sejam atualizadas
                     boolean alwaysOverwrite = filename.equals("process-manifest.json")
                             || filename.equals("TriAevum.android.launch.json")
-                            || filename.equals("topscreen_ui.json");
+                            || filename.equals("topscreen_ui.json")
+                            || filename.equals("oot3d_pica_default.o3ps")
+                            || filename.equals("oot3d_pica_default_manifest.json");
                     if (!dest.exists() || alwaysOverwrite) {
                         try (InputStream in = getAssets().open("game/" + filename);
                              OutputStream out = new FileOutputStream(dest)) {
-                            byte[] buf = new byte[8192];
+                            byte[] buf = new byte[16384];
                             int len;
                             while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
                         }

@@ -1,0 +1,1615 @@
+{
+  "descriptor_schema_version": 3,
+  "format": "oot3d_pica_aot_shader_pack_manifest_v1",
+  "inventories": [
+    "/media/windroid/SSD KING/RECOMP-ZELDA-3DS-ANDROID/tools/oot3d/native_pica_frontend/profiles/oot3d_pica_boot_title_kokiri_pipeline.json",
+    "/media/windroid/SSD KING/RECOMP-ZELDA-3DS-ANDROID/tools/oot3d/native_pica_frontend/profiles/oot3d_pica_boot_title_kokiri_effective.json"
+  ],
+  "merged_inventory": null,
+  "pack": "/media/windroid/SSD KING/RECOMP-ZELDA-3DS-ANDROID/ports/android/app/src/main/assets/game/oot3d_pica_default.o3ps",
+  "pack_format_version": 1,
+  "renderer_sources_added": 2,
+  "shader_count": 200,
+  "shaders": [
+    {
+      "secondary_hash": "0xdb5c1bca2a598008",
+      "source_id": "0x022eb00ca555340a",
+      "source_size": 9302,
+      "spirv_hash": "0x4ee2766af3b25518",
+      "spirv_words": 2654,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x2b335653e7bb9d6d",
+      "source_id": "0x04da50b45a5bd9be",
+      "source_size": 6465,
+      "spirv_hash": "0x848bd539fc655d4d",
+      "spirv_words": 2469,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xf3863c58ff9a33a5",
+      "source_id": "0x0784f6986da551bc",
+      "source_size": 5927,
+      "spirv_hash": "0x99833e7c6e8f594e",
+      "spirv_words": 2148,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x1218d184eda9c190",
+      "source_id": "0x0b37c919b22d2ded",
+      "source_size": 6347,
+      "spirv_hash": "0xb1d26d7f6b2863f1",
+      "spirv_words": 2494,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x4da03d92bda8ca90",
+      "source_id": "0x0f84e223c8aee395",
+      "source_size": 5927,
+      "spirv_hash": "0xe062c77b4eda48d0",
+      "spirv_words": 2445,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x4cf6453b34916a4a",
+      "source_id": "0x149b11574d0abd78",
+      "source_size": 8846,
+      "spirv_hash": "0x61c7ecc5b6f7a612",
+      "spirv_words": 3236,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xd867ce1f87460f4a",
+      "source_id": "0x172843fa6724539b",
+      "source_size": 6227,
+      "spirv_hash": "0x942ba1e07feb2fd7",
+      "spirv_words": 2288,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x22799554b776bc5f",
+      "source_id": "0x1d9230da595b5d9b",
+      "source_size": 5044,
+      "spirv_hash": "0x1bd241c967e7d2b1",
+      "spirv_words": 1793,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xb646cc364d0b9c5a",
+      "source_id": "0x1fe5c621db142a60",
+      "source_size": 6394,
+      "spirv_hash": "0x1755a011547e2e2a",
+      "spirv_words": 2366,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x2704b4455c0d5ce9",
+      "source_id": "0x21d60e1ea7b33a76",
+      "source_size": 6497,
+      "spirv_hash": "0x8ddcf2d524ed5cb8",
+      "spirv_words": 2246,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xe43c79ec4d7ce760",
+      "source_id": "0x224d43a851427f78",
+      "source_size": 5528,
+      "spirv_hash": "0x5b98e3604179a380",
+      "spirv_words": 1842,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x6b441a81049b6ec8",
+      "source_id": "0x28513713b5ff657d",
+      "source_size": 6331,
+      "spirv_hash": "0xb56dd5aa6d49fa66",
+      "spirv_words": 2443,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x92f6a14146f79551",
+      "source_id": "0x2ee85a7cdb33b673",
+      "source_size": 9302,
+      "spirv_hash": "0xbebedf0591988b3f",
+      "spirv_words": 2813,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x966335789fe1f364",
+      "source_id": "0x30331af5428a2390",
+      "source_size": 8892,
+      "spirv_hash": "0x46d5132a7e057bae",
+      "spirv_words": 3254,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x7d67909f469c11d6",
+      "source_id": "0x32f4d3b23d030188",
+      "source_size": 8418,
+      "spirv_hash": "0xd7cd68e5f2521ea6",
+      "spirv_words": 3175,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x3c11240642c2dc61",
+      "source_id": "0x34da4dad0235ec50",
+      "source_size": 5731,
+      "spirv_hash": "0x26bde263a52d9109",
+      "spirv_words": 1917,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x2eb45d987490ee09",
+      "source_id": "0x3568b9c359ab7de6",
+      "source_size": 9297,
+      "spirv_hash": "0xef52b1c8b1502cdf",
+      "spirv_words": 2863,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x04371b0c23e35c48",
+      "source_id": "0x35f81f8e0ce8cb49",
+      "source_size": 6115,
+      "spirv_hash": "0x1ab9c5204c158e58",
+      "spirv_words": 2480,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x9cd2d146d9104a8a",
+      "source_id": "0x367573a89fec72e3",
+      "source_size": 9263,
+      "spirv_hash": "0x774f31a8be50cba2",
+      "spirv_words": 2638,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x1ecabdf08b5e37e9",
+      "source_id": "0x37009f615d773b7c",
+      "source_size": 6115,
+      "spirv_hash": "0x8f75fb0177c3d662",
+      "spirv_words": 2178,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x527335e09a760be3",
+      "source_id": "0x3b8e6026aa5b444d",
+      "source_size": 9174,
+      "spirv_hash": "0x5c96a7bbdb967aa9",
+      "spirv_words": 2394,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xe23f8cc4087a3460",
+      "source_id": "0x3c517e20a76a2164",
+      "source_size": 6188,
+      "spirv_hash": "0x8a03f14ced3f34e4",
+      "spirv_words": 2268,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xc0b83ad6797fdac7",
+      "source_id": "0x3f3aacf12a600896",
+      "source_size": 8891,
+      "spirv_hash": "0x70fadb60037d0523",
+      "spirv_words": 2577,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x5de5007d23f43c4c",
+      "source_id": "0x3f4c76ba9d401114",
+      "source_size": 5544,
+      "spirv_hash": "0x7a71d285aba955fc",
+      "spirv_words": 2076,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xc3e02cc6fc94daaf",
+      "source_id": "0x4141f8ecabfaa41c",
+      "source_size": 8677,
+      "spirv_hash": "0xda0ded343269152c",
+      "spirv_words": 2389,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x40ce3db0d8ceca59",
+      "source_id": "0x451aefdce36a0986",
+      "source_size": 6685,
+      "spirv_hash": "0xb50ad09e316fe1da",
+      "spirv_words": 2276,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x0f59cc947c5f344b",
+      "source_id": "0x4643cf8f70beee55",
+      "source_size": 6346,
+      "spirv_hash": "0xa13bfc7db2fe1a24",
+      "spirv_words": 2435,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xd0f39aaabe8c0f88",
+      "source_id": "0x46b7593b5e8f6e5e",
+      "source_size": 9110,
+      "spirv_hash": "0x6fd01383c722c348",
+      "spirv_words": 2530,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x1f3a57f9e62e10da",
+      "source_id": "0x46e98a56df169527",
+      "source_size": 6039,
+      "spirv_hash": "0x74d8bf4842323734",
+      "spirv_words": 2258,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xa53da332142c0579",
+      "source_id": "0x4cc7d40edf958e51",
+      "source_size": 5464,
+      "spirv_hash": "0x2140f5bd5b1563ce",
+      "spirv_words": 1982,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xae2fdb42c2700043",
+      "source_id": "0x4f7d82b436552825",
+      "source_size": 5102,
+      "spirv_hash": "0xa565c8beb97ecf97",
+      "spirv_words": 1799,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xba325e4421d6dab1",
+      "source_id": "0x595670ce860bc4f9",
+      "source_size": 5656,
+      "spirv_hash": "0xdd6a714fd76f9f11",
+      "spirv_words": 2106,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x6902af7de5dad3fd",
+      "source_id": "0x5c13045b9ef706d7",
+      "source_size": 5070,
+      "spirv_hash": "0x376ebf38cdf6e749",
+      "spirv_words": 1854,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x9ca0baedfa766c78",
+      "source_id": "0x60231f72968800cd",
+      "source_size": 6259,
+      "spirv_hash": "0x32cc52e8bba1ce6a",
+      "spirv_words": 2233,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xac76bbb78ea08fee",
+      "source_id": "0x620e1afba6bcb02f",
+      "source_size": 6159,
+      "spirv_hash": "0xe046ab5a34ef6edb",
+      "spirv_words": 2459,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xf1d7ac2df0b45a42",
+      "source_id": "0x6281cf6570e073af",
+      "source_size": 8267,
+      "spirv_hash": "0x18a3fa098ca641d9",
+      "spirv_words": 2919,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xd037f4afead35c06",
+      "source_id": "0x63043b799fca10d7",
+      "source_size": 8755,
+      "spirv_hash": "0xd564e113534f8af9",
+      "spirv_words": 2555,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x2e96b864e37b0d1a",
+      "source_id": "0x6508b90ef70ba437",
+      "source_size": 9183,
+      "spirv_hash": "0x1c9e84b2bb64de50",
+      "spirv_words": 2620,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xf1bf55ff9c3ca553",
+      "source_id": "0x669e5e177201eb65",
+      "source_size": 5102,
+      "spirv_hash": "0x34ea5bddbfafd0d7",
+      "spirv_words": 1799,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x7c980c214c428b2e",
+      "source_id": "0x68c92999fa492965",
+      "source_size": 6365,
+      "spirv_hash": "0xbf4ea42577838919",
+      "spirv_words": 2443,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x44ab99ab4a930cc4",
+      "source_id": "0x6c795a65a23efb2c",
+      "source_size": 9144,
+      "spirv_hash": "0x377e7fea24413f6c",
+      "spirv_words": 2604,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x140d20ba99828b8e",
+      "source_id": "0x6d90be2ed403f7c2",
+      "source_size": 6212,
+      "spirv_hash": "0xd7388956066fb4e2",
+      "spirv_words": 2335,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x6cc52e418582b880",
+      "source_id": "0x76fbd692f6b6bfe1",
+      "source_size": 5967,
+      "spirv_hash": "0x6b5fec76c9f90e9c",
+      "spirv_words": 2222,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x1f8155ecf4674979",
+      "source_id": "0x79fac157038e7537",
+      "source_size": 4958,
+      "spirv_hash": "0x2487a9a18174b87a",
+      "spirv_words": 1744,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x60f31934875efe0a",
+      "source_id": "0x7ce9bd5fbddad34b",
+      "source_size": 5631,
+      "spirv_hash": "0xbca9f693ccffc698",
+      "spirv_words": 1891,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x8e40ff9756f20a8a",
+      "source_id": "0x7d0ee34e19eb9dad",
+      "source_size": 6285,
+      "spirv_hash": "0xf13a70f62b5f7993",
+      "spirv_words": 2425,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xc5e3886bcd2cafbc",
+      "source_id": "0x809ddab71875c33a",
+      "source_size": 4958,
+      "spirv_hash": "0xfda5446e65772d26",
+      "spirv_words": 1744,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x9540f874d13ac219",
+      "source_id": "0x9042eb849542fb7b",
+      "source_size": 5150,
+      "spirv_hash": "0xd483cba0492fb366",
+      "spirv_words": 1868,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xa123dbc8a6350784",
+      "source_id": "0x9140e5f8014a203d",
+      "source_size": 4983,
+      "spirv_hash": "0xabdb6ce40f9f237e",
+      "spirv_words": 1560,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x02529e69f3047e79",
+      "source_id": "0x91b22e136acf3b8a",
+      "source_size": 5957,
+      "spirv_hash": "0xda1f85d4a729697b",
+      "spirv_words": 2379,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xfc630070544577b8",
+      "source_id": "0x92aa768e9df6a629",
+      "source_size": 6071,
+      "spirv_hash": "0x696b6dd812bd52e2",
+      "spirv_words": 2203,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x7882d7667bd4063f",
+      "source_id": "0x934bd3832e1bed53",
+      "source_size": 9356,
+      "spirv_hash": "0x4bce5e7e1c164861",
+      "spirv_words": 2946,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x2e81030117e7afe9",
+      "source_id": "0x96ae8f0c77928b18",
+      "source_size": 5583,
+      "spirv_hash": "0x2e512d9eee8aaaa1",
+      "spirv_words": 2090,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x9e4fcf08960e8b63",
+      "source_id": "0x96d460127dc2862b",
+      "source_size": 6312,
+      "spirv_hash": "0xcf69c72584f625c0",
+      "spirv_words": 2361,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xaa50b999b583041a",
+      "source_id": "0x9733f3ef743aca99",
+      "source_size": 8773,
+      "spirv_hash": "0xe6fc9848225048f8",
+      "spirv_words": 3146,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x968b8984800c44c4",
+      "source_id": "0x9a38f03780c25969",
+      "source_size": 5779,
+      "spirv_hash": "0x50008379bd361cea",
+      "spirv_words": 2187,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xaefded5963767a60",
+      "source_id": "0x9e8748825f159bbd",
+      "source_size": 5031,
+      "spirv_hash": "0x806c65e66bdac9fa",
+      "spirv_words": 1838,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x6c4c2afd72bcb507",
+      "source_id": "0x9e897b0092d346ea",
+      "source_size": 4883,
+      "spirv_hash": "0x77bf357927964569",
+      "spirv_words": 1534,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x26a839b2968fb2cb",
+      "source_id": "0x9f81903c27b45298",
+      "source_size": 5617,
+      "spirv_hash": "0x85de8a0c3c055d5b",
+      "spirv_words": 2090,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x52133a1d7e1fb083",
+      "source_id": "0xa01508c814e5ced0",
+      "source_size": 5109,
+      "spirv_hash": "0x7e6e476c8d1c8621",
+      "spirv_words": 2000,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xe810b6679d23c1ae",
+      "source_id": "0xa092fe9f53126bee",
+      "source_size": 6000,
+      "spirv_hash": "0xcbb739423d8a70b2",
+      "spirv_words": 2238,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xba4b4c548f2f7d9c",
+      "source_id": "0xa27420d7dd544cdb",
+      "source_size": 9229,
+      "spirv_hash": "0xddc9606e4502a22b",
+      "spirv_words": 2638,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x8ef7b8ab0d63111e",
+      "source_id": "0xa46e4b5148000269",
+      "source_size": 8529,
+      "spirv_hash": "0xc1d4ef18171c31a2",
+      "spirv_words": 2093,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xfad31367ee7a3b11",
+      "source_id": "0xa685da080d16bab0",
+      "source_size": 5179,
+      "spirv_hash": "0x2af7b08fccff66ec",
+      "spirv_words": 2092,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x88170c23578ebc5d",
+      "source_id": "0xb1fcaaba558d6cc0",
+      "source_size": 5031,
+      "spirv_hash": "0x8fe2262ed14d1161",
+      "spirv_words": 1834,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xb1d1a119ee0b537e",
+      "source_id": "0xb57a5bbf6d17b643",
+      "source_size": 19035,
+      "spirv_hash": "0x901279839d85d549",
+      "spirv_words": 28517,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x5c677c86272e0b25",
+      "source_id": "0xba9be05111879f3a",
+      "source_size": 6385,
+      "spirv_hash": "0x941f7b4f1d00584f",
+      "spirv_words": 2451,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xbd98dcd14a107149",
+      "source_id": "0xbb73fc581afc6fd7",
+      "source_size": 12382,
+      "spirv_hash": "0x9a55f9b0c33d182c",
+      "spirv_words": 2638,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x682c49c4a264c69a",
+      "source_id": "0xbf057886d50f42c7",
+      "source_size": 5075,
+      "spirv_hash": "0x5cf0343dff5c774f",
+      "spirv_words": 1859,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xbc162680cf7e5083",
+      "source_id": "0xc17d193eb24d0356",
+      "source_size": 6431,
+      "spirv_hash": "0x16de13175ab4e932",
+      "spirv_words": 2469,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xa9e4386881f8d395",
+      "source_id": "0xc2e8dd263122662d",
+      "source_size": 5176,
+      "spirv_hash": "0x206bb80b9f45eaa5",
+      "spirv_words": 2029,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x5d0508d774f15482",
+      "source_id": "0xc354b49f13dfb9af",
+      "source_size": 5819,
+      "spirv_hash": "0x9b7ba8e05877c009",
+      "spirv_words": 1926,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x5a951494ab432ee7",
+      "source_id": "0xc90bffef95d421fd",
+      "source_size": 6294,
+      "spirv_hash": "0x6b08c96df2eae1a8",
+      "spirv_words": 2439,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x6c094fea438fc9de",
+      "source_id": "0xcc8cb623229007ab",
+      "source_size": 8891,
+      "spirv_hash": "0x0fbfe2b1c6de6c96",
+      "spirv_words": 2577,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xdcef67037ebf0caf",
+      "source_id": "0xce2a74eea3f0d7dc",
+      "source_size": 8853,
+      "spirv_hash": "0xf61324e7fedf7538",
+      "spirv_words": 3240,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xd3f0f280f2fce4f5",
+      "source_id": "0xce7bf982eefa0c56",
+      "source_size": 9297,
+      "spirv_hash": "0xe26f44147be692f0",
+      "spirv_words": 2938,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xa86b62d33ad50d50",
+      "source_id": "0xcec86d2db22ae479",
+      "source_size": 8891,
+      "spirv_hash": "0x3136d764720d07a6",
+      "spirv_words": 2577,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x16a5a15a3a60ac20",
+      "source_id": "0xcef65c8a82d769f8",
+      "source_size": 6392,
+      "spirv_hash": "0xe6a96573cd932867",
+      "spirv_words": 2455,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xe7dd60ce17b859ba",
+      "source_id": "0xd029c424159d5ba0",
+      "source_size": 8926,
+      "spirv_hash": "0xcea285ee7dfc9b50",
+      "spirv_words": 3250,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xb5806b8ec0e33672",
+      "source_id": "0xd09318e6adc45e96",
+      "source_size": 5604,
+      "spirv_hash": "0x35ebe91d06d476fd",
+      "spirv_words": 2227,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x09c31fb3b117dead",
+      "source_id": "0xd28ae44e57c052b9",
+      "source_size": 6292,
+      "spirv_hash": "0x1b689fb96feef741",
+      "spirv_words": 2429,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xf70d5f9c562a3e28",
+      "source_id": "0xd2f54de61069b164",
+      "source_size": 8604,
+      "spirv_hash": "0x08138295603b2f05",
+      "spirv_words": 2299,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x37a522f0811ee0c3",
+      "source_id": "0xdd15ff9867f1d431",
+      "source_size": 9190,
+      "spirv_hash": "0xfe99d47780c49c12",
+      "spirv_words": 2628,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xa8dd9ecbcff32f50",
+      "source_id": "0xe25cd9a984ce902c",
+      "source_size": 8716,
+      "spirv_hash": "0x38157cfd2179880e",
+      "spirv_words": 2409,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xaa69949ca317f96d",
+      "source_id": "0xe6b59516576188df",
+      "source_size": 5498,
+      "spirv_hash": "0xde8bec5f4fc276de",
+      "spirv_words": 2056,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x3cc1c15110d25e14",
+      "source_id": "0xe79f498a35232ab7",
+      "source_size": 5137,
+      "spirv_hash": "0xf4def4da2828b2a2",
+      "spirv_words": 2005,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xf701d1a80dc70bba",
+      "source_id": "0xf027eb9bfabd1643",
+      "source_size": 9219,
+      "spirv_hash": "0x63da55bf289015e4",
+      "spirv_words": 2772,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x0df5fa05dd525ec6",
+      "source_id": "0xf141f1a37d20d8e5",
+      "source_size": 5857,
+      "spirv_hash": "0x4fbcbded6447b8cb",
+      "spirv_words": 2353,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x588223e65f3a9069",
+      "source_id": "0xf1c16d1eebbc53a0",
+      "source_size": 5031,
+      "spirv_hash": "0xdb4d688fb2efb80d",
+      "spirv_words": 1834,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xe6dea94a2f001bf1",
+      "source_id": "0xf1df08016ff1ea26",
+      "source_size": 5425,
+      "spirv_hash": "0x205a5789ec7c2c3d",
+      "spirv_words": 1962,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x7e48461db52e0686",
+      "source_id": "0xf2399da35f72a420",
+      "source_size": 6246,
+      "spirv_hash": "0x09d0c1cf01083d45",
+      "spirv_words": 2409,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x64f4d431d35ac44b",
+      "source_id": "0xf44b78cbe648d226",
+      "source_size": 9475,
+      "spirv_hash": "0x44aad11a6e09ca22",
+      "spirv_words": 2980,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x49c892011393b156",
+      "source_id": "0xf4f7969f9efee351",
+      "source_size": 8965,
+      "spirv_hash": "0xa87f08eafd638ef9",
+      "spirv_words": 3266,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x1fbecca17e958c11",
+      "source_id": "0xf5f1e2ea440559a7",
+      "source_size": 6106,
+      "spirv_hash": "0x56bdfc35a54a5983",
+      "spirv_words": 2409,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0xe4e8ef9de15436e5",
+      "source_id": "0xf95ee691b34139ca",
+      "source_size": 5137,
+      "spirv_hash": "0x49570975ec6e306c",
+      "spirv_words": 2009,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x612b744f8dc6658f",
+      "source_id": "0xfb2a178d9f6f6150",
+      "source_size": 5537,
+      "spirv_hash": "0x1e16e8d00ae9c308",
+      "spirv_words": 2072,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x5b897704248dee36",
+      "source_id": "0xfb7340fa97874cfb",
+      "source_size": 5111,
+      "spirv_hash": "0x27859f55f2e21350",
+      "spirv_words": 1885,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x07f208fa7b074dc0",
+      "source_id": "0xfcd4b66238be35ae",
+      "source_size": 6582,
+      "spirv_hash": "0x09858611f7c31ee4",
+      "spirv_words": 2396,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x61d9d3ce3f4a8bae",
+      "source_id": "0xfdfa2f0309fc1d57",
+      "source_size": 8807,
+      "spirv_hash": "0xc7c7129394bd56cc",
+      "spirv_words": 3220,
+      "stage": "fragment"
+    },
+    {
+      "secondary_hash": "0x77c3c091726908c9",
+      "source_id": "0x0240d25956c9a6b9",
+      "source_size": 6432,
+      "spirv_hash": "0x5a3e7293fdef2a1a",
+      "spirv_words": 2289,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xea1db7afe4f6d4b9",
+      "source_id": "0x0386c8654b25ee04",
+      "source_size": 6399,
+      "spirv_hash": "0xfd8e6e9c8e984dc4",
+      "spirv_words": 2273,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x805378a256a98c0b",
+      "source_id": "0x049121a027b9a866",
+      "source_size": 9695,
+      "spirv_hash": "0x2d85602830893c3c",
+      "spirv_words": 2689,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xd24a0bf2f6e8d79b",
+      "source_id": "0x0521f454b65f80e1",
+      "source_size": 9602,
+      "spirv_hash": "0xf8827302465f2bb4",
+      "spirv_words": 3356,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xf087a5a274e633d8",
+      "source_id": "0x093f6617f4ab552c",
+      "source_size": 9788,
+      "spirv_hash": "0x49fee74037b0a0b7",
+      "spirv_words": 3067,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xca18255e1590a5b1",
+      "source_id": "0x0b7e3185e5fb03b8",
+      "source_size": 9055,
+      "spirv_hash": "0x896d01cfc37dd8fb",
+      "spirv_words": 3300,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x055ff73f710b2f88",
+      "source_id": "0x0fd3d0147a11f910",
+      "source_size": 6744,
+      "spirv_hash": "0x5faa6a9da185f39a",
+      "spirv_words": 2402,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xe4dd74ea66f4e7e1",
+      "source_id": "0x1426fa2a78c18190",
+      "source_size": 9563,
+      "spirv_hash": "0x15e464ea3e270423",
+      "spirv_words": 3340,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x3f1b6e737d00957d",
+      "source_id": "0x190a112388b2daec",
+      "source_size": 6211,
+      "spirv_hash": "0x9ebca05743550244",
+      "spirv_words": 2238,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xb9df7a834a562ab0",
+      "source_id": "0x1a84c7365dda255d",
+      "source_size": 5463,
+      "spirv_hash": "0xc83cf4b24eec8afa",
+      "spirv_words": 1885,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x3765f9b56d850ff8",
+      "source_id": "0x1c7d0bbcbaed8b26",
+      "source_size": 5534,
+      "spirv_hash": "0xee3b63800cbdf63c",
+      "spirv_words": 1850,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xa40f8f15a8c7f7c5",
+      "source_id": "0x1e21c9b3ebbfd1b4",
+      "source_size": 6359,
+      "spirv_hash": "0x4887a86fc3662da4",
+      "spirv_words": 2541,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x8e96e78936f06047",
+      "source_id": "0x22f088f7143e6326",
+      "source_size": 6471,
+      "spirv_hash": "0xd351db656c0e9d8f",
+      "spirv_words": 2309,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xd8ced2ce450350ca",
+      "source_id": "0x2307ce6b3318ff42",
+      "source_size": 5896,
+      "spirv_hash": "0x981450aa4b292d93",
+      "spirv_words": 2023,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x3dc8b4b4b205543e",
+      "source_id": "0x26626b78c8fdb09f",
+      "source_size": 5315,
+      "spirv_hash": "0xb362f30c624dab61",
+      "spirv_words": 1534,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x828fb0c519ca46f6",
+      "source_id": "0x285329c1a66ee34c",
+      "source_size": 5582,
+      "spirv_hash": "0x630ce7dd6e88157e",
+      "spirv_words": 1919,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x46bb133afc1fb6ec",
+      "source_id": "0x2930181f6ca79de9",
+      "source_size": 6163,
+      "spirv_hash": "0x4d2c7ededd45d78d",
+      "spirv_words": 1917,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x8f2dfbc3fe964430",
+      "source_id": "0x29575f58d5e52f05",
+      "source_size": 6015,
+      "spirv_hash": "0xd387defae4959477",
+      "spirv_words": 2141,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x81bc999c01826a97",
+      "source_id": "0x2c448e46042f6e1f",
+      "source_size": 8904,
+      "spirv_hash": "0xba4094328563e659",
+      "spirv_words": 2999,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x75eb3a46467ec595",
+      "source_id": "0x2d9d9d67d05fdbbf",
+      "source_size": 6826,
+      "spirv_hash": "0x33dea2add597838c",
+      "spirv_words": 2407,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x2e71c2ad35ccef4b",
+      "source_id": "0x2de0bf322f0b4193",
+      "source_size": 9576,
+      "spirv_hash": "0xdcf9a502b74fe0e5",
+      "spirv_words": 2655,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x913b25ce55b9ae9d",
+      "source_id": "0x2f5288ca88003f96",
+      "source_size": 5569,
+      "spirv_hash": "0x7408785a75446e3c",
+      "spirv_words": 2091,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x52dfabbb17931dfe",
+      "source_id": "0x36357055bbda0ce7",
+      "source_size": 6863,
+      "spirv_hash": "0x4778e362fd91a8c6",
+      "spirv_words": 2520,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x5dd96a673367cd80",
+      "source_id": "0x3a87d0ec2a6c7291",
+      "source_size": 6547,
+      "spirv_hash": "0xb7b838710bf9e31c",
+      "spirv_words": 2219,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x11e61af250021237",
+      "source_id": "0x3d5f629e2026955e",
+      "source_size": 9323,
+      "spirv_hash": "0x7b5b2db38639bfee",
+      "spirv_words": 2663,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xb729ab79b38d8862",
+      "source_id": "0x40b79ba5b62ab8fa",
+      "source_size": 5608,
+      "spirv_hash": "0x05ab14f606700a1a",
+      "spirv_words": 2115,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xbeb29b44bb443d42",
+      "source_id": "0x428b87e4c2fe75d4",
+      "source_size": 6538,
+      "spirv_hash": "0xc74a3445e74c2825",
+      "spirv_words": 2495,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xdc4281af32dc54ae",
+      "source_id": "0x42abe833f6a54ab1",
+      "source_size": 5969,
+      "spirv_hash": "0xb794284bf3a1fbc4",
+      "spirv_words": 2123,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xe9ba41293aebc2ff",
+      "source_id": "0x438d6ab0b6c28d47",
+      "source_size": 5976,
+      "spirv_hash": "0x94c07c6a6fad4e3f",
+      "spirv_words": 2127,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x0e454d99c13abb2c",
+      "source_id": "0x43bd90bc90236553",
+      "source_size": 5569,
+      "spirv_hash": "0xafa254b85aebcca0",
+      "spirv_words": 2095,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x39097cafe8d80dc3",
+      "source_id": "0x49a8220f6770f97b",
+      "source_size": 5960,
+      "spirv_hash": "0xe6bc108fbc0c419c",
+      "spirv_words": 1883,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x99dc3c2f818286ab",
+      "source_id": "0x4b68db9c0e95019c",
+      "source_size": 8961,
+      "spirv_hash": "0x09c1f37ebe20e386",
+      "spirv_words": 2093,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xde15e0cf02311ccf",
+      "source_id": "0x533c806e88e0c322",
+      "source_size": 9651,
+      "spirv_hash": "0xf3b5c5abdcb3a2ec",
+      "spirv_words": 2858,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x8d21b5d47124fe58",
+      "source_id": "0x551548a9aff9973f",
+      "source_size": 9729,
+      "spirv_hash": "0x08793738156ed085",
+      "spirv_words": 2959,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x0f842c8a19f4ddcf",
+      "source_id": "0x5532609a2423c62e",
+      "source_size": 9615,
+      "spirv_hash": "0x9a77310f65596472",
+      "spirv_words": 2671,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x99abfb47fdfc73a1",
+      "source_id": "0x5931d2fb05b4724e",
+      "source_size": 9661,
+      "spirv_hash": "0xcae4a66f5d5bec53",
+      "spirv_words": 2689,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xd0fe48f3354022cd",
+      "source_id": "0x600f6b18022717a8",
+      "source_size": 9483,
+      "spirv_hash": "0x1aa1d842b5f162b3",
+      "spirv_words": 3326,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xeb1a8b6f6bba39f4",
+      "source_id": "0x61b3d09099762083",
+      "source_size": 5857,
+      "spirv_hash": "0x82b95fbb50b2af81",
+      "spirv_words": 2003,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x69c7aa0ce4210fbf",
+      "source_id": "0x64790c26e9805094",
+      "source_size": 6289,
+      "spirv_hash": "0x8c7dc0db3b6be4b4",
+      "spirv_words": 2439,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x5d2e7c0b2110a85b",
+      "source_id": "0x6841f70448de8fd7",
+      "source_size": 9148,
+      "spirv_hash": "0x554563391cce265f",
+      "spirv_words": 2460,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xa3052fab3cee4282",
+      "source_id": "0x68a9fad1b1db88fe",
+      "source_size": 6724,
+      "spirv_hash": "0xa61849815b768b56",
+      "spirv_words": 2480,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x3126a383d932a1b8",
+      "source_id": "0x6c5a4e8460af8527",
+      "source_size": 6929,
+      "spirv_hash": "0xf2e0503dfc600406",
+      "spirv_words": 2287,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x2a37fa24db124da3",
+      "source_id": "0x6cb6938a8ac8a915",
+      "source_size": 9542,
+      "spirv_hash": "0x8cff58f9745976c8",
+      "spirv_words": 2571,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x5afb51715c7ea0b9",
+      "source_id": "0x6f56b33fe0bb76c0",
+      "source_size": 6779,
+      "spirv_hash": "0x120f2e5604e037ca",
+      "spirv_words": 2580,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xfae17a61cb55cabf",
+      "source_id": "0x731f98d12bfee42b",
+      "source_size": 9036,
+      "spirv_hash": "0x43d63ede5072ea71",
+      "spirv_words": 2340,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x9b3d06cc4433998d",
+      "source_id": "0x74d4c5e6552f8b14",
+      "source_size": 5463,
+      "spirv_hash": "0x3b49bd35143cd14d",
+      "spirv_words": 1889,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x1ac20dd0646860b5",
+      "source_id": "0x79c17587176bd8d0",
+      "source_size": 9323,
+      "spirv_hash": "0xfd808b90aee6a074",
+      "spirv_words": 2663,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xd05f78ca1f4c035f",
+      "source_id": "0x7c6ab8fa1b0bae89",
+      "source_size": 9410,
+      "spirv_hash": "0x9d7eadcefe6f096a",
+      "spirv_words": 3226,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x870d9e368213e703",
+      "source_id": "0x7d484951e8c31646",
+      "source_size": 6063,
+      "spirv_hash": "0x905c1cb665a14dfc",
+      "spirv_words": 1891,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xdc046772e5c5342a",
+      "source_id": "0x80171e5fdc787c40",
+      "source_size": 9734,
+      "spirv_hash": "0x68e517f1f4a6fc63",
+      "spirv_words": 2899,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x000be2e40a44c429",
+      "source_id": "0x803daeada3f92848",
+      "source_size": 6763,
+      "spirv_hash": "0x5e2344de944b33b5",
+      "spirv_words": 2494,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x43d7e12bafea5c0b",
+      "source_id": "0x81fe822d07f294de",
+      "source_size": 9187,
+      "spirv_hash": "0xc6b760f46d035401",
+      "spirv_words": 2641,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x600907953cd9788c",
+      "source_id": "0x84c380243fd50fd1",
+      "source_size": 6359,
+      "spirv_hash": "0xb778dfb13dd10eb8",
+      "spirv_words": 2189,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xaa441cc261489005",
+      "source_id": "0x84fd0117139f4cdb",
+      "source_size": 6678,
+      "spirv_hash": "0x6b171e234088211a",
+      "spirv_words": 2460,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xec47822b554d4c89",
+      "source_id": "0x85df1faf3d5b6cbd",
+      "source_size": 6644,
+      "spirv_hash": "0x26127e6c2c4b4b52",
+      "spirv_words": 2376,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x7203bfbcd10821cc",
+      "source_id": "0x877593295d943a3a",
+      "source_size": 6778,
+      "spirv_hash": "0xe7632d1f1a7a3d91",
+      "spirv_words": 2486,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xd930062e901dc8bb",
+      "source_id": "0x8942f69fa76666f2",
+      "source_size": 5543,
+      "spirv_hash": "0x0b253ccc987f6816",
+      "spirv_words": 1936,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x1829c3c23c80c3e3",
+      "source_id": "0x8fbee881b723a402",
+      "source_size": 6251,
+      "spirv_hash": "0xed62090ee0995bcd",
+      "spirv_words": 1926,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x4d1ea6ed2a6421d2",
+      "source_id": "0x920e4d8a5616a647",
+      "source_size": 9323,
+      "spirv_hash": "0xe42f2fa434fc9379",
+      "spirv_words": 2663,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xa075144f65f087fd",
+      "source_id": "0x9536ac63d71472f0",
+      "source_size": 5415,
+      "spirv_hash": "0xcf567abfd44bbbae",
+      "spirv_words": 1560,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x7d2a0af50d63de33",
+      "source_id": "0x9677558ec73cae37",
+      "source_size": 6620,
+      "spirv_hash": "0x81436ab2b781f8e0",
+      "spirv_words": 2319,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x230d3729525b6743",
+      "source_id": "0x99792e774578f322",
+      "source_size": 5507,
+      "spirv_hash": "0x4eb1c00bfc0ffdb8",
+      "spirv_words": 1910,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x6481e93bef4fde92",
+      "source_id": "0x9d9d7fd0b93df0e3",
+      "source_size": 9907,
+      "spirv_hash": "0x175174f45c5f6637",
+      "spirv_words": 3101,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xdb91649fbb0c593f",
+      "source_id": "0xa0f798ebd62eb521",
+      "source_size": 5390,
+      "spirv_hash": "0xb7fb9bf43eb390c9",
+      "spirv_words": 1785,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xad3adbc3c506e920",
+      "source_id": "0xa37b7fdff8093c4a",
+      "source_size": 9622,
+      "spirv_hash": "0x536ac2a5c174cc6b",
+      "spirv_words": 2679,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x22a9910f3e3553bb",
+      "source_id": "0xa5f43766d62faf73",
+      "source_size": 6824,
+      "spirv_hash": "0xaecefd80c8e77dd3",
+      "spirv_words": 2506,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x64529277fe0111d8",
+      "source_id": "0xa6175b54c4ff3962",
+      "source_size": 6726,
+      "spirv_hash": "0x041a4d8f55c4e00f",
+      "spirv_words": 2525,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x7e1c4168a11da0d5",
+      "source_id": "0xa7f11e1d402152f0",
+      "source_size": 6547,
+      "spirv_hash": "0x37d8a9ce97d137ca",
+      "spirv_words": 2576,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x28544bf52958dbf3",
+      "source_id": "0xb01a369aae9c9da0",
+      "source_size": 9529,
+      "spirv_hash": "0x3229e9250c1887cd",
+      "spirv_words": 3344,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xb1d0704fd03a6342",
+      "source_id": "0xb5c9cf591ea4da81",
+      "source_size": 5541,
+      "spirv_hash": "0x111551dcbba6a248",
+      "spirv_words": 2086,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x6e829ea08e665b1c",
+      "source_id": "0xb6f3dd60cfe4fb11",
+      "source_size": 5611,
+      "spirv_hash": "0xeb0ae8a3d97551d0",
+      "spirv_words": 2188,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x8d8041fba867130f",
+      "source_id": "0xba6fae5175545732",
+      "source_size": 6659,
+      "spirv_hash": "0xa10342eca8fbcfe6",
+      "spirv_words": 2339,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x1e2210b0bf1c8eca",
+      "source_id": "0xbb6793610a6b9a91",
+      "source_size": 9109,
+      "spirv_hash": "0xaf9980a4810b701e",
+      "spirv_words": 2440,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x05471d8404fae42c",
+      "source_id": "0xbcdf598b900b71ca",
+      "source_size": 9606,
+      "spirv_hash": "0x0aeab967bed89e34",
+      "spirv_words": 2435,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x6d7dab895f36e598",
+      "source_id": "0xbed5ed09f2e2fad4",
+      "source_size": 5476,
+      "spirv_hash": "0x8a6c6fb2d0e55df3",
+      "spirv_words": 1844,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xdc1f9fb7839ff6cc",
+      "source_id": "0xc1f04780cdd11e27",
+      "source_size": 6389,
+      "spirv_hash": "0x0b3b663272b6fac4",
+      "spirv_words": 2465,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xb777a808f5417483",
+      "source_id": "0xc6744e5bec2d8a67",
+      "source_size": 9444,
+      "spirv_hash": "0x4548f4dfbcc5b29b",
+      "spirv_words": 3310,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x7b4d3b9f1976b4bb",
+      "source_id": "0xc6b2c6b6b25ada39",
+      "source_size": 9734,
+      "spirv_hash": "0x17752d43fbf0a969",
+      "spirv_words": 2705,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x4780711329453e96",
+      "source_id": "0xc936e97d08b420e4",
+      "source_size": 5930,
+      "spirv_hash": "0x020df035361dadb0",
+      "spirv_words": 2107,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xdf81f36d8cce3be6",
+      "source_id": "0xca2546f5928d9d6e",
+      "source_size": 6088,
+      "spirv_hash": "0x0c4fe7296c6eaa88",
+      "spirv_words": 2157,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xe20828b2f2269629",
+      "source_id": "0xcd7526757fc4f3c4",
+      "source_size": 6503,
+      "spirv_hash": "0xa6376013216ceba8",
+      "spirv_words": 2254,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x88a880ef0399e10e",
+      "source_id": "0xce2fdebc89d4bbc8",
+      "source_size": 12814,
+      "spirv_hash": "0x2931fd5c2307724d",
+      "spirv_words": 2689,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x9693a3f262cbc2ed",
+      "source_id": "0xd6f6bb627543f471",
+      "source_size": 6036,
+      "spirv_hash": "0xb2d7248bea748cb9",
+      "spirv_words": 2313,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x5647a6f256707ab8",
+      "source_id": "0xd7da0f43f5c1efd6",
+      "source_size": 5534,
+      "spirv_hash": "0x9d12615ef0a8a53c",
+      "spirv_words": 1850,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xf5a1bf145fb19a90",
+      "source_id": "0xddfc5868e3a4912f",
+      "source_size": 6817,
+      "spirv_hash": "0xa8726027f6d2f188",
+      "spirv_words": 2502,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xf4ab31e1155d11c4",
+      "source_id": "0xdebae5e3c51314cf",
+      "source_size": 6897,
+      "spirv_hash": "0x91f89869cb64b243",
+      "spirv_words": 2520,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xa68822e8e59b4517",
+      "source_id": "0xe2a376d1ff5610c2",
+      "source_size": 6591,
+      "spirv_hash": "0x9418b91d841b7c38",
+      "spirv_words": 2545,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xa048868b459f8bb1",
+      "source_id": "0xe6e5f48e10b3aaf0",
+      "source_size": 6691,
+      "spirv_hash": "0x870e3ad5743d18ac",
+      "spirv_words": 2284,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x30e088f38fb192aa",
+      "source_id": "0xec9f2e3be177158c",
+      "source_size": 9490,
+      "spirv_hash": "0x189270535e8a4ec1",
+      "spirv_words": 3330,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xae7436a319992706",
+      "source_id": "0xedc41beec14ffbcd",
+      "source_size": 6049,
+      "spirv_hash": "0x445b98259d3c61e1",
+      "spirv_words": 2141,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xbea487ed31cb340b",
+      "source_id": "0xeeef3445fd4bb8b4",
+      "source_size": 6717,
+      "spirv_hash": "0xe2021e920ec47e6a",
+      "spirv_words": 2476,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x7e2a77c477200613",
+      "source_id": "0xf3472e5a70fa7a8d",
+      "source_size": 7014,
+      "spirv_hash": "0xdf0e5ba2fd26305e",
+      "spirv_words": 2437,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xd7b9151f219b6d53",
+      "source_id": "0xf3b2d360c0f01440",
+      "source_size": 6797,
+      "spirv_hash": "0x454e7ac7b77a2b15",
+      "spirv_words": 2494,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x25cde1a356560d78",
+      "source_id": "0xf48f7338d44bbbfb",
+      "source_size": 9729,
+      "spirv_hash": "0x5e74cdacc798106d",
+      "spirv_words": 3059,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xb478b614fa7e8702",
+      "source_id": "0xf60c0c2059337b04",
+      "source_size": 5390,
+      "spirv_hash": "0x9ebef00f84aae995",
+      "spirv_words": 1785,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0x62deae9be06fa310",
+      "source_id": "0xf8e80d58ba04a1f1",
+      "source_size": 5463,
+      "spirv_hash": "0x912ceed67daff16a",
+      "spirv_words": 1885,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xe2eb9212b3cd40a6",
+      "source_id": "0xff539ad8946700bc",
+      "source_size": 5502,
+      "spirv_hash": "0x872875f20afc76d7",
+      "spirv_words": 1905,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xa32efcb295fca7e0",
+      "source_id": "0xff67dcd4d46d3f07",
+      "source_size": 7117,
+      "spirv_hash": "0xc394643c35d3c61c",
+      "spirv_words": 2317,
+      "stage": "nri_fragment"
+    },
+    {
+      "secondary_hash": "0xfa2a570519002a02",
+      "source_id": "0x18fc9b91b81ecee1",
+      "source_size": 70461,
+      "spirv_hash": "0x319a5450175e7f55",
+      "spirv_words": 68583,
+      "stage": "vertex"
+    },
+    {
+      "secondary_hash": "0x8ed3d84a3a346a07",
+      "source_id": "0x938a1aa75d3574bb",
+      "source_size": 300,
+      "spirv_hash": "0x1621984e3ad9d9a1",
+      "spirv_words": 313,
+      "stage": "vertex"
+    },
+    {
+      "secondary_hash": "0xba5ef4f3118705bb",
+      "source_id": "0xb2eb23726757dcde",
+      "source_size": 30955,
+      "spirv_hash": "0x3c02645d6fe8c33c",
+      "spirv_words": 34525,
+      "stage": "vertex"
+    }
+  ]
+}

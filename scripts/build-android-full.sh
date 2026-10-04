@@ -176,9 +176,14 @@ python3 "$REPO_ROOT/tools/android/stage_native_app.py" \
   --ndk "$NDK" \
   --output "$STAGED_DIR"
 
-# 6. Compilação do APK com Gradle
+# 6. Compilação offline de shaders PICA (SPIR-V AOT pack)
 echo ""
-echo ">>> [5/5] Compilando APK via Gradle..."
+echo ">>> [5/6] Compilando pacote AOT de shaders offline (.o3ps)..."
+"$REPO_ROOT/tools/oot3d/native_pica_frontend/build_shader_pack.sh"
+
+# 7. Compilação do APK com Gradle
+echo ""
+echo ">>> [6/6] Compilando APK via Gradle..."
 SDL_SRC=""
 if [ -d "$BUILD_DIR/runtime/_deps/sdl2-src" ]; then
     SDL_SRC="-PtriaevumSdlSource=$BUILD_DIR/runtime/_deps/sdl2-src"

@@ -862,21 +862,49 @@ public final class TriAevumConfigManager {
      * Ensures TriAevum.android.launch.json enables visual interpolation and 60 Hz presentation,
      * as well as --topscreen-config and --topscreen-texture-overrides for seamless single-screen UI layout customization.
      */
+    private void copyAssetIfUpdated(String assetPath, File destFile) {
+        try {
+            android.content.res.AssetFileDescriptor afd = null;
+            long assetLength = -1;
+            try {
+                afd = mContext.getAssets().openFd(assetPath);
+                assetLength = afd.getLength();
+            } catch (Exception ignored) {
+            } finally {
+                if (afd != null) {
+                    try { afd.close(); } catch (Exception ignored) {}
+                }
+            }
+
+            if (!destFile.exists() || (assetLength > 0 && destFile.length() != assetLength)) {
+                try (InputStream in = mContext.getAssets().open(assetPath);
+                     OutputStream out = new FileOutputStream(destFile)) {
+                    byte[] buf = new byte[16384];
+                    int len;
+                    while ((len = in.read(buf)) > 0) {
+                        out.write(buf, 0, len);
+                    }
+                    Log.i(TAG, "Unpacked bundled " + assetPath + " to " + destFile.getName() + " (" + destFile.length() + " bytes)");
+                }
+            }
+        } catch (Exception e) {
+            Log.d(TAG, "No bundled " + assetPath + " asset or could not unpack: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Ensures TriAevum.android.launch.json enables visual interpolation and 60 Hz presentation,
+     * precompiled offline PICA AOT shader pack, and TopScreen UI support.
+     */
     public void ensureLaunchProfileOptimized() {
         File atlasFile = new File(mContext.getExternalFilesDir(null), "atlas_overrides.o3tu");
-        if (!atlasFile.exists()) {
-            try (InputStream in = mContext.getAssets().open("game/atlas_overrides.o3tu");
-                 OutputStream out = new FileOutputStream(atlasFile)) {
-                byte[] buf = new byte[8192];
-                int len;
-                while ((len = in.read(buf)) > 0) {
-                    out.write(buf, 0, len);
-                }
-                Log.i(TAG, "Unpacked bundled atlas_overrides.o3tu to external files directory");
-            } catch (Exception e) {
-                Log.d(TAG, "No bundled atlas_overrides.o3tu asset or could not unpack: " + e.getMessage());
-            }
-        }
+        copyAssetIfUpdated("game/atlas_overrides.o3tu", atlasFile);
+
+        File shaderPackFile = new File(mContext.getExternalFilesDir(null), "oot3d_pica_default.o3ps");
+        copyAssetIfUpdated("game/oot3d_pica_default.o3ps", shaderPackFile);
+
+        File shaderManifestFile = new File(mContext.getExternalFilesDir(null), "oot3d_pica_default_manifest.json");
+        copyAssetIfUpdated("game/oot3d_pica_default_manifest.json", shaderManifestFile);
 
         JSONObject profile = readJson("TriAevum.android.launch.json");
         try {
@@ -885,6 +913,8 @@ public final class TriAevumConfigManager {
                 boolean changed = false;
                 boolean hasTopScreenConfig = false;
                 boolean hasTextureOverrides = false;
+                boolean hasShaderPack = false;
+                boolean hasRendererCache = false;
                 for (int i = 0; i < args.length() - 1; i++) {
                     if ("--gameplay-timing".equals(args.getString(i))) {
                         if (!"native30_interpolated".equals(args.getString(i + 1))) {
@@ -900,6 +930,10 @@ public final class TriAevumConfigManager {
                         hasTopScreenConfig = true;
                     } else if ("--topscreen-texture-overrides".equals(args.getString(i))) {
                         hasTextureOverrides = true;
+                    } else if ("--pica-aot-shader-pack".equals(args.getString(i))) {
+                        hasShaderPack = true;
+                    } else if ("--renderer-cache-directory".equals(args.getString(i))) {
+                        hasRendererCache = true;
                     }
                 }
                 if (!hasTopScreenConfig) {
@@ -912,9 +946,19 @@ public final class TriAevumConfigManager {
                     args.put("${profile_dir}/atlas_overrides.o3tu");
                     changed = true;
                 }
+                if (!hasShaderPack && shaderPackFile.exists()) {
+                    args.put("--pica-aot-shader-pack");
+                    args.put("${profile_dir}/oot3d_pica_default.o3ps");
+                    changed = true;
+                }
+                if (!hasRendererCache) {
+                    args.put("--renderer-cache-directory");
+                    args.put("${profile_dir}/shader_cache");
+                    changed = true;
+                }
                 if (changed) {
                     writeJson("TriAevum.android.launch.json", profile);
-                    Log.i(TAG, "TriAevum.android.launch.json successfully updated for 60 FPS and TopScreen UI support");
+                    Log.i(TAG, "TriAevum.android.launch.json successfully updated for 60 FPS, AOT Shaders and TopScreen UI");
                 }
                 File topScreenFile = new File(mExternalDir, "topscreen_ui.json");
                 if (!topScreenFile.exists()) {

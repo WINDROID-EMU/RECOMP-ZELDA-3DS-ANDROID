@@ -187,6 +187,21 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
 
 ---
 
+### ADR-0016: Compilação AOT Offline de Shaders PICA e Empacotamento Portável (.o3ps) no APK Android
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** A compilação JIT de fragment e vertex shaders PICA durante o jogo causa micro-travamentos ("stutter") e consome ciclos valiosos de CPU e memória em dispositivos móveis. Além disso, a compilação em tempo de execução via `shaderc` no Android exige linkedição de bibliotecas pesadas de compilação. Era necessário compilar todo o corpus de shaders antecipadamente de forma offline e embutir os módulos SPIR-V já compilados diretamente no APK.
+- **Decisão:**
+  1. **Ferramenta de Compilação AOT (`oot3d_native_pica_aot_compiler_glslang`):** Criada ferramenta independente integrando `pica_aot_shader_pack` e o compilador padrão de referência Khronos `glslangValidator` para compilar em paralelo os inventários canônicos (`boot`, `title`, `kokiri`, materiais, iluminação LUT, scanout/pós-processamento) em bytecode SPIR-V Vulkan 1.1 com otimização `-Os`.
+  2. **Formato Portável de Alta Densidade (`oot3d_pica_default.o3ps`):** Empacotamento binário de 200 módulos (2.3 MB) no formato canônico O3PSAOT v1, indexado por hashes determinísticos FNV-1a com verificação estrita de round-trip.
+  3. **Distribuição em Assets e Injeção Transparente:** O pacote `.o3ps` e seu manifesto são posicionados em `assets/game/`. Em tempo de inicialização, `TriAevumConfigManager` e `TriAevumDownloadActivity` desempacotam os binários para o diretório de dados do app e injetam o argumento `--pica-aot-shader-pack` no `TriAevum.android.launch.json`.
+  4. **Eliminação de JIT no Dispositivo:** O carregador Vulkan nativo (`GfxRenderingAPIVulkan::ResolveNativePicaShaderSpirv`) passa a resolver 100% dos shaders diretamente do pacote em memória (`mPicaAotShaderHits`), eliminando a sobrecarga de compilação GLSL no Android.
+- **Evidência:** Pacote de 200 módulos compilado e verificado; APK gerado e testado no Xiaomi 12 com confirmação em logcat de extração de 2.404.460 bytes e renderização instantânea do jogo a 60 FPS estáveis.
+
+---
+
+
+
 
 ## 2. Matriz de Hipóteses e Validação Técnica (Itens ⚠)
 

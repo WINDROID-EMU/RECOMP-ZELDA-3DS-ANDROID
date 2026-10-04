@@ -167,4 +167,11 @@ Fase atual: **Fase 10 — Otimização Adreno** (Concluída) -> **Todas as Fases
   - **Desacoplamento de Display:** Não mede a taxa de atualização do painel do Android (120 Hz do Xiaomi 12 / SurfaceFlinger), mas sim a taxa real de quadros do jogo (60.1 FPS interpolado / 30 FPS canônico).
   - **Exposição JNI & UI:** Exposto via `nativeGetGameFps()`, configurável com toggle "Exibir FPS do Jogo" nas configurações gráficas e salvo em SharedPreferences (`show_game_fps_counter`).
   - **Overlay OSD:** Widget `TextView` estilizado (`🎮 60.1 FPS`) com borda arredondada dourada, fundo translúcido, elevação 50.0f e `bringToFront()` para garantir visibilidade desobstruída sem colidir com controles virtuais. Validado com screenshot em hardware real.
+- [x] **11.9** Compilação Offline de Shaders PICA e Empacotamento AOT no App:
+  - **Compilador AOT Dedicado:** Implementado `tools/oot3d/native_pica_frontend/oot3d_native_pica_aot_compiler_glslang.cpp` e script automatizado `build_shader_pack.sh`, integrando compilação de alta performance de 200 módulos GLSL diretamente para SPIR-V Vulkan 1.1 usando `glslangValidator`.
+  - **Pacote AOT Portável (`oot3d_pica_default.o3ps`):** Gerado pacote binário O3PSAOT v1 de 2.3 MB contendo todos os shaders de vértice, fragmento e pós-processamento, com validação estrita de integridade FNV-1a e schema descritor 3.
+  - **Empacotamento nos Assets:** Pacote `.o3ps` e manifesto `.json` embutidos em `ports/android/app/src/main/assets/game/`.
+  - **Desempacotamento Automático:** `TriAevumConfigManager` e `TriAevumDownloadActivity` desempacotam o pacote para o armazenamento do app e injetam `--pica-aot-shader-pack ${profile_dir}/oot3d_pica_default.o3ps` no `TriAevum.android.launch.json`.
+  - **Zero Compilação em Runtime:** Todos os shaders atingem `mPicaAotShaderHits`, eliminando compilações em tempo de execução via `shaderc` no dispositivo e acelerando a inicialização e o frame pacing. Validado em hardware real no Xiaomi 12.
+
 
