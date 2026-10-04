@@ -14,10 +14,12 @@ import android.os.Looper;
 import android.os.Process;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -58,6 +60,7 @@ public final class TriAevumActivity extends Activity {
     public static native void nativeOnPause();
     public static native void nativeOnResume();
     public static native void nativeMain(String[] args);
+    public static native boolean nativeInitCustomDriver(String hookDir, String customDriverDir, String customDriverName, String tmpDir);
 
     public interface PreloadProgressCallback {
         void onProgress(int loaded, int total);
@@ -107,10 +110,108 @@ public final class TriAevumActivity extends Activity {
         });
     }
 
+    public void syncDisplayRefreshRate() {
+        try {
+            TriAevumConfigManager cfg = new TriAevumConfigManager(this);
+            updateDisplayRefreshRate(cfg.getFrameRateMode());
+        } catch (Throwable t) {
+            Log.w(TAG, "Failed to syncDisplayRefreshRate", t);
+        }
+    }
+
+    public void updateDisplayRefreshRate(String frameRateMode) {
+        runOnUiThread(() -> {
+            try {
+                Window window = getWindow();
+                if (window == null) return;
+                WindowManager.LayoutParams params = window.getAttributes();
+                float targetRate = 0.0f;
+                if ("Interpolated4x".equals(frameRateMode) || "Uncapped".equals(frameRateMode)) {
+                    targetRate = 120.0f;
+                } else if ("Interpolated3x".equals(frameRateMode)) {
+                    targetRate = 90.0f;
+                } else if ("Interpolated2x".equals(frameRateMode)) {
+                    targetRate = 60.0f;
+                } else if ("Original30".equals(frameRateMode)) {
+                    targetRate = 60.0f;
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    params.preferredRefreshRate = targetRate;
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && mSurface != null) {
+                    try {
+                        Surface s = mSurface.getHolder().getSurface();
+                        if (s != null && s.isValid()) {
+                            s.setFrameRate(targetRate, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+                        }
+                    } catch (Throwable ignored) {}
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && targetRate > 0) {
+                    Display display = null;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        display = getDisplay();
+                    } else {
+                        display = getWindowManager().getDefaultDisplay();
+                    }
+                    if (display != null) {
+                        Display.Mode[] modes = display.getSupportedModes();
+                        int bestModeId = 0;
+                        for (Display.Mode mode : modes) {
+                            if (Math.abs(mode.getRefreshRate() - targetRate) < 1.0f) {
+                                bestModeId = mode.getModeId();
+                                break;
+                            }
+                        }
+                        if (bestModeId != 0) {
+                            params.preferredDisplayModeId = bestModeId;
+                        }
+                    }
+                }
+
+                window.setAttributes(params);
+                Log.i(TAG, "updateDisplayRefreshRate: requested targetRate=" + targetRate + " for mode=" + frameRateMode);
+            } catch (Throwable t) {
+                Log.w(TAG, "Failed to updateDisplayRefreshRate", t);
+            }
+        });
+    }
+
+    private void initializeGpuDriver() {
+        try {
+            TriAevumCustomDriverManager driverManager = new TriAevumCustomDriverManager(this);
+            TriAevumCustomDriverManager.CustomDriverInfo driver = driverManager.getSelectedDriver();
+            String hookDir = getApplicationInfo().nativeLibraryDir;
+            File tmpDirFile = new File(getCacheDir(), "adrenotools");
+            if (!tmpDirFile.exists()) {
+                tmpDirFile.mkdirs();
+            }
+            if (driver != null && driver.isValid()) {
+                Log.i(TAG, "Loading custom GPU driver: " + driver.name + " (" + driver.libraryName + ")");
+                boolean ok = nativeInitCustomDriver(
+                    hookDir,
+                    driver.driverDir.getAbsolutePath(),
+                    driver.libraryName,
+                    tmpDirFile.getAbsolutePath()
+                );
+                Log.i(TAG, "Custom GPU driver init result: " + ok);
+            } else {
+                Log.i(TAG, "Using system default GPU driver");
+                nativeInitCustomDriver(hookDir, "", "", tmpDirFile.getAbsolutePath());
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "Failed to initialize custom GPU driver", t);
+        }
+    }
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        // Initialize custom GPU driver (Turnip / adrenotools) before any Vulkan calls
+        initializeGpuDriver();
 
         SharedPreferences appPrefs = getApplicationContext()
             .getSharedPreferences("org.triaevum.android_preferences", Context.MODE_PRIVATE);
@@ -132,10 +233,12 @@ public final class TriAevumActivity extends Activity {
             set.invoke(null, "log.tag.AHardwareBuffer", "WARN");
         } catch (Throwable ignored) {}
 
-        // Ensure launch profile allows 60 FPS interpolation
+        // Ensure launch profile allows 60/90/120 FPS interpolation
         try {
             new TriAevumConfigManager(this).ensureLaunchProfileOptimized();
         } catch (Throwable ignored) {}
+
+        syncDisplayRefreshRate();
 
         // Enable edge-to-edge layout across the entire physical display including camera cutouts
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -402,12 +505,21 @@ public final class TriAevumActivity extends Activity {
         return maximumShortEdge;
     }
 
+    public void updateSurfaceResolution(int maximumShortEdge) {
+        runOnUiThread(() -> {
+            if (mSurface != null) {
+                mSurface.updateSurfaceResolution(maximumShortEdge);
+            }
+        });
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         hideSystemBars();
         nativeOnResume();
         updateFpsCounterVisibility();
+        syncDisplayRefreshRate();
     }
 
     @Override
@@ -777,6 +889,7 @@ public final class TriAevumActivity extends Activity {
     public static final int REQUEST_CODE_EXPORT_SAVE = 2001;
     public static final int REQUEST_CODE_IMPORT_SAVE = 2002;
     public static final int REQUEST_CODE_SELECT_TEXTURE_DIR = 2003;
+    public static final int REQUEST_CODE_INSTALL_DRIVER = 2004;
 
     public interface SaveActionListener {
         void onSaveOperationCompleted();
@@ -786,8 +899,32 @@ public final class TriAevumActivity extends Activity {
         void onTextureDirSelected(String path);
     }
 
+    public interface DriverInstallListener {
+        void onDriverInstalled(TriAevumCustomDriverManager.CustomDriverInfo driver);
+    }
+
     private SaveActionListener mSaveActionListener;
     private TextureDirSelectedListener mTextureDirSelectedListener;
+    private DriverInstallListener mDriverInstallListener;
+
+    public void startInstallDriverFlow(DriverInstallListener listener) {
+        mDriverInstallListener = listener;
+        try {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
+                "application/zip",
+                "application/x-zip-compressed",
+                "application/octet-stream",
+                "*/*"
+            });
+            startActivityForResult(intent, REQUEST_CODE_INSTALL_DRIVER);
+        } catch (Exception e) {
+            Log.e(TAG, "Falha ao iniciar seletor de driver", e);
+            android.widget.Toast.makeText(this, "Erro ao abrir seletor de arquivos: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
 
     public void setSaveActionListener(SaveActionListener listener) {
         mSaveActionListener = listener;
@@ -841,6 +978,27 @@ public final class TriAevumActivity extends Activity {
         } catch (Exception e) {
             Log.e(TAG, "Falha ao iniciar seletor de importação de save", e);
             android.widget.Toast.makeText(this, "Erro ao abrir seletor de arquivo: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (intent != null && intent.getBooleanExtra("open_config", false)) {
+            runOnUiThread(() -> {
+                if (!isFinishing() && !isDestroyed()) {
+                    try {
+                        TriAevumConfigDialog dialog = new TriAevumConfigDialog(this, mWindroidOverlay);
+                        dialog.setOnDismissListener(d -> updateFpsCounterVisibility());
+                        dialog.show();
+                        if (intent.getBooleanExtra("scroll_to_gpu_driver", false)) {
+                            dialog.scrollToGpuDriver();
+                        }
+                    } catch (Exception err) {
+                        Log.e(TAG, "Failed to open settings dialog from intent", err);
+                    }
+                }
+            });
         }
     }
 
@@ -902,6 +1060,45 @@ public final class TriAevumActivity extends Activity {
             } else {
                 android.widget.Toast.makeText(this, "⚠️ Não foi possível resolver o caminho do diretório selecionado.", android.widget.Toast.LENGTH_LONG).show();
             }
+        } else if (requestCode == REQUEST_CODE_INSTALL_DRIVER) {
+            android.widget.Toast.makeText(this, "Instalando driver Turnip...", android.widget.Toast.LENGTH_SHORT).show();
+            new Thread(() -> {
+                try {
+                    String fileName = "turnip_driver.zip";
+                    android.database.Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+                    if (cursor != null) {
+                        try {
+                            if (cursor.moveToFirst()) {
+                                int nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                                if (nameIndex >= 0) {
+                                    fileName = cursor.getString(nameIndex);
+                                }
+                            }
+                        } finally {
+                            cursor.close();
+                        }
+                    }
+
+                    TriAevumCustomDriverManager manager = new TriAevumCustomDriverManager(TriAevumActivity.this);
+                    TriAevumCustomDriverManager.CustomDriverInfo installed = manager.installDriverFromZip(uri, fileName);
+
+                    runOnUiThread(() -> {
+                        android.widget.Toast.makeText(TriAevumActivity.this,
+                                "✅ Driver instalado: " + installed.name + "\nReinicie o jogo para aplicar.",
+                                android.widget.Toast.LENGTH_LONG).show();
+                        if (mDriverInstallListener != null) {
+                            mDriverInstallListener.onDriverInstalled(installed);
+                        }
+                    });
+                } catch (Exception e) {
+                    Log.e(TAG, "Erro ao instalar driver Turnip", e);
+                    runOnUiThread(() -> {
+                        android.widget.Toast.makeText(TriAevumActivity.this,
+                                "❌ Erro ao instalar driver: " + e.getMessage(),
+                                android.widget.Toast.LENGTH_LONG).show();
+                    });
+                }
+            }, "DriverInstallerThread").start();
         }
     }
 

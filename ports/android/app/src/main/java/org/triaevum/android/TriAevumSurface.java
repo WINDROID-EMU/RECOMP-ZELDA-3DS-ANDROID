@@ -9,7 +9,7 @@ import android.view.ViewGroup;
 
 /** Pure Android SurfaceView providing native Vulkan swapchain surface without SDL. */
 final class TriAevumSurface extends SurfaceView implements SurfaceHolder.Callback {
-    private final int maximumShortEdge;
+    private int maximumShortEdge;
 
     TriAevumSurface(Context context, int maximumShortEdge) {
         super(context);
@@ -17,6 +17,19 @@ final class TriAevumSurface extends SurfaceView implements SurfaceHolder.Callbac
         setLayoutParams(new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         getHolder().addCallback(this);
+    }
+
+    public void updateSurfaceResolution(int maximumShortEdge) {
+        if (this.maximumShortEdge == maximumShortEdge) {
+            return;
+        }
+        this.maximumShortEdge = maximumShortEdge;
+        int viewWidth = getWidth() > 0 ? getWidth() : 1;
+        int viewHeight = getHeight() > 0 ? getHeight() : 1;
+        int[] extent = SurfaceExtentPolicy.fit(viewWidth, viewHeight, this.maximumShortEdge);
+        Log.i("TriAevum", "Updating surface resolution dynamically to " + extent[0] + "x" + extent[1]
+            + " (maxShortEdge=" + maximumShortEdge + ")");
+        getHolder().setFixedSize(extent[0], extent[1]);
     }
 
     @Override

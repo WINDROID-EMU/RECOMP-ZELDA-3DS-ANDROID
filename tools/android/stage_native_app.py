@@ -15,6 +15,10 @@ def stage(runtime: Path, title: Path, ndk: Path, output: Path) -> None:
         "libtriaevum_title_aot.so": title,
         "libc++_shared.so": llvm / "sysroot/usr/lib/aarch64-linux-android/libc++_shared.so",
     }
+    for hname in ["libhook_impl.so", "libmain_hook.so", "libfile_redirect_hook.so", "libgsl_alloc_hook.so"]:
+        hpath = runtime / "adrenotools_build/src/hook" / hname
+        if hpath.is_file():
+            source[hname] = hpath
     for name, path in source.items():
         if not path.is_file():
             raise FileNotFoundError(f"{name}: {path}")

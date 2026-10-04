@@ -31,22 +31,62 @@ public final class TriAevumConfigManager {
     public static final String[] LANGUAGE_CODES   = { "en",      "fr",       "es"      };
 
     // ------- oot3d_native_game.json ---
-    public static final String[] RENDER_SCALE_LABELS = { "0.5x", "1.0x (Padrão)", "1.5x", "2.0x", "3.0x", "4.0x" };
-    public static final float[]  RENDER_SCALE_VALUES = {  0.5f,   1.0f,             1.5f,   2.0f,   3.0f,   4.0f  };
+    public static final String[] RENDER_SCALE_LABELS = {
+        "0.25x (~240p Original 3DS)",
+        "0.33x (~360p Retrô)",
+        "0.5x (~540p Econômico)",
+        "0.75x (~720p Equilibrado)",
+        "1.0x (Nativo do Display)",
+        "1.5x (Alta Definição)",
+        "2.0x (Ultra / Supersampling)"
+    };
+    public static final float[]  RENDER_SCALE_VALUES = {
+        0.25f,
+        0.33f,
+        0.5f,
+        0.75f,
+        1.0f,
+        1.5f,
+        2.0f
+    };
 
     public static final String[] AA_MODE_LABELS   = { "Desligado", "FXAA", "TAA", "MSAA 2x", "MSAA 4x" };
     public static final String[] AA_MODE_VALUES   = { "Off",       "FXAA", "TAA", "MSAA2x",  "MSAA4x"  };
 
-    public static final String[] FRAMERATE_LABELS = { "30 FPS (Original)", "60 FPS (Nativo)" };
-    public static final String[] FRAMERATE_VALUES = { "Original30",         "Interpolated2x" };
+    public static final String[] FRAMERATE_LABELS = {
+        "30 FPS (Original 3DS)",
+        "60 FPS (Nativo / 2x)",
+        "90 FPS (Fluido / 3x)",
+        "120 FPS (Ultra Fluido / 4x)",
+        "Sem Limite (Uncapped)"
+    };
+    public static final String[] FRAMERATE_VALUES = {
+        "Original30",
+        "Interpolated2x",
+        "Interpolated3x",
+        "Interpolated4x",
+        "Uncapped"
+    };
 
     // ------- oot3d_native_game.json (Visual Mods) ---
     public static final String[] GRASS_QUALITY_LABELS = { "Desligada", "Baixa", "Média", "Alta" };
     public static final String[] GRASS_QUALITY_VALUES = { "Off",       "Low",   "Medium", "High" };
 
     // ------- TriAevum.android.host.json ---
-    public static final String[] SURFACE_RES_LABELS = { "720p (Padrão)", "1080p (Nativo Moto G100)", "Sem Limite" };
-    public static final int[]    SURFACE_RES_VALUES = { 720,              1080,                        0           };
+    public static final String[] SURFACE_RES_LABELS = {
+        "480p (Super Leve / Bateria)",
+        "540p (Econômico)",
+        "720p (Equilibrado / Padrão)",
+        "1080p (Alta Resolução)",
+        "Nativo da Tela (Sem Limite)"
+    };
+    public static final int[]    SURFACE_RES_VALUES = {
+        480,
+        540,
+        720,
+        1080,
+        0
+    };
 
     // ------- topscreen_ui.json ---
     public static final String[] HUD_LAYOUT_LABELS  = { "Normal (Padrão)", "Restoration (MM3D)" };
@@ -314,6 +354,29 @@ public final class TriAevumConfigManager {
             root.put("Graphics", gfx);
         } catch (JSONException ignored) {}
         writeJson("oot3d_native_game.json", root);
+
+        try {
+            JSONObject launch = readJson("TriAevum.android.launch.json");
+            org.json.JSONArray args = launch.optJSONArray("arguments");
+            if (args != null) {
+                String targetPres = "60";
+                if ("Interpolated4x".equals(frameRateMode)) targetPres = "120";
+                else if ("Interpolated3x".equals(frameRateMode)) targetPres = "90";
+                else if ("Original30".equals(frameRateMode)) targetPres = "30";
+                else if ("Uncapped".equals(frameRateMode)) targetPres = "free";
+                boolean changed = false;
+                for (int i = 0; i < args.length() - 1; i++) {
+                    if ("--presentation-rate".equals(args.getString(i))) {
+                        args.put(i + 1, targetPres);
+                        changed = true;
+                        break;
+                    }
+                }
+                if (changed) {
+                    writeJson("TriAevum.android.launch.json", launch);
+                }
+            }
+        } catch (Throwable ignored) {}
     }
 
     public boolean isCustomTexturesEnabled() {
@@ -922,8 +985,14 @@ public final class TriAevumConfigManager {
                             changed = true;
                         }
                     } else if ("--presentation-rate".equals(args.getString(i))) {
-                        if (!"60".equals(args.getString(i + 1))) {
-                            args.put(i + 1, "60");
+                        String currentFr = getFrameRateMode();
+                        String desiredRate = "60";
+                        if ("Interpolated4x".equals(currentFr)) desiredRate = "120";
+                        else if ("Interpolated3x".equals(currentFr)) desiredRate = "90";
+                        else if ("Original30".equals(currentFr)) desiredRate = "30";
+                        else if ("Uncapped".equals(currentFr)) desiredRate = "free";
+                        if (!desiredRate.equals(args.getString(i + 1))) {
+                            args.put(i + 1, desiredRate);
                             changed = true;
                         }
                     } else if ("--topscreen-config".equals(args.getString(i))) {

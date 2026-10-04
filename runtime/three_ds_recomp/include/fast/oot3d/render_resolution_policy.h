@@ -20,13 +20,13 @@ struct RenderExtent {
         settings.AntiAliasing == AntiAliasingMode::Upscaler
             ? 1.0F / UpscalerScalingFactor(settings.UpscalerMode)
             : settings.InternalResolutionScale;
-    return std::clamp(requested, 0.5F, 2.0F);
+    return std::clamp(requested, 0.25F, 2.0F);
 }
 
 [[nodiscard]] inline RenderExtent ScaleRenderExtent(
     RenderExtent extent, float scale) {
     const float sanitized =
-        std::isfinite(scale) ? std::clamp(scale, 0.5F, 2.0F) : 1.0F;
+        std::isfinite(scale) ? std::clamp(scale, 0.25F, 2.0F) : 1.0F;
     return {
         std::max(1U, static_cast<uint32_t>(std::lround(
                          static_cast<float>(extent.Width) * sanitized))),

@@ -537,6 +537,73 @@
                         </LinearLayout>
                     </LinearLayout>
 
+                    <!-- Driver de GPU (Vulkan / Turnip) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/card_bg"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="DRIVER DE GPU (VULKAN / TURNIP)"
+                            android:textColor="#FFC107"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="10dp" />
+
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:orientation="horizontal" android:layout_marginBottom="10dp">
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:text="Driver Ativo"
+                                android:textColor="#C8D8E8" android:textSize="12sp" android:layout_gravity="center_vertical" />
+                            <Spinner android:id="@+id/sp_gpu_driver"
+                                android:layout_width="160dp" android:layout_height="36dp"
+                                android:background="@drawable/btn_dark" android:paddingLeft="8dp" />
+                        </LinearLayout>
+
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+                            <Button android:id="@+id/btn_install_driver"
+                                android:layout_width="0dp" android:layout_height="36dp"
+                                android:layout_weight="1"
+                                android:layout_marginRight="4dp"
+                                android:text="➕ Instalar Driver (.zip)"
+                                android:textColor="#FFD700"
+                                android:textSize="11sp"
+                                android:background="@drawable/btn_dark" />
+
+                            <Button android:id="@+id/btn_delete_driver"
+                                android:layout_width="0dp" android:layout_height="36dp"
+                                android:layout_weight="1"
+                                android:layout_marginLeft="4dp"
+                                android:text="🗑️ Excluir Driver"
+                                android:textColor="#FF6B6B"
+                                android:textSize="11sp"
+                                android:background="@drawable/btn_dark" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tv_driver_info"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:textColor="#8B9BB4"
+                            android:textSize="10sp"
+                            android:text="📱 Driver do Sistema: Qualcomm Adreno Stock padrão." />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="#FFA726"
+                            android:textSize="10sp"
+                            android:text="⚠️ A troca do driver de GPU entra em vigor ao reiniciar o jogo." />
+                    </LinearLayout>
+
                     <!-- Mods Visuais (PC Enhancements) -->
                     <LinearLayout
                         android:layout_width="match_parent"

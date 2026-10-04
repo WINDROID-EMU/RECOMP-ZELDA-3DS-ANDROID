@@ -21,6 +21,7 @@ enum class FrameRateMode : uint8_t {
     Original30,
     Interpolated2x,
     Interpolated3x,
+    Interpolated4x,
     Uncapped,
     // Source compatibility for integrations that still name the former
     // fixed-60 presentation mode. Persistence emits Interpolated2x.

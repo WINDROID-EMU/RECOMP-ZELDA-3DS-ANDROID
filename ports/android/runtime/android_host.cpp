@@ -1,11 +1,13 @@
 #include "android_host.h"
 
+#include <adrenotools/driver.h>
 #include <android/log.h>
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <dlfcn.h>
 #include <filesystem>
 #include <jni.h>
 #include <mutex>
@@ -239,6 +241,63 @@ Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
 }
 
 // Native activity lifecycle and surface management (replacing SDLActivity)
+
+static void *gCustomDriverHandle = nullptr;
+
+JNIEXPORT jboolean JNICALL
+Java_org_triaevum_android_TriAevumActivity_nativeInitCustomDriver(
+    JNIEnv *env, jclass /*clazz*/, jstring hookDir, jstring customDriverDir, jstring customDriverName, jstring tmpDir) {
+  if (customDriverDir == nullptr || customDriverName == nullptr) {
+    __android_log_print(ANDROID_LOG_INFO, "TriAevum", "nativeInitCustomDriver: Using System Default Vulkan Driver");
+    return JNI_FALSE;
+  }
+
+  const char *hookChars = hookDir ? env->GetStringUTFChars(hookDir, nullptr) : nullptr;
+  const char *driverDirChars = env->GetStringUTFChars(customDriverDir, nullptr);
+  const char *driverNameChars = env->GetStringUTFChars(customDriverName, nullptr);
+  const char *tmpDirChars = tmpDir ? env->GetStringUTFChars(tmpDir, nullptr) : nullptr;
+
+  std::string sHookDir = hookChars ? hookChars : "";
+  std::string sDriverDir = driverDirChars ? driverDirChars : "";
+  std::string sDriverName = driverNameChars ? driverNameChars : "";
+  std::string sTmpDir = tmpDirChars ? tmpDirChars : "";
+
+  if (hookChars) env->ReleaseStringUTFChars(hookDir, hookChars);
+  if (driverDirChars) env->ReleaseStringUTFChars(customDriverDir, driverDirChars);
+  if (driverNameChars) env->ReleaseStringUTFChars(customDriverName, driverNameChars);
+  if (tmpDirChars) env->ReleaseStringUTFChars(tmpDir, tmpDirChars);
+
+  if (sDriverDir.empty() || sDriverName.empty()) {
+    __android_log_print(ANDROID_LOG_INFO, "TriAevum", "nativeInitCustomDriver: No custom driver configured, using System Driver");
+    return JNI_FALSE;
+  }
+
+  __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                      "nativeInitCustomDriver: Initializing adrenotools for driver '%s' at '%s' (hookDir='%s', tmpDir='%s')",
+                      sDriverName.c_str(), sDriverDir.c_str(), sHookDir.c_str(), sTmpDir.c_str());
+
+  void *handle = adrenotools_open_libvulkan(
+      RTLD_NOW,
+      ADRENOTOOLS_DRIVER_CUSTOM,
+      sTmpDir.empty() ? nullptr : sTmpDir.c_str(),
+      sHookDir.empty() ? nullptr : sHookDir.c_str(),
+      sDriverDir.c_str(),
+      sDriverName.c_str(),
+      nullptr,
+      nullptr);
+
+  if (handle != nullptr) {
+    gCustomDriverHandle = handle;
+    __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+                        "SUCCESS: Custom Turnip Vulkan driver loaded via adrenotools: handle=%p", handle);
+    return JNI_TRUE;
+  } else {
+    __android_log_print(ANDROID_LOG_ERROR, "TriAevum",
+                        "FAILED: adrenotools_open_libvulkan returned null for '%s'! Reverting to System Vulkan Driver.",
+                        sDriverName.c_str());
+    return JNI_FALSE;
+  }
+}
 
 JNIEXPORT void JNICALL
 Java_org_triaevum_android_TriAevumActivity_nativeSetStoragePath(

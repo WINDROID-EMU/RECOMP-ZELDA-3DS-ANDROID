@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -68,6 +69,14 @@ public final class TriAevumConfigDialog extends Dialog {
     private Button   mBtnResetTexturesDir;
     private Button   mBtnPreloadNow;
 
+    // Driver Vulkan / Turnip
+    private Spinner  mSpGpuDriver;
+    private Button   mBtnInstallDriver;
+    private Button   mBtnDeleteDriver;
+    private TextView mTvDriverInfo;
+    private TriAevumCustomDriverManager mCustomDriverManager;
+    private java.util.List<TriAevumCustomDriverManager.CustomDriverInfo> mInstalledDrivers = new java.util.ArrayList<>();
+
     // Mods Visuais
     private CheckBox mCbToonShading;
     private CheckBox mCbToonOutline;
@@ -103,6 +112,7 @@ public final class TriAevumConfigDialog extends Dialog {
     private CheckBox mCbJoystickRelCenter;
     private CheckBox mCbDpadSlide;
     private final Activity mActivity;
+    private boolean mSaving = false;
 
     public TriAevumConfigDialog(Activity owner, WindroidVirtualControllerView overlay) {
         super(owner, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
@@ -113,6 +123,16 @@ public final class TriAevumConfigDialog extends Dialog {
         mPrefs = owner.getApplicationContext()
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         Log.d(TAG, "Dialog created. Prefs file: " + PREFS_NAME);
+    }
+
+    @Override
+    public void dismiss() {
+        saveToConfig();
+        mConfig.applyLiveSettings();
+        if (mActivity instanceof TriAevumActivity) {
+            ((TriAevumActivity) mActivity).updateFpsCounterVisibility();
+        }
+        super.dismiss();
     }
 
     @Override
@@ -180,6 +200,13 @@ public final class TriAevumConfigDialog extends Dialog {
         mBtnResetTexturesDir  = findViewById(R.id.btn_reset_textures_dir);
         mBtnPreloadNow = findViewById(R.id.btn_preload_now);
 
+        // Driver Vulkan / Turnip
+        mSpGpuDriver       = findViewById(R.id.sp_gpu_driver);
+        mBtnInstallDriver  = findViewById(R.id.btn_install_driver);
+        mBtnDeleteDriver   = findViewById(R.id.btn_delete_driver);
+        mTvDriverInfo      = findViewById(R.id.tv_driver_info);
+        mCustomDriverManager = new TriAevumCustomDriverManager(mActivity);
+
         // Mods Visuais
         mCbToonShading     = findViewById(R.id.cb_toon_shading);
         mCbToonOutline     = findViewById(R.id.cb_toon_outline);
@@ -237,22 +264,28 @@ public final class TriAevumConfigDialog extends Dialog {
         setupSpinner(mSpSurfaceRes, TriAevumConfigManager.SURFACE_RES_LABELS, null);
         int surfEdge = mConfig.getSurfaceMaxShortEdge();
         Log.d(TAG, "  surface_max_short_edge: " + surfEdge);
+        int matchedResIdx = 2; // Default 720p
         for (int i = 0; i < TriAevumConfigManager.SURFACE_RES_VALUES.length; i++) {
             if (TriAevumConfigManager.SURFACE_RES_VALUES[i] == surfEdge) {
-                mSpSurfaceRes.setSelection(i);
+                matchedResIdx = i;
                 break;
             }
         }
+        mSpSurfaceRes.setSelection(matchedResIdx);
 
         // Render scale
         setupSpinner(mSpRenderScale, TriAevumConfigManager.RENDER_SCALE_LABELS, null);
         float rs = mConfig.getRenderScale();
+        int matchedRsIdx = 4; // Default 1.0x
+        float minRsDiff = Float.MAX_VALUE;
         for (int i = 0; i < TriAevumConfigManager.RENDER_SCALE_VALUES.length; i++) {
-            if (Math.abs(TriAevumConfigManager.RENDER_SCALE_VALUES[i] - rs) < 0.01f) {
-                mSpRenderScale.setSelection(i);
-                break;
+            float diff = Math.abs(TriAevumConfigManager.RENDER_SCALE_VALUES[i] - rs);
+            if (diff < minRsDiff) {
+                minRsDiff = diff;
+                matchedRsIdx = i;
             }
         }
+        mSpRenderScale.setSelection(matchedRsIdx);
 
         // AA
         setupSpinner(mSpAAMode, TriAevumConfigManager.AA_MODE_LABELS, null);
@@ -462,6 +495,7 @@ public final class TriAevumConfigDialog extends Dialog {
         });
 
         refreshSaveStatus();
+        loadGpuDriversList();
     }
 
     public void refreshSaveStatus() {
@@ -503,6 +537,17 @@ public final class TriAevumConfigDialog extends Dialog {
         panel.setVisibility(View.VISIBLE);
     }
 
+    public void scrollToGpuDriver() {
+        if (mTabGraficos != null && mPanelGraficos != null) {
+            selectTab(mTabGraficos, mPanelGraficos);
+            mPanelGraficos.post(() -> {
+                if (mPanelGraficos instanceof android.widget.ScrollView) {
+                    ((android.widget.ScrollView) mPanelGraficos).fullScroll(View.FOCUS_DOWN);
+                }
+            });
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Header buttons
     // -------------------------------------------------------------------------
@@ -520,9 +565,6 @@ public final class TriAevumConfigDialog extends Dialog {
         });
 
         btnClose.setOnClickListener(v -> {
-            if (mActivity instanceof TriAevumActivity) {
-                ((TriAevumActivity) mActivity).updateFpsCounterVisibility();
-            }
             dismiss();
         });
 
@@ -648,6 +690,73 @@ public final class TriAevumConfigDialog extends Dialog {
         if (mBtnPreloadNow != null) {
             mBtnPreloadNow.setOnClickListener(v -> performManualPreload());
         }
+
+        if (mBtnInstallDriver != null) {
+            mBtnInstallDriver.setOnClickListener(v -> {
+                if (mActivity instanceof TriAevumActivity) {
+                    ((TriAevumActivity) mActivity).startInstallDriverFlow(driver -> {
+                        loadGpuDriversList();
+                    });
+                }
+            });
+        }
+
+        if (mBtnDeleteDriver != null) {
+            mBtnDeleteDriver.setOnClickListener(v -> {
+                int pos = mSpGpuDriver.getSelectedItemPosition();
+                if (pos <= 0 || pos > mInstalledDrivers.size()) {
+                    Toast.makeText(getContext(), "O driver padrão do sistema não pode ser excluído.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                TriAevumCustomDriverManager.CustomDriverInfo toDelete = mInstalledDrivers.get(pos - 1);
+                new android.app.AlertDialog.Builder(getContext())
+                    .setTitle("Excluir Driver")
+                    .setMessage("Deseja realmente excluir o driver \"" + toDelete.name + "\"?")
+                    .setPositiveButton("Sim", (dialog, which) -> {
+                        mCustomDriverManager.deleteDriver(toDelete.id);
+                        Toast.makeText(getContext(), "Driver excluído.", Toast.LENGTH_SHORT).show();
+                        loadGpuDriversList();
+                    })
+                    .setNegativeButton("Cancelar", null)
+                    .show();
+            });
+        }
+    }
+
+    private void loadGpuDriversList() {
+        if (mSpGpuDriver == null || mCustomDriverManager == null) return;
+        mInstalledDrivers = mCustomDriverManager.getInstalledDrivers();
+        java.util.List<String> labels = new java.util.ArrayList<>();
+        labels.add("📱 Padrão do Sistema (Qualcomm)");
+        int selectedIndex = 0;
+        String currentSelectedId = mCustomDriverManager.getSelectedDriverId();
+
+        for (int i = 0; i < mInstalledDrivers.size(); i++) {
+            TriAevumCustomDriverManager.CustomDriverInfo d = mInstalledDrivers.get(i);
+            labels.add("⚡ " + d.name);
+            if (d.id.equals(currentSelectedId)) {
+                selectedIndex = i + 1;
+            }
+        }
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_item, labels);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mSpGpuDriver.setAdapter(adapter);
+        mSpGpuDriver.setSelection(selectedIndex);
+
+        mSpGpuDriver.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position == 0) {
+                    mTvDriverInfo.setText("📱 Driver do Sistema: Qualcomm Adreno Stock padrão.");
+                } else if (position - 1 < mInstalledDrivers.size()) {
+                    TriAevumCustomDriverManager.CustomDriverInfo d = mInstalledDrivers.get(position - 1);
+                    mTvDriverInfo.setText("⚡ " + d.name + "\nAutor: " + d.author + " | Versão: " + d.driverVersion + "\nArquivo: " + d.libraryName);
+                }
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
     }
 
     private void performManualPreload() {
@@ -723,22 +832,28 @@ public final class TriAevumConfigDialog extends Dialog {
     // Save
     // -------------------------------------------------------------------------
 
-    private void saveToConfig() {
-        Log.d(TAG, "--- saveToConfig START ---");
-        // Geral
-        int langIdx = mSpLanguage.getSelectedItemPosition();
-        if (langIdx >= 0 && langIdx < TriAevumConfigManager.LANGUAGE_CODES.length) {
-            String lang = TriAevumConfigManager.LANGUAGE_CODES[langIdx];
-            Log.d(TAG, "  SET language -> " + lang);
-            mConfig.setLanguageCode(lang);
-        }
+    private synchronized void saveToConfig() {
+        if (mSaving) return;
+        mSaving = true;
+        try {
+            Log.d(TAG, "--- saveToConfig START ---");
+            // Geral
+            int langIdx = mSpLanguage.getSelectedItemPosition();
+            if (langIdx >= 0 && langIdx < TriAevumConfigManager.LANGUAGE_CODES.length) {
+                String lang = TriAevumConfigManager.LANGUAGE_CODES[langIdx];
+                Log.d(TAG, "  SET language -> " + lang);
+                mConfig.setLanguageCode(lang);
+            }
 
-        int resIdx = mSpSurfaceRes.getSelectedItemPosition();
-        if (resIdx >= 0 && resIdx < TriAevumConfigManager.SURFACE_RES_VALUES.length) {
-            int edge = TriAevumConfigManager.SURFACE_RES_VALUES[resIdx];
-            Log.d(TAG, "  SET surfaceMaxShortEdge -> " + edge);
-            mConfig.setSurfaceMaxShortEdge(edge);
-        }
+            int resIdx = mSpSurfaceRes.getSelectedItemPosition();
+            if (resIdx >= 0 && resIdx < TriAevumConfigManager.SURFACE_RES_VALUES.length) {
+                int edge = TriAevumConfigManager.SURFACE_RES_VALUES[resIdx];
+                Log.d(TAG, "  SET surfaceMaxShortEdge -> " + edge);
+                mConfig.setSurfaceMaxShortEdge(edge);
+                if (mActivity instanceof TriAevumActivity) {
+                    ((TriAevumActivity) mActivity).updateSurfaceResolution(edge);
+                }
+            }
 
         // Gráficos
         int rsIdx = mSpRenderScale.getSelectedItemPosition();
@@ -768,6 +883,9 @@ public final class TriAevumConfigDialog extends Dialog {
 
         Log.d(TAG, "  SET graphics batch -> scale=" + rs + ", aa=" + aa + ", fr=" + fr + ", vsync=" + vsync + ", customTextures=" + customTextures);
         mConfig.saveGraphicsSettings(rs, aa, fr, vsync, customTextures);
+        if (mActivity instanceof TriAevumActivity) {
+            ((TriAevumActivity) mActivity).updateDisplayRefreshRate(fr);
+        }
         if (mCbPreloadTextures != null) {
             mConfig.setCustomTexturesPreloadEnabled(mCbPreloadTextures.isChecked());
         }
@@ -846,7 +964,24 @@ public final class TriAevumConfigDialog extends Dialog {
         } catch (Throwable t) {
             Log.w(TAG, "Failed to apply native control settings", t);
         }
+
+        // Driver de GPU customizado (Turnip/Vulkan)
+        if (mSpGpuDriver != null && mCustomDriverManager != null) {
+            int drvPos = mSpGpuDriver.getSelectedItemPosition();
+            String prevDriver = mCustomDriverManager.getSelectedDriverId();
+            String newDriver = "";
+            if (drvPos > 0 && drvPos <= mInstalledDrivers.size()) {
+                newDriver = mInstalledDrivers.get(drvPos - 1).id;
+            }
+            if (!prevDriver.equals(newDriver)) {
+                mCustomDriverManager.setSelectedDriverId(newDriver);
+                Toast.makeText(getContext(), "Driver GPU alterado! Reinicie o jogo para aplicar o novo driver.", Toast.LENGTH_LONG).show();
+            }
+        }
         Log.d(TAG, "--- saveToConfig END ---");
+        } finally {
+            mSaving = false;
+        }
     }
 
     // -------------------------------------------------------------------------

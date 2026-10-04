@@ -1663,6 +1663,12 @@ TEST(Oot3dPresentationPacing,
     EXPECT_EQ(interpolated3x.Composition.Interpolation, NativeVisualInterpolationMode::Fixed3x);
     EXPECT_EQ(interpolated3x.Composition.FixedSampleMultiplier, 3U);
 
+    const auto interpolated4x = ResolvePresentationPacingPolicy(FrameRateMode::Interpolated4x);
+    EXPECT_TRUE(interpolated4x.Enabled);
+    EXPECT_EQ(interpolated4x.TargetRateHz, 120U);
+    EXPECT_EQ(interpolated4x.Composition.Interpolation, NativeVisualInterpolationMode::Fixed4x);
+    EXPECT_EQ(interpolated4x.Composition.FixedSampleMultiplier, 4U);
+
     const auto uncapped =
         ResolvePresentationPacingPolicy(FrameRateMode::Uncapped);
     EXPECT_FALSE(uncapped.Enabled);
@@ -1673,7 +1679,8 @@ TEST(Oot3dPresentationPacing,
     EXPECT_FALSE(PresentationPacingPolicyChanged(original, original));
     EXPECT_TRUE(PresentationPacingPolicyChanged(original, interpolated2x));
     EXPECT_TRUE(PresentationPacingPolicyChanged(interpolated2x, interpolated3x));
-    EXPECT_TRUE(PresentationPacingPolicyChanged(interpolated3x, uncapped));
+    EXPECT_TRUE(PresentationPacingPolicyChanged(interpolated3x, interpolated4x));
+    EXPECT_TRUE(PresentationPacingPolicyChanged(interpolated4x, uncapped));
 
     const auto x2Sample = BuildNativeFrameTemporalSample(interpolated2x.Composition,
                                                          NativeFrameTemporalSampleKind::Transition, 10U, 11U, 2U, 0.5F);
@@ -1688,6 +1695,13 @@ TEST(Oot3dPresentationPacing,
     EXPECT_TRUE(x3Sample.Synthetic);
     EXPECT_EQ(x3Sample.SampleOrdinal, 2U);
     EXPECT_FLOAT_EQ(x3Sample.SampleDeltaSeconds, 1.0F / 90.0F);
+
+    const auto x4Sample = BuildNativeFrameTemporalSample(
+        interpolated4x.Composition, NativeFrameTemporalSampleKind::Transition, 12U, 13U, 2U, 3.0F / 4.0F);
+    EXPECT_TRUE(x4Sample.Available());
+    EXPECT_TRUE(x4Sample.Synthetic);
+    EXPECT_EQ(x4Sample.SampleOrdinal, 3U);
+    EXPECT_FLOAT_EQ(x4Sample.SampleDeltaSeconds, 1.0F / 120.0F);
 }
 
 TEST(Oot3dRenderResolution,

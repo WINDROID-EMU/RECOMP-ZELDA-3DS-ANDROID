@@ -2,3 +2,6 @@
 	path = runtime/three_ds_recomp
 	url = https://github.com/kenix3/libultraship.git
 	branch = port-maintenance
+[submodule "ports/android/thirdparty/libadrenotools"]
+	path = ports/android/thirdparty/libadrenotools
+	url = https://github.com/bylaws/libadrenotools.git
