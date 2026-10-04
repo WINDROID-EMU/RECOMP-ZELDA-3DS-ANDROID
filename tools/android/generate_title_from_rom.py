@@ -127,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
             raw_code = ctr_rom.decompress_exefs_code(raw_code)
 
         f.seek(layout.exheader_offset)
-        exheader = f.read(layout.exheader_size)
+        exheader = f.read(ctr_rom.EXHEADER_SIZE)
 
     raw_sha = hashlib.sha256(raw_code).hexdigest()
     print(f"   code.bin extraído SHA256: {raw_sha}")

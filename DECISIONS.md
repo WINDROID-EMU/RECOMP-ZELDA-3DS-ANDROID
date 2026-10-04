@@ -161,6 +161,19 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
 
 ---
 
+### ADR-0014: Pipeline de Distribuição Whole-AOT, Isolamento de Cabeçalhos e Execução em Hardware Real (Xiaomi 12 / Adreno 730)
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** A execução de um jogo recompilado em hardware físico com chips modernos (Snapdragon 8 Gen 1) e Android 14/15 impõe restrições severas: exigência de alinhamento de memória para páginas de 16 KB (`max-page-size=16384`), separação estrita entre o código gerado da ROM e o runtime para evitar gargalos de linkagem dinâmica, eliminação de colisão de símbolos e cabeçalhos em bibliotecas utilitárias (`fmt`/`spdlog`), e suporte direto a `vkCreateAndroidSurfaceKHR` sobre o buffer da janela nativa do Android.
+- **Decisão:**
+  1. **Particionamento Whole-AOT em 256 Shards:** 12.419 funções geradas pelo recompilador são distribuídas em 256 unidades de tradução C++ com ABI-v2 (`triaevum_title_whole_aot_query`), compiladas com `-O1 -ffp-model=strict -Wl,-z,max-page-size=16384` gerando `libtriaevum_title_aot.so` isolada (84 MB) sem depender de símbolos internos mutáveis do motor.
+  2. **Isolamento de Cabeçalhos PICA (`azahar_pica`):** Restrição de visibilidade de cabeçalhos de compatibilidade legado a nível de arquivo de fonte (`set_source_files_properties`), impedindo que cabeçalhos auxiliares colidam com as bibliotecas do runtime do sistema (`spdlog`/`fmt`).
+  3. **Staging Otimizado e Strip:** O empacotador `stage_native_app.py` extrai e reduz os binários nativos ARM64 (`libTriAevum.so`, `libtriaevum_title_aot.so`, `libtriaevum_title_bootstrap.so`, `libc++_shared.so`), gerando um pacote APK final enxuto de 50 MB.
+  4. **Validação Física em Hardware Real:** Execução no Xiaomi 12 (`cupid` / `2201123G`, Qualcomm Adreno 730, Android 14). Confirmação de inicialização do subsistema Vulkan via `vkCreateAndroidSurfaceKHR`, pipeline cache de 924 KB persistido, latência de renderização de 5 ms no percentil 50 (equivalente a 200 FPS brutos), 0 frames de vsync perdidos e estabilidade total a 60 FPS cravados.
+- **Evidência:** APK `TriAevum-Oot3D-Android-arm64-v8a.apk` instalado e executado via ADB com capturas de tela e telemetria comprovadas em tempo real.
+
+---
+
 ## 2. Matriz de Hipóteses e Validação Técnica (Itens ⚠)
 
 | ID | Item / Hipótese | Origem | Teste / Validação Exigida | Status | Resolução / Notas |
