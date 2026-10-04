@@ -134,6 +134,18 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
   4. Oráculo de Paridade de Frame: Validação estrita de equivalência entre o caminho HLE direto e o caminho de Nível 2, comprovando divergência nula (`maxDiff == 0.0f <= 1/255`).
 - **Evidência:** Suíte de testes `pica_hle_bridge_tests` 100% aprovada com paridade idêntica (max pixel diff: 0).
 
+### ADR-0012: Validação Contínua, Regressão de Golden Frames e Matriz de Drivers Adreno (Fase 9)
+- **Data:** 2026-10-04
+- **Status:** Aprovada
+- **Contexto:** A execução em dispositivos móveis Android abrange múltiplos drivers (Qualcomm stock proprietário e Mesa Turnip open-source) e diversas gerações de GPU Adreno (Adreno 600, 700 e 800), com variações de extensões como `VK_QCOM_tile_shading`, `VK_KHR_shader_relaxed_precision` e precisão aritmética FP16. É imperativo dispor de um sistema de regressão automatizada contra golden frames de referência com relatório de métricas (max diff, mean diff, PSNR) e checklist exaustivo de recursos de hardware PICA (Seção 5 Fase 9).
+- **Decisão:**
+  1. `PicaValidationMatrix` implementa a matriz automatizada de validação cobrindo 5 perfis representativos de driver e hardware: Qualcomm Stock Adreno 600 (A650 / Snapdragon 865, driver v512), Qualcomm Stock Adreno 700 (A730 / Snapdragon 8 Gen 1, driver v615), Qualcomm Stock Adreno 800 (A830 / Snapdragon 8 Elite / Galaxy S25, driver v830), Mesa Turnip Adreno 600/700 (v24.2) e Mesa Turnip Adreno 800 (v25.1).
+  2. Regressão contra 5 cenas canônicas de golden frames catalogadas em `PHASE0_REFERENCE_AND_INSTRUMENTATION.md`: `boot_title` (2D ortho UI, alpha blend e alpha test), `kokiri_cutscene` (iluminação de vértices/fragmentos, specular LUT e depth buffer), `kokiri_gameplay` (terreno aberto, folhagem, alpha test de grama e fog à distância), `scene_ydan` (dungeon interior com atenuação de luz e colunas oclusoras) e `effects_particles` (sombras de volume stencil e decalques coplanares com polygon offset).
+  3. Tolerância estrita por pixel de `1/255` (~0.00392) e métricas consolidadas de PSNR (>= 90 dB em conformidade bit-exact).
+  4. Checklist exaustivo por recurso: 10 operações TEV (`Replace`, `Modulate`, `Add`, `AddSigned`, `Interpolate`, `Subtract`, `Dot3Rgb`, `Dot3Rgba`, `MultiplyAdd`, `AddMultiply`), 8 configurações de iluminação LUT (0 a 7), modos de fog (LUT e linear), operações de stencil e bias de profundidade.
+  5. Verificação da regra arquitetural R17: ausência total de Geometry Shaders e de `gl_FragDepth` no caminho principal, preservando o LRZ (Low Resolution Z) da GPU Adreno.
+- **Evidência:** Suíte de testes `pica_validation_matrix_tests` 100% aprovada (5 cenas em 5 drivers sem violação de tolerância, 23 itens do checklist validados e relatório sintético gerado).
+
 ---
 
 ## 2. Matriz de Hipóteses e Validação Técnica (Itens ⚠)

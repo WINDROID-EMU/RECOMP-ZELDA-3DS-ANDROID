@@ -2,7 +2,7 @@
 
 Última atualização: 2026-10-04  
 Branch ativa: `feature/native-render-phase4-fragment-shaders`  
-Fase atual: **Fase 8 — Rumo ao nativo de verdade (HLE)** (Concluída) -> Próxima: **Fase 9 — Validação contínua**
+Fase atual: **Fase 9 — Validação contínua** (Concluída) -> Próxima: **Fase 10 — Otimização Adreno**
 
 ---
 
@@ -19,8 +19,8 @@ Fase atual: **Fase 8 — Rumo ao nativo de verdade (HLE)** (Concluída) -> Próx
 | **6** | **Render passes amigáveis à Adreno** | GMEM loads/stores medidos e registrados; sem leitura de RT externo no meio do pass | **CONCLUÍDO** | `PicaRenderPassScheduler`: Agrupamento de draws por alvo, política `DepthStoreOp = DONT_CARE` para evitar despejo de GMEM na DRAM, subpasses com input attachment para feedback de cor local (`VK_DEPENDENCY_BY_REGION_BIT`), 0 violações de mid-pass reads, validado em `pica_render_pass_scheduler_tests`. |
 | **7** | **Pipelines, cache e stutter** | Sem hitch acima do limite em teste de 5 min; cache corrompido não causa crash | **CONCLUÍDO** | `PicaPipelineManager`: Cache em disco com cabeçalho de driver e checksum FNV-1a, tolerância a arquivos truncados/corrompidos (R15), teto de 64 MB (R14), warm-up do corpus de pipelines, compilação assíncrona com ubershader fallback (< 1 ms, R16) e 0 hitches > 33.3 ms validado em `pica_pipeline_manager_tests`. |
 | **8** | **Rumo ao nativo de verdade (HLE)** | Frame idêntico entre o caminho HLE e o nível 2 | **CONCLUÍDO** | `PicaHleBridge`: Despacho direto de comandos de geometria e materiais com bypass de registradores, suporte a widescreen 16:9, e oráculo de validação comprovando frame 100% idêntico (diff máximo = 0) em `pica_hle_bridge_tests`. |
-| **9** | Validação contínua | Matriz de aparelhos/drivers executada | **PRÓXIMA** | Regressão contínua contra golden frames e matriz de perfis de driver Qualcomm stock e Turnip. |
-| **10** | Otimização Adreno | Ganho medido contra o baseline, sem regressão de correção | PENDENTE | Depende da Fase 9 |
+| **9** | **Validação contínua** | Matriz de aparelhos/drivers executada; golden frames com diff <= 1/255 | **CONCLUÍDO** | `PicaValidationMatrix`: Regressão em 5 perfis Adreno (Stock A600/A700/A800 e Turnip A600/A700/A800) contra 5 cenas canônicas de golden frames com 0 diff e 23 itens de checklist de features validados em `pica_validation_matrix_tests`. |
+| **10** | Otimização Adreno | Ganho medido contra o baseline, sem regressão de correção | **PRÓXIMA** | Otimizações finais de ALU, GMEM load/store, thermal budget e 60 FPS |
 
 ---
 
@@ -110,7 +110,20 @@ Fase atual: **Fase 8 — Rumo ao nativo de verdade (HLE)** (Concluída) -> Próx
 
 ---
 
-## 8. Registro de Fallbacks e Alertas (R26)
+## 8. Acompanhamento da Fase 9
+
+- [x] **9.1** `PicaValidationMatrix`: Matriz de validação contínua e automação de testes de regressão contra golden frames.
+- [x] **9.2** Cenas Canônicas de Golden Frames: Catalogação e geração automatizada dos 5 cenários-chave documentados em `PHASE0_REFERENCE_AND_INSTRUMENTATION.md`: `boot_title` (2D UI/AlphaTest/Blend), `kokiri_cutscene` (3D Mesh/Lighting LUT/Depth), `kokiri_gameplay` (Foliage/AlphaTest/Fog), `scene_ydan` (Interior/PointLight/Occlusion) e `effects_particles` (Stencil shadow/Decals).
+- [x] **9.3** Comparador Numérico e Métricas de Imagem: Cálculo de divergência máxima por canal (`maxDiff`), divergência média (`meanDiff`), pixels divergentes e métrica de PSNR em decibéis (Peak Signal-to-Noise Ratio >= 90 dB).
+- [x] **9.4** Matriz de Perfis de Driver e Hardware: Suporte aos perfis Qualcomm Stock Adreno 600 (A650 v512), Qualcomm Stock Adreno 700 (A730 v615), Qualcomm Stock Adreno 800 (A830 v830), Mesa Turnip Adreno 600/700 (v24.2) e Mesa Turnip Adreno 800 (v25.1).
+- [x] **9.5** Checklist Exaustivo por Recurso: 23 verificações automatizadas cobrindo todas as 10 operações TEV (`Replace`, `Modulate`, `Add`, `AddSigned`, `Interpolate`, `Subtract`, `Dot3Rgb`, `Dot3Rgba`, `MultiplyAdd`, `AddMultiply`), 8 configurações de iluminação LUT (0 a 7), modos de névoa (fog LUT), sombras stencil e compensação de viés de decalques coplanares (`PolygonOffset`).
+- [x] **9.6** Conformidade Arquitetural (R17): Verificação e imposição de ausência total de Geometry Shaders e de `gl_FragDepth` no pipeline principal, garantindo integridade de LRZ nos tilers Adreno.
+- [x] **9.7** Suíte de testes automatizados [`pica_validation_matrix_tests.cpp`](runtime/three_ds_recomp/tests/pica_validation_matrix_tests.cpp) aprovada com 100% de sucesso.
+- [x] **9.8** Decisões técnicas registradas em [`DECISIONS.md`](DECISIONS.md) (ADR-0012).
+
+---
+
+## 9. Registro de Fallbacks e Alertas (R26)
 
 - `NATIVE_FALLBACK`: 0 ativos no hot path.
 - Orçamento de memória: 128 MB para texturas, 64 MB para superfícies de renderização, 32 MB para corpus de shaders (R14).

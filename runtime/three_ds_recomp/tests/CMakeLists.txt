@@ -97,6 +97,18 @@ target_include_directories(pica_hle_bridge_tests PRIVATE
     ../../tools/oot3d/third_party/azahar_pica)
 add_test(NAME pica_hle_bridge_tests COMMAND pica_hle_bridge_tests)
 
+add_executable(pica_validation_matrix_tests
+    pica_validation_matrix_tests.cpp
+    ../src/pica/pica_validation_matrix.cpp
+    ../src/pica/pica_raster_pipeline.cpp
+    ../src/pica/pica_fragment_generator.cpp
+    ../src/pica/pica_state_decoder.cpp)
+target_compile_features(pica_validation_matrix_tests PRIVATE cxx_std_20)
+target_include_directories(pica_validation_matrix_tests PRIVATE
+    ../include
+    ../../tools/oot3d/third_party/azahar_pica)
+add_test(NAME pica_validation_matrix_tests COMMAND pica_validation_matrix_tests)
+
 add_executable(vulkan_present_dispatch_tests
     vulkan_present_dispatch_tests.cpp
     ../src/fast/oot3d/vulkan_adapter_policy.cpp)
