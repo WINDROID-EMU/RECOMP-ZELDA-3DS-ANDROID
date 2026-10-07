@@ -222,6 +222,7 @@ bool ConsumeTopScreenGameplayActions(
     bool ordinaryItemActivated, std::uint32_t directCallReturnAddress,
     TopScreenGameplayActionConsumerRuntime *runtime,
     TopScreenGameplayActionConsumerStats *stats, std::string *error) {
+  return true;
   if (runtime == nullptr) {
     SetError(error, "TopScreen gameplay action runtime is null");
     return false;

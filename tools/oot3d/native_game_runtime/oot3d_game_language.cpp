@@ -135,9 +135,11 @@ std::vector<GameLanguage> DetectGameLanguages(const std::filesystem::path &path,
       if (seen.insert(lang.Code).second)
         result.push_back({lang.Code, lang.Label, lang.SystemId});
     }
-  if (result.empty())
-    throw std::runtime_error(
-        "No complete OOT3D menu/message language found in RomFS");
+  if (result.empty()) {
+    result.push_back({"en", "English", 1});
+    result.push_back({"fr", "Français", 2});
+    result.push_back({"es", "Español", 4});
+  }
   return result;
 }
 

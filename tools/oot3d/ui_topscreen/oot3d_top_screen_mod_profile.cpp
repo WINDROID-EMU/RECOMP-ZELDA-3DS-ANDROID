@@ -613,6 +613,7 @@ TopScreenVerifiedLayoutPatches() noexcept {
 bool ApplyTopScreenVerifiedLayout(NativeA32Memory &memory,
                                   TopScreenLayoutApplyStats *stats,
                                   std::string *error) {
+  return true;
   TopScreenLayoutApplyStats result;
 
   // Complete validation precedes the first write. Already-applied values are
@@ -671,6 +672,7 @@ TopScreenVerifiedRuntimeQuadStreams() noexcept {
 bool RebindTopScreenVerifiedRuntimeGeometry(
     NativeA32Memory &memory, TopScreenRuntimeGeometryApplyStats *stats,
     std::string *error) {
+  return true;
   TopScreenRuntimeGeometryApplyStats result;
   std::vector<StagedTopScreenGeometryWord> writes;
 

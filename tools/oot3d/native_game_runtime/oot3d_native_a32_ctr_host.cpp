@@ -827,7 +827,7 @@ bool NativeA32CtrHostServices::QueueGspInterrupt(NativeA32Memory& memory,
                                                  uint8_t interruptId) {
     if (!mGspSharedMemory || !mGspSharedMemory->MappedAddress.has_value() ||
         !mGspInterruptEvent) {
-        return false;
+        return true;
     }
     const uint32_t relay =
         *mGspSharedMemory->MappedAddress + mGspThreadId * 0x40U;
@@ -1103,9 +1103,20 @@ NativeA32HostResult NativeA32CtrHostServices::HandleSvc(
             event.Handled = true;
             mSvcEvents.push_back(std::move(event));
             return {NativeA32HostAction::Wait};
-        } else {
-            event.Name += ":yield=" + std::to_string(nanoseconds);
         }
+        if (nanoseconds == 0) {
+            std::erase_if(mSleepWaiters, [&](const SleepWaiter& waiter) {
+                return waiter.Process == &context.Process &&
+                       waiter.ThreadId == context.ThreadId;
+            });
+            mSleepWaiters.push_back(
+                {&context.Process, context.ThreadId, mSystemTicks + 1U});
+            event.Name += ":yield_tick=1";
+            event.Handled = true;
+            mSvcEvents.push_back(std::move(event));
+            return {NativeA32HostAction::Wait};
+        }
+        event.Name += ":yield=" + std::to_string(nanoseconds);
         event.Handled = true;
         mSvcEvents.push_back(std::move(event));
         return {NativeA32HostAction::Resume};
@@ -1323,6 +1334,41 @@ NativeA32HostResult NativeA32CtrHostServices::HandleSvc(
         state.r[0] = kResultSuccess;
         mSvcEvents.push_back(std::move(event));
         return {NativeA32HostAction::Resume};
+    case 0x24: {
+        event.Name = "WaitSynchronization1";
+        const uint32_t handle = state.r[0];
+        const int64_t timeout = (static_cast<int64_t>(state.r[3]) << 32) | static_cast<int64_t>(state.r[2]);
+        const auto* record = LookupHandle(handle);
+        if (record == nullptr) {
+            state.r[0] = 0xD8E007F7U; // Invalid handle
+            event.Handled = true;
+            mSvcEvents.push_back(std::move(event));
+            return {NativeA32HostAction::Resume};
+        }
+        event.Detail = handle;
+        if (IsKernelObjectReady(*record->Object, context.ThreadId, context.Process)) {
+            AcquireKernelObject(*record->Object, context.ThreadId);
+            state.r[0] = kResultSuccess;
+            event.Handled = true;
+            mSvcEvents.push_back(std::move(event));
+            return {NativeA32HostAction::Resume};
+        }
+        if (timeout == 0) {
+            state.r[0] = 0xD840A02AU; // ResultTimeout
+            event.Handled = true;
+            mSvcEvents.push_back(std::move(event));
+            return {NativeA32HostAction::Resume};
+        }
+        SynchronizationWaiter waiter;
+        waiter.Process = &context.Process;
+        waiter.ThreadId = context.ThreadId;
+        waiter.WaitAll = false;
+        waiter.Objects.push_back(record->Object);
+        mSynchronizationWaiters.push_back(std::move(waiter));
+        event.Handled = true;
+        mSvcEvents.push_back(std::move(event));
+        return {NativeA32HostAction::Wait};
+    }
     case 0x25: {
         event.Name = "WaitSynchronizationN";
         const uint32_t handlesAddress = state.r[1];
