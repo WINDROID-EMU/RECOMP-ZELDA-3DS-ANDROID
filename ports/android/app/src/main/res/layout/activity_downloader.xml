@@ -7,13 +7,19 @@
     android:clickable="true"
     android:focusable="true">
 
-    <!-- Background artwork: Link with Ocarina in Lost Woods -->
+    <!-- Background artwork: placeholder while title video prepares -->
     <ImageView
         android:id="@+id/iv_download_bg"
-        android:layout_width="735dp"
-        android:layout_height="410dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:scaleType="centerCrop"
         android:src="@drawable/bg_download" />
+
+    <!-- Looping background title video: title.mp4 -->
+    <TextureView
+        android:id="@+id/texture_title_video"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
     <!-- Bottom gradient scrim for high text contrast -->
     <View
@@ -139,7 +145,7 @@
             android:textColor="#0B0E14"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:visibility="visible" />
+            android:visibility="gone" />
 
     </LinearLayout>
 

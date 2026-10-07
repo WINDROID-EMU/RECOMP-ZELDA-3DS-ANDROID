@@ -39,7 +39,7 @@ android {
     }
     packaging { jniLibs.useLegacyPackaging = true }
     androidResources {
-        noCompress += listOf("bin", "o3tu")
+        noCompress += listOf("bin", "o3tu", "mp4", "mp3")
     }
 }
 tasks.register("checkNativeStage") {

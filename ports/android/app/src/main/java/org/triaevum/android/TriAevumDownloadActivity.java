@@ -4,6 +4,11 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.AssetFileDescriptor;
+import android.graphics.Matrix;
+import android.graphics.SurfaceTexture;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -12,12 +17,15 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.Surface;
+import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.animation.AlphaAnimation;
 import android.content.SharedPreferences;
 import android.view.animation.Animation;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -51,6 +59,15 @@ public class TriAevumDownloadActivity extends Activity {
     private static final int REQUEST_CODE_STORAGE_PERMISSION = 1002;
     private static final String PREFS_NAME = "org.triaevum.android_preferences";
     private static final String PREF_ROM_DIR_URI = "selected_rom_directory_uri";
+
+    private TextureView mTextureTitleVideo;
+    private ImageView mIvBackground;
+    private MediaPlayer mMediaPlayer;
+    private MediaPlayer mMusicPlayer;
+    private Surface mVideoSurface;
+    private int mVideoWidth = 0;
+    private int mVideoHeight = 0;
+    private boolean mIsVideoPrepared = false;
 
     private TextView mTvStatus;
     private TextView mTvPercent;
@@ -93,6 +110,8 @@ public class TriAevumDownloadActivity extends Activity {
         setContentView(R.layout.activity_downloader);
 
         mRootLayout            = findViewById(R.id.layout_downloader_root);
+        mTextureTitleVideo     = findViewById(R.id.texture_title_video);
+        mIvBackground          = findViewById(R.id.iv_download_bg);
         mTvStatus              = findViewById(R.id.tv_download_status);
         mTvPercent             = findViewById(R.id.tv_download_percent);
         mTvDetails             = findViewById(R.id.tv_download_details);
@@ -102,25 +121,32 @@ public class TriAevumDownloadActivity extends Activity {
         mBtnChangeDirectory    = findViewById(R.id.btn_change_directory);
         mLayoutProgressDetails = findViewById(R.id.layout_progress_details);
 
+        setupTitleVideo();
+        initBackgroundMusic();
+
         mRootLayout.setOnClickListener(v -> {
             if (mReadyToStart) {
                 launchGame();
             }
         });
+        mRootLayout.setOnLongClickListener(v -> {
+            pickRomDirectory();
+            return true;
+        });
 
         mLayoutProgressDetails.setVisibility(View.GONE);
-        mBtnAction.setVisibility(View.VISIBLE);
 
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String savedDirUri = prefs.getString(PREF_ROM_DIR_URI, null);
 
         if (isGameInstalled(this)) {
             mReadyToStart = true;
+            mBtnAction.setVisibility(View.GONE);
             mBtnAction.setText("Iniciar Jogo");
             mBtnAction.setOnClickListener(v -> launchGame());
-            mBtnChangeDirectory.setVisibility(View.VISIBLE);
+            mBtnChangeDirectory.setVisibility(View.GONE);
             mBtnChangeDirectory.setOnClickListener(v -> pickRomDirectory());
-            mTvStatus.setText("ROM pronta. Toque em 'Iniciar Jogo' ou 'Trocar Pasta'.");
+            mTvStatus.setText("ROM pronta para jogar!");
             mTvTouchToStart.setVisibility(View.VISIBLE);
             AlphaAnimation pulse = new AlphaAnimation(0.25f, 1.0f);
             pulse.setDuration(600);
@@ -128,6 +154,7 @@ public class TriAevumDownloadActivity extends Activity {
             pulse.setRepeatCount(Animation.INFINITE);
             mTvTouchToStart.startAnimation(pulse);
         } else {
+            mBtnAction.setVisibility(View.VISIBLE);
             mBtnAction.setText("Selecionar Pasta da ROM");
             mTvStatus.setText("Selecione o diretório onde estão os arquivos da ROM para começar");
             mBtnAction.setOnClickListener(v -> requestStoragePermissionAndPickRomDirectory());
@@ -142,6 +169,7 @@ public class TriAevumDownloadActivity extends Activity {
             unpackBundledAssets(targetDir);
             new File(targetDir, "resources").mkdirs();
             new File(targetDir, "savedata").mkdirs();
+            new File(targetDir, "shader_cache").mkdirs();
         }
         mReadyToStart = true;
         mIsDownloading = false;
@@ -149,12 +177,9 @@ public class TriAevumDownloadActivity extends Activity {
         mPbDownload.setProgress(100);
         mTvPercent.setText("100%");
         mLayoutProgressDetails.setVisibility(View.GONE);
-        mBtnAction.setVisibility(View.VISIBLE);
-        mBtnAction.setText("Iniciar Jogo");
-        mBtnAction.setOnClickListener(v -> launchGame());
+        mBtnAction.setVisibility(View.GONE);
         if (mBtnChangeDirectory != null) {
-            mBtnChangeDirectory.setVisibility(View.VISIBLE);
-            mBtnChangeDirectory.setOnClickListener(v -> pickRomDirectory());
+            mBtnChangeDirectory.setVisibility(View.GONE);
         }
         mTvTouchToStart.setVisibility(View.VISIBLE);
         AlphaAnimation pulse = new AlphaAnimation(0.25f, 1.0f);
@@ -164,10 +189,263 @@ public class TriAevumDownloadActivity extends Activity {
         mTvTouchToStart.startAnimation(pulse);
     }
 
+    private void setupTitleVideo() {
+        if (mTextureTitleVideo == null) return;
+
+        mTextureTitleVideo.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override
+            public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
+                mVideoSurface = new Surface(surfaceTexture);
+                initMediaPlayer();
+            }
+
+            @Override
+            public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
+                adjustVideoAspectRatio(width, height);
+            }
+
+            @Override
+            public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+                releaseMediaPlayer();
+                if (mVideoSurface != null) {
+                    mVideoSurface.release();
+                    mVideoSurface = null;
+                }
+                return true;
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+            }
+        });
+
+        mTextureTitleVideo.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            int width = right - left;
+            int height = bottom - top;
+            if (width > 0 && height > 0) {
+                adjustVideoAspectRatio(width, height);
+            }
+        });
+    }
+
+    private synchronized void initMediaPlayer() {
+        if (mVideoSurface == null || !mVideoSurface.isValid()) return;
+
+        releaseMediaPlayer();
+
+        try {
+            mMediaPlayer = new MediaPlayer();
+            mMediaPlayer.setSurface(mVideoSurface);
+
+            boolean sourceSet = false;
+            try {
+                AssetFileDescriptor afd = getAssets().openFd("title.mp4");
+                mMediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+                afd.close();
+                sourceSet = true;
+            } catch (Exception e) {
+                Log.w(TAG, "Não foi possível abrir title.mp4 via openFd, tentando extração de fallback...", e);
+            }
+
+            if (!sourceSet) {
+                File cacheFile = new File(getCacheDir(), "title.mp4");
+                if (!cacheFile.exists() || cacheFile.length() == 0) {
+                    try (InputStream in = getAssets().open("title.mp4");
+                         OutputStream out = new FileOutputStream(cacheFile)) {
+                        byte[] buffer = new byte[65536];
+                        int bytesRead;
+                        while ((bytesRead = in.read(buffer)) != -1) {
+                            out.write(buffer, 0, bytesRead);
+                        }
+                    }
+                }
+                mMediaPlayer.setDataSource(cacheFile.getAbsolutePath());
+            }
+
+            mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            mMediaPlayer.setVolume(0.0f, 0.0f);
+            mMediaPlayer.setLooping(true);
+
+            mMediaPlayer.setOnPreparedListener(mp -> {
+                mIsVideoPrepared = true;
+                mVideoWidth = mp.getVideoWidth();
+                mVideoHeight = mp.getVideoHeight();
+                if (mTextureTitleVideo != null) {
+                    adjustVideoAspectRatio(mTextureTitleVideo.getWidth(), mTextureTitleVideo.getHeight());
+                }
+                mp.start();
+            });
+
+            mMediaPlayer.setOnVideoSizeChangedListener((mp, width, height) -> {
+                mVideoWidth = width;
+                mVideoHeight = height;
+                if (mTextureTitleVideo != null) {
+                    adjustVideoAspectRatio(mTextureTitleVideo.getWidth(), mTextureTitleVideo.getHeight());
+                }
+            });
+
+            mMediaPlayer.setOnCompletionListener(mp -> {
+                try {
+                    mp.seekTo(0);
+                    mp.start();
+                } catch (Exception ignored) {}
+            });
+
+            mMediaPlayer.setOnInfoListener((mp, what, extra) -> {
+                if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
+                    if (mIvBackground != null) {
+                        mIvBackground.animate().alpha(0f).setDuration(250).withEndAction(() -> {
+                            mIvBackground.setVisibility(View.GONE);
+                        }).start();
+                    }
+                    return true;
+                }
+                return false;
+            });
+
+            mMediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                Log.e(TAG, "Erro no MediaPlayer de title: what=" + what + ", extra=" + extra);
+                releaseMediaPlayer();
+                if (mIvBackground != null) {
+                    mIvBackground.setVisibility(View.VISIBLE);
+                    mIvBackground.setAlpha(1.0f);
+                }
+                return true;
+            });
+
+            mMediaPlayer.prepareAsync();
+        } catch (Exception e) {
+            Log.e(TAG, "Falha ao inicializar reprodução do vídeo de title", e);
+            releaseMediaPlayer();
+        }
+    }
+
+    private synchronized void initBackgroundMusic() {
+        releaseBackgroundMusic();
+        try {
+            mMusicPlayer = MediaPlayer.create(this, R.raw.song);
+            if (mMusicPlayer != null) {
+                mMusicPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                mMusicPlayer.setLooping(true);
+                mMusicPlayer.setOnCompletionListener(mp -> {
+                    try {
+                        mp.seekTo(0);
+                        mp.start();
+                    } catch (Exception ignored) {}
+                });
+                mMusicPlayer.start();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Falha ao iniciar reprodução da música de title (song.mp3)", e);
+        }
+    }
+
+    private synchronized void releaseBackgroundMusic() {
+        if (mMusicPlayer != null) {
+            try {
+                if (mMusicPlayer.isPlaying()) {
+                    mMusicPlayer.stop();
+                }
+            } catch (Exception ignored) {}
+            try {
+                mMusicPlayer.reset();
+                mMusicPlayer.release();
+            } catch (Exception ignored) {}
+            mMusicPlayer = null;
+        }
+    }
+
+    private void adjustVideoAspectRatio(int viewWidth, int viewHeight) {
+        if (mTextureTitleVideo == null || mVideoWidth <= 0 || mVideoHeight <= 0 || viewWidth <= 0 || viewHeight <= 0) {
+            return;
+        }
+
+        float viewRatio = (float) viewWidth / (float) viewHeight;
+        float videoRatio = (float) mVideoWidth / (float) mVideoHeight;
+
+        float scaleX = 1.0f;
+        float scaleY = 1.0f;
+
+        if (viewRatio > videoRatio) {
+            scaleY = viewRatio / videoRatio;
+        } else {
+            scaleX = videoRatio / viewRatio;
+        }
+
+        Matrix matrix = new Matrix();
+        matrix.setScale(scaleX, scaleY, viewWidth / 2.0f, viewHeight / 2.0f);
+        mTextureTitleVideo.setTransform(matrix);
+    }
+
+    private synchronized void releaseMediaPlayer() {
+        mIsVideoPrepared = false;
+        if (mMediaPlayer != null) {
+            try {
+                if (mMediaPlayer.isPlaying()) {
+                    mMediaPlayer.stop();
+                }
+            } catch (Exception ignored) {}
+            try {
+                mMediaPlayer.reset();
+                mMediaPlayer.release();
+            } catch (Exception ignored) {}
+            mMediaPlayer = null;
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         hideSystemBars();
+        if (mMediaPlayer != null && mIsVideoPrepared) {
+            try {
+                if (!mMediaPlayer.isPlaying()) {
+                    mMediaPlayer.start();
+                }
+            } catch (Exception ignored) {}
+        } else if (mVideoSurface != null && mVideoSurface.isValid() && mMediaPlayer == null) {
+            initMediaPlayer();
+        }
+
+        if (mMusicPlayer != null) {
+            try {
+                if (!mMusicPlayer.isPlaying()) {
+                    mMusicPlayer.start();
+                }
+            } catch (Exception ignored) {}
+        } else {
+            initBackgroundMusic();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mMediaPlayer != null && mIsVideoPrepared) {
+            try {
+                if (mMediaPlayer.isPlaying()) {
+                    mMediaPlayer.pause();
+                }
+            } catch (Exception ignored) {}
+        }
+        if (mMusicPlayer != null) {
+            try {
+                if (mMusicPlayer.isPlaying()) {
+                    mMusicPlayer.pause();
+                }
+            } catch (Exception ignored) {}
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        releaseMediaPlayer();
+        releaseBackgroundMusic();
+        if (mVideoSurface != null) {
+            mVideoSurface.release();
+            mVideoSurface = null;
+        }
     }
 
     private void hideSystemBars() {
@@ -197,6 +475,8 @@ public class TriAevumDownloadActivity extends Activity {
             });
             return;
         }
+        releaseMediaPlayer();
+        releaseBackgroundMusic();
         Intent intent = new Intent(this, TriAevumActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
