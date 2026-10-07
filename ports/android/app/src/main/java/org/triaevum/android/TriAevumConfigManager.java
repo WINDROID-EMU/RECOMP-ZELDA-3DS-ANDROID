@@ -1025,6 +1025,10 @@ public final class TriAevumConfigManager {
                     args.put("${profile_dir}/shader_cache");
                     changed = true;
                 }
+                File cacheDir = new File(mExternalDir, "shader_cache");
+                if (!cacheDir.exists()) {
+                    cacheDir.mkdirs();
+                }
                 if (changed) {
                     writeJson("TriAevum.android.launch.json", profile);
                     Log.i(TAG, "TriAevum.android.launch.json successfully updated for 60 FPS, AOT Shaders and TopScreen UI");

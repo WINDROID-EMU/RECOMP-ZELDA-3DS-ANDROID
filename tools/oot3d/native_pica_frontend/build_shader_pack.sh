@@ -12,6 +12,11 @@ ASSETS_GAME_DIR="$REPO_ROOT/ports/android/app/src/main/assets/game"
 OUTPUT_PACK="$ASSETS_GAME_DIR/oot3d_pica_default.o3ps"
 OUTPUT_MANIFEST="$ASSETS_GAME_DIR/oot3d_pica_default_manifest.json"
 
+if [ -f "$OUTPUT_PACK" ] && [ -f "$OUTPUT_MANIFEST" ] && [ "${FORCE_REBUILD_SHADERS:-0}" -eq 0 ]; then
+    echo "ℹ️  Pacote AOT de shaders já existe: $(du -h "$OUTPUT_PACK" | cut -f1) ($OUTPUT_PACK) - reutilizando."
+    exit 0
+fi
+
 COMPILER_BIN="/tmp/oot3d_native_pica_aot_compiler_glslang"
 
 echo ">>> Compilando/Verificando ferramenta de compilação AOT de shaders..."

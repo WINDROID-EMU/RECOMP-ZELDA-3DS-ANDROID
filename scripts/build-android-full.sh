@@ -7,6 +7,8 @@
 
 set -euo pipefail
 
+export PATH="$HOME/.local/bin:/home/amd/.local/bin:$PATH"
+
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
