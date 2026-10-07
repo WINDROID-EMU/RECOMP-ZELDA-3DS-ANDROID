@@ -3,6 +3,8 @@ package org.triaevum.android.controls;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
@@ -114,7 +116,9 @@ public class WindroidVirtualControllerView extends View {
     private final Paint mSettingsGearPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mSettingsGearFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mSettingsTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mSettingsBitmapPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final RectF mSettingsRect = new RectF();
+    private Bitmap mSettingsBitmap = null;
 
     // ------- Overlay opacity -------
     /** 20-100 percent; stored in SharedPreferences. */
@@ -279,14 +283,15 @@ public class WindroidVirtualControllerView extends View {
             textPaint.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
         }
 
-        // Settings gear paint
+        // Settings button paint
         mSettingsGearPaint.setStyle(Paint.Style.STROKE);
         mSettingsGearPaint.setColor(Color.parseColor("#FFD700"));
         mSettingsGearFillPaint.setStyle(Paint.Style.FILL);
-        mSettingsGearFillPaint.setColor(Color.parseColor("#1A1500"));
+        mSettingsGearFillPaint.setColor(Color.parseColor("#141005"));
         mSettingsTextPaint.setColor(Color.parseColor("#FFD700"));
         mSettingsTextPaint.setTextAlign(Paint.Align.CENTER);
         mSettingsTextPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        loadSettingsBitmapIfNeeded();
 
         // Edit mode paints
         mEditIndicatorPaint.setStyle(Paint.Style.STROKE);
@@ -351,12 +356,12 @@ public class WindroidVirtualControllerView extends View {
         dpad.y = dpad.baseY * scaleY;
         dpad.radius = dpad.baseRadius * scaleFactor;
 
-        // Settings gear button: center top, radius = ~24dp equivalent
-        mSettingsBtnRadius = 44F * scaleFactor;
+        // Settings Triforce button: center top, radius = ~24dp equivalent
+        mSettingsBtnRadius = 46F * scaleFactor;
         mSettingsTouchRadius = mSettingsBtnRadius * 1.6F;
         mSettingsBtnX = width / 2F;
         mSettingsBtnY = mSettingsBtnRadius + 18F * scaleFactor;
-        mSettingsGearPaint.setStrokeWidth(6F * scaleFactor);
+        mSettingsGearPaint.setStrokeWidth(5F * scaleFactor);
         mSettingsTextPaint.setTextSize(mSettingsBtnRadius * 0.9F);
 
         // Allow saved user preferences only if layout was explicitly saved by user
@@ -650,30 +655,82 @@ public class WindroidVirtualControllerView extends View {
         canvas.drawCircle(dpad.x, dpad.y, dpad.radius * 0.85F, mEditIndicatorPaint);
     }
 
+    private void loadSettingsBitmapIfNeeded() {
+        if (mSettingsBitmap != null && !mSettingsBitmap.isRecycled()) {
+            return;
+        }
+        try {
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inScaled = false;
+            mSettingsBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.ic_settings, opts);
+        } catch (Throwable ignored) {}
+
+        if (mSettingsBitmap == null) {
+            try {
+                BitmapFactory.Options opts = new BitmapFactory.Options();
+                opts.inScaled = false;
+                mSettingsBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.setting, opts);
+            } catch (Throwable ignored) {}
+        }
+
+        if (mSettingsBitmap == null) {
+            try {
+                java.io.InputStream is = getContext().getAssets().open("setting.png");
+                mSettingsBitmap = BitmapFactory.decodeStream(is);
+                is.close();
+            } catch (Throwable ignored) {}
+        }
+
+        if (mSettingsBitmap == null) {
+            try {
+                java.io.File file = new java.io.File("/media/amd/SSD KING/3DS/RECOMP-ZELDA-3DS-ANDROID/setting.png");
+                if (file.exists() && file.canRead()) {
+                    mSettingsBitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+                }
+            } catch (Throwable ignored) {}
+        }
+    }
+
     private void drawSettingsButton(Canvas canvas, float alphaFactor) {
         if (mSettingsBtnX <= 0F) return;
 
         // Keep settings button visible with at least 35% opacity so user can always find it
         float gearAlphaRatio = Math.max(0.35F, alphaFactor);
 
-        // Background circle (semi-transparent black)
-        mSettingsGearFillPaint.setAlpha((int) ((mSettingsBtnPressed ? 220 : 140) * gearAlphaRatio));
-        canvas.drawCircle(mSettingsBtnX, mSettingsBtnY, mSettingsBtnRadius, mSettingsGearFillPaint);
+        // When pressed, draw a subtle warm feedback backdrop behind the Triforce
+        if (mSettingsBtnPressed) {
+            mSettingsGearFillPaint.setAlpha((int) (130 * gearAlphaRatio));
+            mSettingsGearFillPaint.setColor(Color.parseColor("#443300"));
+            canvas.drawCircle(mSettingsBtnX, mSettingsBtnY, mSettingsBtnRadius * 0.95F, mSettingsGearFillPaint);
+        }
 
-        // Outer circle ring
-        mSettingsGearPaint.setColor(mSettingsBtnPressed
-            ? Color.parseColor("#FFFFFF")
-            : Color.parseColor("#FFD700"));
-        mSettingsGearPaint.setAlpha((int) ((mSettingsBtnPressed ? 240 : 180) * gearAlphaRatio));
-        canvas.drawCircle(mSettingsBtnX, mSettingsBtnY, mSettingsBtnRadius, mSettingsGearPaint);
+        // Triforce Settings Icon (from setting.png)
+        loadSettingsBitmapIfNeeded();
+        if (mSettingsBitmap != null && !mSettingsBitmap.isRecycled()) {
+            mSettingsBitmapPaint.setAlpha((int) ((mSettingsBtnPressed ? 255 : 220) * gearAlphaRatio));
 
-        // Gear symbol (⚙)
-        mSettingsTextPaint.setAlpha((int) ((mSettingsBtnPressed ? 255 : 200) * gearAlphaRatio));
-        mSettingsTextPaint.setColor(mSettingsBtnPressed
-            ? Color.parseColor("#FFFFFF")
-            : Color.parseColor("#FFD700"));
-        float textY = mSettingsBtnY - (mSettingsTextPaint.descent() + mSettingsTextPaint.ascent()) / 2F;
-        canvas.drawText("\u2699", mSettingsBtnX, textY, mSettingsTextPaint);
+            float pressScale = mSettingsBtnPressed ? 0.90F : 1.0F;
+            float targetTipRadius = (mSettingsBtnRadius * 0.95F) * pressScale;
+            // Circumcenter of equilateral Triforce in the 268x232 image is at (134.0f, 154.5f), with tip radius 154.5f
+            float scale = targetTipRadius / 154.5F;
+            float imgW = mSettingsBitmap.getWidth();
+            float imgH = mSettingsBitmap.getHeight();
+            float cxImg = imgW * 0.5F;
+            float cyImg = imgH * (154.5F / 232.0F);
+
+            float left = mSettingsBtnX - cxImg * scale;
+            float top = mSettingsBtnY - cyImg * scale;
+            mSettingsRect.set(left, top, left + imgW * scale, top + imgH * scale);
+            canvas.drawBitmap(mSettingsBitmap, null, mSettingsRect, mSettingsBitmapPaint);
+        } else {
+            // Fallback gear symbol if image is unavailable
+            mSettingsTextPaint.setAlpha((int) ((mSettingsBtnPressed ? 255 : 200) * gearAlphaRatio));
+            mSettingsTextPaint.setColor(mSettingsBtnPressed
+                ? Color.parseColor("#FFFFFF")
+                : Color.parseColor("#FFD700"));
+            float textY = mSettingsBtnY - (mSettingsTextPaint.descent() + mSettingsTextPaint.ascent()) / 2F;
+            canvas.drawText("\u2699", mSettingsBtnX, textY, mSettingsTextPaint);
+        }
     }
 
     /**
@@ -1189,6 +1246,15 @@ public class WindroidVirtualControllerView extends View {
         dpad.dpadStatus = 0;
         touchscreenPointerId = -1;
         postInvalidate();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        if (mSettingsBitmap != null && !mSettingsBitmap.isRecycled()) {
+            mSettingsBitmap.recycle();
+            mSettingsBitmap = null;
+        }
     }
 
     public static class VirtualControllerButton {
