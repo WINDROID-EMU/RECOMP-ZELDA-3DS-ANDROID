@@ -55,6 +55,8 @@
 #include "oot3d_top_screen_ocarina_text_runtime.h"
 #include "oot3d_player_sprint_runtime.h"
 #include "oot3d_cutscene_dialog_skip_runtime.h"
+#include "oot3d_auto_save_runtime.h"
+#include "oot3d_gameplay_cheats_runtime.h"
 #include "oot3d_native_whole_aot_runtime.h"
 #ifdef OOT3D_NATIVE_DIRECT_AOT_PLUGIN
 #include "oot3d_native_direct_aot.h"
@@ -4495,6 +4497,8 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
   bool quickSaveKeyWasDown = false;
   bool quickLoadKeyWasDown = false;
   bool quickSavePending = false;
+  Oot3dNativeGame::Oot3dAutoSaveRuntime autoSaveRuntime;
+  Oot3dNativeGame::Oot3dGameplayCheatsRuntime gameplayCheatsRuntime;
   bool automatedStateSaved = false;
   std::optional<uint32_t> automatedStateSavedAtRunFrame;
   std::optional<uint32_t> automatedStateSavedAtGuestFrame;
@@ -4643,6 +4647,7 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
       return false;
     }
     Oot3dNativeGame::ResetOot3dTypedGameplayTransientState();
+    autoSaveRuntime.Reset();
     picaCompositionTracker.Reset();
     const auto restoredGravity = hostServices.HidRuntimeProfile().LastAccelerometer;
     nativeControlPollingState.VirtualMotion.RestoreGravity(
@@ -6285,9 +6290,12 @@ void RunOot3dNativeA32Window(const Oot3dNativeGameLaunch &launch) {
       benchmarkMeasurementEnd = completedFrameTime;
       ++benchmarkMeasuredFrames;
     }
+    gameplayCheatsRuntime.Update(process.Memory(), saveDataDirectory);
+    autoSaveRuntime.Update(process.Memory(), saveDataDirectory, quickSavePending);
     if (quickLoadRequested) {
       if (loadState(quickStatePath)) {
         quickSavePending = false;
+        autoSaveRuntime.Reset();
       }
     } else {
       if (quickSavePending && saveState(quickStatePath)) {

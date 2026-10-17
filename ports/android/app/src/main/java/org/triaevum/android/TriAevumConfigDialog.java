@@ -42,16 +42,17 @@ public final class TriAevumConfigDialog extends Dialog {
     private SharedPreferences mPrefs;
 
     // Tabs
-    private Button mTabGeral, mTabGraficos, mTabCamera, mTabControles;
+    private Button mTabGeral, mTabGraficos, mTabCamera, mTabControles, mTabGameplay;
     private Button mCurrentTab;
 
     // Panels
-    private View mPanelGeral, mPanelGraficos, mPanelCamera, mPanelControles;
+    private View mPanelGeral, mPanelGraficos, mPanelCamera, mPanelControles, mPanelGameplay;
 
     // Geral
     private Spinner mSpLanguage;
     private Spinner mSpSurfaceRes;
     private TextView mTvSaveStatus;
+    private CheckBox mCbAutoSave;
     private Button mBtnExportSave;
     private Button mBtnImportSave;
 
@@ -78,6 +79,7 @@ public final class TriAevumConfigDialog extends Dialog {
     private java.util.List<TriAevumCustomDriverManager.CustomDriverInfo> mInstalledDrivers = new java.util.ArrayList<>();
 
     // Mods Visuais
+    private CheckBox mCbDirectionalShadows;
     private CheckBox mCbToonShading;
     private CheckBox mCbToonOutline;
     private View     mLayoutToonOutline;
@@ -111,6 +113,24 @@ public final class TriAevumConfigDialog extends Dialog {
     private CheckBox mCbTouchScreen;
     private CheckBox mCbJoystickRelCenter;
     private CheckBox mCbDpadSlide;
+
+    // Gameplay Cheats
+    private CheckBox mCbInfiniteHealth;
+    private CheckBox mCbInfiniteMagic;
+    private CheckBox mCbInfiniteRupees;
+    private CheckBox mCbInfiniteAmmo;
+    private Button   mBtnMaxHearts;
+    private Button   mBtnHealFull;
+    private Button   mBtnMaxMagic;
+    private Button   mBtnMaxRupees;
+    private Button   mBtnAllEquipment;
+    private Button   mBtnAllMedallions;
+    private Spinner  mSpSelectItem;
+    private Button   mBtnAddSelectedItem;
+    private Button   mBtnAddAllItems;
+    private Button   mBtnDungeonKeys;
+    private Button   mBtnAllSkulltulas;
+
     private final Activity mActivity;
     private boolean mSaving = false;
 
@@ -173,16 +193,19 @@ public final class TriAevumConfigDialog extends Dialog {
         mTabGraficos = findViewById(R.id.tab_graficos);
         mTabCamera   = findViewById(R.id.tab_camera);
         mTabControles= findViewById(R.id.tab_controles);
+        mTabGameplay = findViewById(R.id.tab_gameplay);
 
         mPanelGeral    = findViewById(R.id.panel_geral);
         mPanelGraficos = findViewById(R.id.panel_graficos);
         mPanelCamera   = findViewById(R.id.panel_camera);
         mPanelControles= findViewById(R.id.panel_controles);
+        mPanelGameplay = findViewById(R.id.panel_gameplay);
 
         // Geral
         mSpLanguage   = findViewById(R.id.sp_language);
         mSpSurfaceRes = findViewById(R.id.sp_surface_resolution);
         mTvSaveStatus = findViewById(R.id.tv_save_status);
+        mCbAutoSave   = findViewById(R.id.cb_auto_save);
         mBtnExportSave = findViewById(R.id.btn_export_save);
         mBtnImportSave = findViewById(R.id.btn_import_save);
 
@@ -208,6 +231,7 @@ public final class TriAevumConfigDialog extends Dialog {
         mCustomDriverManager = new TriAevumCustomDriverManager(mActivity);
 
         // Mods Visuais
+        mCbDirectionalShadows = findViewById(R.id.cb_directional_shadows);
         mCbToonShading     = findViewById(R.id.cb_toon_shading);
         mCbToonOutline     = findViewById(R.id.cb_toon_outline);
         mLayoutToonOutline = findViewById(R.id.layout_toon_outline);
@@ -241,6 +265,23 @@ public final class TriAevumConfigDialog extends Dialog {
         mCbTouchScreen       = findViewById(R.id.cb_touch_screen);
         mCbJoystickRelCenter = findViewById(R.id.cb_joystick_rel_center);
         mCbDpadSlide         = findViewById(R.id.cb_dpad_slide);
+
+        // Gameplay Cheats
+        mCbInfiniteHealth   = findViewById(R.id.cb_infinite_health);
+        mCbInfiniteMagic    = findViewById(R.id.cb_infinite_magic);
+        mCbInfiniteRupees   = findViewById(R.id.cb_infinite_rupees);
+        mCbInfiniteAmmo     = findViewById(R.id.cb_infinite_ammo);
+        mBtnMaxHearts       = findViewById(R.id.btn_action_max_hearts);
+        mBtnHealFull        = findViewById(R.id.btn_action_heal_full);
+        mBtnMaxMagic        = findViewById(R.id.btn_action_max_magic);
+        mBtnMaxRupees       = findViewById(R.id.btn_action_max_rupees);
+        mBtnAllEquipment    = findViewById(R.id.btn_action_all_equipment);
+        mBtnAllMedallions   = findViewById(R.id.btn_action_all_medallions);
+        mSpSelectItem       = findViewById(R.id.sp_select_item);
+        mBtnAddSelectedItem = findViewById(R.id.btn_add_selected_item);
+        mBtnAddAllItems     = findViewById(R.id.btn_add_all_items);
+        mBtnDungeonKeys     = findViewById(R.id.btn_action_dungeon_keys);
+        mBtnAllSkulltulas   = findViewById(R.id.btn_action_all_skulltulas);
     }
 
     // -------------------------------------------------------------------------
@@ -272,6 +313,11 @@ public final class TriAevumConfigDialog extends Dialog {
             }
         }
         mSpSurfaceRes.setSelection(matchedResIdx);
+
+        // Auto Save
+        if (mCbAutoSave != null) {
+            mCbAutoSave.setChecked(mConfig.isAutoSaveEnabled());
+        }
 
         // Render scale
         setupSpinner(mSpRenderScale, TriAevumConfigManager.RENDER_SCALE_LABELS, null);
@@ -331,7 +377,17 @@ public final class TriAevumConfigDialog extends Dialog {
             + " vsync=" + mConfig.isVSync()
             + " customTex=" + mConfig.isCustomTexturesEnabled());
 
-        // Visual Mods (Toon, Grass, FOV)
+        // Visual Mods (Sombras, Toon, Grass, FOV)
+        if (mCbDirectionalShadows != null) {
+            mCbDirectionalShadows.setChecked(mConfig.isDirectionalShadowsEnabled());
+            mCbDirectionalShadows.setOnCheckedChangeListener((btn, isChecked) -> {
+                if (isChecked && !mConfig.isDirectionalShadowsSupported()) {
+                    Toast.makeText(getContext(),
+                        "Nota: Sombras dinâmicas exigem Vulkan 1.3 / Dynamic Rendering (Driver Turnip recomendado).",
+                        Toast.LENGTH_LONG).show();
+                }
+            });
+        }
         boolean toon = mConfig.isToonEnabled();
         boolean outline = mConfig.isToonOutlineEnabled();
         mCbToonShading.setChecked(toon);
@@ -496,6 +552,7 @@ public final class TriAevumConfigDialog extends Dialog {
 
         refreshSaveStatus();
         loadGpuDriversList();
+        loadGameplayCheats();
     }
 
     public void refreshSaveStatus() {
@@ -503,6 +560,107 @@ public final class TriAevumConfigDialog extends Dialog {
             String summary = TriAevumSaveManager.getSaveSummary(getContext());
             mTvSaveStatus.setText(summary);
         }
+    }
+
+    private void loadGameplayCheats() {
+        if (mCbInfiniteHealth != null) mCbInfiniteHealth.setChecked(mConfig.isInfiniteHealth());
+        if (mCbInfiniteMagic != null) mCbInfiniteMagic.setChecked(mConfig.isInfiniteMagic());
+        if (mCbInfiniteRupees != null) mCbInfiniteRupees.setChecked(mConfig.isInfiniteRupees());
+        if (mCbInfiniteAmmo != null) mCbInfiniteAmmo.setChecked(mConfig.isInfiniteAmmo());
+
+        if (mSpSelectItem != null) {
+            setupSpinner(mSpSelectItem, TriAevumConfigManager.CHEAT_ITEM_LABELS, null);
+        }
+
+        // Auto-sync toggles when checked
+        if (mCbInfiniteHealth != null) {
+            mCbInfiniteHealth.setOnCheckedChangeListener((btn, isChecked) -> syncGameplayCheats());
+        }
+        if (mCbInfiniteMagic != null) {
+            mCbInfiniteMagic.setOnCheckedChangeListener((btn, isChecked) -> syncGameplayCheats());
+        }
+        if (mCbInfiniteRupees != null) {
+            mCbInfiniteRupees.setOnCheckedChangeListener((btn, isChecked) -> syncGameplayCheats());
+        }
+        if (mCbInfiniteAmmo != null) {
+            mCbInfiniteAmmo.setOnCheckedChangeListener((btn, isChecked) -> syncGameplayCheats());
+        }
+
+        if (mBtnMaxHearts != null) {
+            mBtnMaxHearts.setOnClickListener(v -> {
+                mConfig.triggerCheatAction("max_hearts");
+                Toast.makeText(getContext(), "💖 20 Corações e Defesa Dupla aplicados!", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (mBtnHealFull != null) {
+            mBtnHealFull.setOnClickListener(v -> {
+                mConfig.triggerCheatAction("heal_full");
+                Toast.makeText(getContext(), "❤️ Vida completamente restaurada!", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (mBtnMaxMagic != null) {
+            mBtnMaxMagic.setOnClickListener(v -> {
+                mConfig.triggerCheatAction("max_magic");
+                Toast.makeText(getContext(), "✨ Barra de Magia Dupla liberada e cheia!", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (mBtnMaxRupees != null) {
+            mBtnMaxRupees.setOnClickListener(v -> {
+                mConfig.triggerCheatAction("max_rupees");
+                Toast.makeText(getContext(), "💎 Carteira Expandida com 500 Rúpias!", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (mBtnAllEquipment != null) {
+            mBtnAllEquipment.setOnClickListener(v -> {
+                mConfig.triggerCheatAction("all_equipment");
+                Toast.makeText(getContext(), "🛡️ Todas Espadas, Escudos, Túnicas e Botas liberados!", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (mBtnAllMedallions != null) {
+            mBtnAllMedallions.setOnClickListener(v -> {
+                mConfig.triggerCheatAction("all_medallions");
+                Toast.makeText(getContext(), "🏅 Todos os Medalhões e Pedras Espirituais obtidos!", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (mBtnAddSelectedItem != null && mSpSelectItem != null) {
+            mBtnAddSelectedItem.setOnClickListener(v -> {
+                int pos = mSpSelectItem.getSelectedItemPosition();
+                if (pos >= 0 && pos < TriAevumConfigManager.CHEAT_ITEM_KEYS.length) {
+                    String key = TriAevumConfigManager.CHEAT_ITEM_KEYS[pos];
+                    String label = TriAevumConfigManager.CHEAT_ITEM_LABELS[pos];
+                    mConfig.triggerCheatAction("item_" + key);
+                    Toast.makeText(getContext(), "➕ " + label + " adicionado ao inventário!", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        if (mBtnAddAllItems != null) {
+            mBtnAddAllItems.setOnClickListener(v -> {
+                mConfig.triggerCheatAction("all_items");
+                Toast.makeText(getContext(), "🎒 Todos os 24 itens colocados no inventário!", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (mBtnDungeonKeys != null) {
+            mBtnDungeonKeys.setOnClickListener(v -> {
+                mConfig.triggerCheatAction("dungeon_keys");
+                Toast.makeText(getContext(), "🗝️ Chaves, Chave do Chefe, Mapa e Bússola liberados!", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (mBtnAllSkulltulas != null) {
+            mBtnAllSkulltulas.setOnClickListener(v -> {
+                mConfig.triggerCheatAction("all_skulltulas");
+                Toast.makeText(getContext(), "🕷️ 100 Medalhões Skulltula Dourada concedidos!", Toast.LENGTH_SHORT).show();
+            });
+        }
+    }
+
+    private void syncGameplayCheats() {
+        if (mCbInfiniteHealth == null) return;
+        mConfig.saveGameplayCheats(
+            mCbInfiniteHealth.isChecked(),
+            mCbInfiniteMagic.isChecked(),
+            mCbInfiniteRupees.isChecked(),
+            mCbInfiniteAmmo.isChecked()
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -516,6 +674,9 @@ public final class TriAevumConfigDialog extends Dialog {
         mTabGraficos.setOnClickListener(v -> selectTab(mTabGraficos, mPanelGraficos));
         mTabCamera.setOnClickListener(v -> selectTab(mTabCamera, mPanelCamera));
         mTabControles.setOnClickListener(v -> selectTab(mTabControles, mPanelControles));
+        if (mTabGameplay != null && mPanelGameplay != null) {
+            mTabGameplay.setOnClickListener(v -> selectTab(mTabGameplay, mPanelGameplay));
+        }
     }
 
     private void selectTab(Button tab, View panel) {
@@ -534,6 +695,9 @@ public final class TriAevumConfigDialog extends Dialog {
         mPanelGraficos.setVisibility(View.GONE);
         mPanelCamera.setVisibility(View.GONE);
         mPanelControles.setVisibility(View.GONE);
+        if (mPanelGameplay != null) {
+            mPanelGameplay.setVisibility(View.GONE);
+        }
         panel.setVisibility(View.VISIBLE);
     }
 
@@ -631,6 +795,12 @@ public final class TriAevumConfigDialog extends Dialog {
                     mOverlay.resetControlPositions();
                     Toast.makeText(getContext(), "Posições dos controles restauradas para o padrão!", Toast.LENGTH_SHORT).show();
                 }
+            });
+        }
+
+        if (mCbAutoSave != null) {
+            mCbAutoSave.setOnCheckedChangeListener((v, isChecked) -> {
+                mConfig.setAutoSaveEnabled(isChecked);
             });
         }
 
@@ -855,6 +1025,15 @@ public final class TriAevumConfigDialog extends Dialog {
                 }
             }
 
+            if (mCbAutoSave != null) {
+                boolean autoSave = mCbAutoSave.isChecked();
+                Log.d(TAG, "  SET autoSaveEnabled -> " + autoSave);
+                mConfig.setAutoSaveEnabled(autoSave);
+            }
+
+            // Gameplay Cheats
+            syncGameplayCheats();
+
         // Gráficos
         int rsIdx = mSpRenderScale.getSelectedItemPosition();
         float rs = (rsIdx >= 0 && rsIdx < TriAevumConfigManager.RENDER_SCALE_VALUES.length)
@@ -891,6 +1070,7 @@ public final class TriAevumConfigDialog extends Dialog {
         }
 
         // Visual Mods
+        boolean dirShadows = mCbDirectionalShadows != null && mCbDirectionalShadows.isChecked();
         boolean toonEnabled = mCbToonShading.isChecked();
         boolean toonOutline = mCbToonOutline.isChecked();
         int grassIdx = mSpGrassQuality.getSelectedItemPosition();
@@ -898,8 +1078,8 @@ public final class TriAevumConfigDialog extends Dialog {
                 ? TriAevumConfigManager.GRASS_QUALITY_VALUES[grassIdx]
                 : "Off";
         float fovVal = 1.0f + (mSbFov.getProgress() * 0.05f);
-        Log.d(TAG, "  SET visual mods -> toon=" + toonEnabled + ", outline=" + toonOutline + ", grass=" + grassQuality + ", fov=" + fovVal);
-        mConfig.saveVisualMods(toonEnabled, toonOutline, grassQuality, fovVal);
+        Log.d(TAG, "  SET visual mods -> shadows=" + dirShadows + ", toon=" + toonEnabled + ", outline=" + toonOutline + ", grass=" + grassQuality + ", fov=" + fovVal);
+        mConfig.saveVisualMods(toonEnabled, toonOutline, grassQuality, fovVal, dirShadows);
 
         // Câmera / HUD
         Log.d(TAG, "  SET freeCamera -> " + mCbFreeCamera.isChecked());

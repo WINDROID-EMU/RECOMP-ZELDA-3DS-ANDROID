@@ -92,6 +92,77 @@ public final class TriAevumConfigManager {
     public static final String[] HUD_LAYOUT_LABELS  = { "Normal (Padrão)", "Restoration (MM3D)" };
     public static final String[] HUD_LAYOUT_VALUES  = { "normal",          "restoration"        };
 
+    // ------- gameplay_cheats.json ---
+    public static final String[] CHEAT_ITEM_LABELS = {
+        "Arco & Flechas",
+        "Flecha de Fogo",
+        "Flecha de Gelo",
+        "Flecha de Luz",
+        "Fogo de Din (Din's Fire)",
+        "Vento de Farore (Farore's Wind)",
+        "Amor de Nayru (Nayru's Love)",
+        "Bombas",
+        "Bombchus",
+        "Estilingue (Slingshot)",
+        "Bumerangue",
+        "Hookshot",
+        "Longshot",
+        "Martelo Megaton",
+        "Lente da Verdade (Lens of Truth)",
+        "Ocarina do Tempo",
+        "Feijões Mágicos",
+        "Pote Vazio",
+        "Pote com Fada",
+        "Pote com Poção Vermelha",
+        "Pote com Poção Azul",
+        "Pote com Fogo Azul",
+        "Espada Mestra (Master Sword)",
+        "Espada Biggoron",
+        "Escudo Hylian",
+        "Escudo Espelho (Mirror Shield)",
+        "Túnica Goron",
+        "Túnica Zora",
+        "Botas de Ferro (Iron Boots)",
+        "Botas Flutuantes (Hover Boots)",
+        "Luvas Douradas (Golden Gauntlets)",
+        "Escama Dourada (Golden Scale)"
+    };
+
+    public static final String[] CHEAT_ITEM_KEYS = {
+        "bow",
+        "fire_arrow",
+        "ice_arrow",
+        "light_arrow",
+        "dins_fire",
+        "farores_wind",
+        "nayrus_love",
+        "bombs",
+        "bombchus",
+        "slingshot",
+        "boomerang",
+        "hookshot",
+        "longshot",
+        "hammer",
+        "lens",
+        "ocarina_time",
+        "magic_beans",
+        "bottle_empty",
+        "bottle_fairy",
+        "bottle_red",
+        "bottle_blue",
+        "bottle_blue_fire",
+        "master_sword",
+        "biggoron_sword",
+        "hylian_shield",
+        "mirror_shield",
+        "goron_tunic",
+        "zora_tunic",
+        "iron_boots",
+        "hover_boots",
+        "golden_gauntlets",
+        "golden_scale"
+    };
+
     // -------------------------------------------------------------------------
 
     private final Context mContext;
@@ -103,6 +174,15 @@ public final class TriAevumConfigManager {
     }
 
     public static native void nativeReloadGraphicsSettings();
+    public static native boolean nativeIsDirectionalShadowsSupported();
+
+    public boolean isDirectionalShadowsSupported() {
+        try {
+            return nativeIsDirectionalShadowsSupported();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
 
     /**
      * Notifies the native engine to re-read and apply graphics settings live at runtime.
@@ -187,6 +267,89 @@ public final class TriAevumConfigManager {
         JSONObject obj = readJson("TriAevum.android.host.json");
         try { obj.put("maximum_surface_short_edge", value); } catch (JSONException ignored) {}
         writeJson("TriAevum.android.host.json", obj);
+    }
+
+    // =========================================================================
+    // Auto Save (auto_save.json)
+    // =========================================================================
+
+    public boolean isAutoSaveEnabled() {
+        JSONObject obj = readJson("auto_save.json");
+        if (obj == null) return true; // Ativo por padrão
+        return obj.optBoolean("auto_save_enabled", true);
+    }
+
+    public void setAutoSaveEnabled(boolean enabled) {
+        JSONObject obj = readJson("auto_save.json");
+        if (obj == null) obj = new JSONObject();
+        try {
+            obj.put("auto_save_enabled", enabled);
+        } catch (JSONException ignored) {}
+        writeJson("auto_save.json", obj);
+    }
+
+    // =========================================================================
+    // Gameplay Cheats (gameplay_cheats.json)
+    // =========================================================================
+
+    public boolean isInfiniteHealth() {
+        return readJson("gameplay_cheats.json").optBoolean("infinite_health", false);
+    }
+
+    public void setInfiniteHealth(boolean v) {
+        JSONObject obj = readJson("gameplay_cheats.json");
+        try { obj.put("infinite_health", v); } catch (JSONException ignored) {}
+        writeJson("gameplay_cheats.json", obj);
+    }
+
+    public boolean isInfiniteMagic() {
+        return readJson("gameplay_cheats.json").optBoolean("infinite_magic", false);
+    }
+
+    public void setInfiniteMagic(boolean v) {
+        JSONObject obj = readJson("gameplay_cheats.json");
+        try { obj.put("infinite_magic", v); } catch (JSONException ignored) {}
+        writeJson("gameplay_cheats.json", obj);
+    }
+
+    public boolean isInfiniteRupees() {
+        return readJson("gameplay_cheats.json").optBoolean("infinite_rupees", false);
+    }
+
+    public void setInfiniteRupees(boolean v) {
+        JSONObject obj = readJson("gameplay_cheats.json");
+        try { obj.put("infinite_rupees", v); } catch (JSONException ignored) {}
+        writeJson("gameplay_cheats.json", obj);
+    }
+
+    public boolean isInfiniteAmmo() {
+        return readJson("gameplay_cheats.json").optBoolean("infinite_ammo", false);
+    }
+
+    public void setInfiniteAmmo(boolean v) {
+        JSONObject obj = readJson("gameplay_cheats.json");
+        try { obj.put("infinite_ammo", v); } catch (JSONException ignored) {}
+        writeJson("gameplay_cheats.json", obj);
+    }
+
+    public void saveGameplayCheats(boolean infHealth, boolean infMagic, boolean infRupees, boolean infAmmo) {
+        JSONObject obj = readJson("gameplay_cheats.json");
+        try {
+            obj.put("infinite_health", infHealth);
+            obj.put("infinite_magic", infMagic);
+            obj.put("infinite_rupees", infRupees);
+            obj.put("infinite_ammo", infAmmo);
+        } catch (JSONException ignored) {}
+        writeJson("gameplay_cheats.json", obj);
+    }
+
+    public void triggerCheatAction(String action) {
+        JSONObject obj = readJson("gameplay_cheats.json");
+        try {
+            obj.put("pending_action", action);
+        } catch (JSONException ignored) {}
+        writeJson("gameplay_cheats.json", obj);
+        Log.i(TAG, "Triggered gameplay cheat action: " + action);
     }
 
     // =========================================================================
@@ -503,6 +666,44 @@ public final class TriAevumConfigManager {
         writeJson("oot3d_native_game.json", root);
     }
 
+    public boolean isDirectionalShadowsEnabled() {
+        JSONObject fx = getGraphics().optJSONObject("Effects");
+        if (fx == null) return false;
+        JSONObject shadows = fx.optJSONObject("DirectionalShadows");
+        if (shadows == null) return false;
+        String mode = shadows.optString("Mode", "Off");
+        return !"Off".equalsIgnoreCase(mode);
+    }
+
+    public void setDirectionalShadowsEnabled(boolean enabled) {
+        JSONObject root = readJson("oot3d_native_game.json");
+        try {
+            JSONObject gfx = getOrCreateGraphics(root);
+            gfx.put("Preset", "Custom");
+            JSONObject fx = gfx.optJSONObject("Effects");
+            if (fx == null) fx = new JSONObject();
+            JSONObject shadows = fx.optJSONObject("DirectionalShadows");
+            if (shadows == null) shadows = new JSONObject();
+            if (enabled) {
+                shadows.put("Mode", "SingleCascade");
+                shadows.put("Resolution", 1024);
+                shadows.put("MaximumDistance", 2400.0);
+                shadows.put("DepthPadding", 300.0);
+                shadows.put("DepthBiasConstant", 1.25);
+                shadows.put("DepthBiasSlope", 1.75);
+                shadows.put("Strength", 0.80);
+                shadows.put("PcfRadius", 1);
+                shadows.put("Stabilize", true);
+            } else {
+                shadows.put("Mode", "Off");
+            }
+            fx.put("DirectionalShadows", shadows);
+            gfx.put("Effects", fx);
+            root.put("Graphics", gfx);
+        } catch (JSONException ignored) {}
+        writeJson("oot3d_native_game.json", root);
+    }
+
     public String getGrassQuality() {
         JSONObject grass = getGraphics().optJSONObject("Grass");
         if (grass == null) return "Off";
@@ -541,9 +742,9 @@ public final class TriAevumConfigManager {
         rootColor.put(0.0988); rootColor.put(0.19); rootColor.put(0.035);
         appearance.put("RootColor", rootColor);
         appearance.put("ShapeVariation", 0.38);
-        appearance.put("TextureColorInfluence", 0.75);
-        appearance.put("TextureRootBrightness", 1.01);
-        appearance.put("TextureTipBrightness", 1.74);
+        appearance.put("TextureColorInfluence", 0.50);
+        appearance.put("TextureRootBrightness", 0.65);
+        appearance.put("TextureTipBrightness", 1.15);
         JSONArray tipColor = new JSONArray();
         tipColor.put(0.1906); tipColor.put(0.72); tipColor.put(0.12);
         appearance.put("TipColor", tipColor);
@@ -694,21 +895,27 @@ public final class TriAevumConfigManager {
     }
 
     public void saveVisualMods(boolean toonEnabled, boolean toonOutline, String grassQuality, float fovMultiplier) {
+        saveVisualMods(toonEnabled, toonOutline, grassQuality, fovMultiplier, isDirectionalShadowsEnabled());
+    }
+
+    public void saveVisualMods(boolean toonEnabled, boolean toonOutline, String grassQuality, float fovMultiplier, boolean directionalShadows) {
         JSONObject root = readJson("oot3d_native_game.json");
         try {
             JSONObject gfx = getOrCreateGraphics(root);
             gfx.put("Preset", "Custom");
 
-            // Toon
+            // Toon (PicaMaterial is the authentic native PICA material cel-shading)
             JSONObject fx = gfx.optJSONObject("Effects");
             if (fx == null) fx = new JSONObject();
             JSONObject toon = fx.optJSONObject("Toon");
             if (toon == null) toon = new JSONObject();
             if (toonEnabled) {
-                toon.put("Mode", "PostProcessPreview");
+                toon.put("Mode", "PicaMaterial");
                 toon.put("LightBands", 4);
-                toon.put("BandSoftness", 0.15);
-                toon.put("Saturation", 1.09);
+                toon.put("CustomLightBands", false);
+                toon.put("BandSoftness", 0.20);
+                toon.put("Saturation", 1.05);
+                toon.put("ShadowStrength", 0.85);
                 toon.put("RimStrength", 0.34);
                 toon.put("RimWidth", 3.17);
                 toon.put("OutlineEnabled", toonOutline);
@@ -719,6 +926,24 @@ public final class TriAevumConfigManager {
                 toon.put("OutlineEnabled", false);
             }
             fx.put("Toon", toon);
+
+            // Sombras Direcionais Dinâmicas (Directional Shadows)
+            JSONObject shadows = fx.optJSONObject("DirectionalShadows");
+            if (shadows == null) shadows = new JSONObject();
+            if (directionalShadows) {
+                shadows.put("Mode", "SingleCascade");
+                shadows.put("Resolution", 1024);
+                shadows.put("MaximumDistance", 2400.0);
+                shadows.put("DepthPadding", 300.0);
+                shadows.put("DepthBiasConstant", 1.25);
+                shadows.put("DepthBiasSlope", 1.75);
+                shadows.put("Strength", 0.80);
+                shadows.put("PcfRadius", 1);
+                shadows.put("Stabilize", true);
+            } else {
+                shadows.put("Mode", "Off");
+            }
+            fx.put("DirectionalShadows", shadows);
             gfx.put("Effects", fx);
 
             // Grass

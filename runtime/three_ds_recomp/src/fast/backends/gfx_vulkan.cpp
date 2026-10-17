@@ -959,6 +959,13 @@ void GfxRenderingAPIVulkan::Init() {
                                   mNriInterop.UnavailableReason());
     settingsRuntime.SetCapability(Oot3d::GraphicsCapability::NriDirectionalShadows,
                                   mNriDirectionalShadowPass.Available(), mNriDirectionalShadowPass.UnavailableReason());
+#if defined(__ANDROID__)
+    __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+        "Vulkan Init Capabilities: NriInterop=%d ('%s'), NriDirectionalShadows=%d ('%s'), sync2=%d, dynRender=%d",
+        (int)mNriInterop.Available(), mNriInterop.UnavailableReason().c_str(),
+        (int)mNriDirectionalShadowPass.Available(), mNriDirectionalShadowPass.UnavailableReason().c_str(),
+        (int)mSynchronization2Enabled, (int)mDynamicRenderingEnabled);
+#endif
     settingsRuntime.SetCapability(Oot3d::GraphicsCapability::SampledSceneColor, true);
     settingsRuntime.SetCapability(Oot3d::GraphicsCapability::SampledDepth, true);
     settingsRuntime.SetCapability(Oot3d::GraphicsCapability::NormalGuide, true);
@@ -1328,6 +1335,7 @@ bool GfxRenderingAPIVulkan::ApplyPresentationSettings(const Oot3d::TitlePresenta
     }
 
     const auto apply = [&](const Oot3d::TitlePresentationSettingsView& value, bool allowInjectedFailure) {
+#if !defined(__ANDROID__)
         const bool fullscreen = value.WindowMode != 0U;
         const bool borderless = value.WindowMode == 1U;
         const bool currentlyBorderless = mWindowBackend->IsWindowedFullscreen();
@@ -1362,6 +1370,7 @@ bool GfxRenderingAPIVulkan::ApplyPresentationSettings(const Oot3d::TitlePresenta
         if (fullscreen && mWindowBackend->IsWindowedFullscreen() != borderless) {
             throw std::runtime_error("SDL rejected the requested fullscreen flavor");
         }
+#endif
         mVsyncEnabled = value.VSync;
         mSwapchainDirty = true;
         RecreateSwapchain();
@@ -1540,7 +1549,7 @@ void GfxRenderingAPIVulkan::StartFrame() {
                 candidate.Grass.WindDirectionDegrees = 35.0F;
                 candidate.Grass.WindStrength = 0.5F;
                 candidate.Grass.WindSpeed = 1.2F;
-                settingsRuntime.Apply(std::move(candidate));
+                settingsRuntime.Apply(std::move(candidate), false);
             }
         }
     }
@@ -2624,6 +2633,15 @@ void GfxRenderingAPIVulkan::CreateLogicalDevice() {
         hasVulkan12 && hasSynchronization2Extension && synchronization2.synchronization2 == VK_TRUE;
     mDynamicRenderingEnabled =
         hasVulkan12 && hasDynamicRenderingExtension && dynamicRendering.dynamicRendering == VK_TRUE;
+#if defined(__ANDROID__)
+    __android_log_print(ANDROID_LOG_INFO, "TriAevum",
+        "Vulkan Features: apiVer=%u.%u.%u, hasV12=%d, hasSync2Ext=%d, sync2Feat=%d, hasDynRendExt=%d, dynRendFeat=%d",
+        VK_VERSION_MAJOR(deviceProperties.apiVersion),
+        VK_VERSION_MINOR(deviceProperties.apiVersion),
+        VK_VERSION_PATCH(deviceProperties.apiVersion),
+        (int)hasVulkan12, (int)hasSynchronization2Extension, (int)synchronization2.synchronization2,
+        (int)hasDynamicRenderingExtension, (int)dynamicRendering.dynamicRendering);
+#endif
     if (mSynchronization2Enabled)
         extensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
     if (mDynamicRenderingEnabled)

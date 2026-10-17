@@ -160,6 +160,18 @@
                     android:textSize="12sp"
                     android:gravity="center_vertical|left"
                     android:paddingLeft="12dp" />
+
+                <Button
+                    android:id="@+id/tab_gameplay"
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:layout_marginBottom="3dp"
+                    android:text="⚔️  Gameplay"
+                    android:textColor="#8B9BB4"
+                    android:background="@drawable/btn_dark"
+                    android:textSize="12sp"
+                    android:gravity="center_vertical|left"
+                    android:paddingLeft="12dp" />
             </LinearLayout>
         </ScrollView>
 
@@ -299,6 +311,48 @@
                                 android:text="Verificando arquivos de save..."
                                 android:textColor="#C8D8E8"
                                 android:textSize="11sp" />
+                        </LinearLayout>
+
+                        <!-- Auto Save Automático Toggle -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:background="@drawable/btn_dark"
+                            android:paddingLeft="10dp"
+                            android:paddingRight="10dp"
+                            android:paddingTop="8dp"
+                            android:paddingBottom="8dp"
+                            android:layout_marginBottom="10dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Auto Save Automático"
+                                    android:textColor="#C8D8E8"
+                                    android:textSize="12sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Salva sozinho ao coletar chaves, itens, rúpias e equipamentos."
+                                    android:textColor="#8B9BB4"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+
+                            <CheckBox
+                                android:id="@+id/cb_auto_save"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:buttonTint="#FFD700" />
                         </LinearLayout>
 
                         <!-- Botões de Ação: Exportar e Importar -->
@@ -621,6 +675,38 @@
                             android:textSize="11sp"
                             android:textStyle="bold"
                             android:layout_marginBottom="10dp" />
+
+                        <!-- Sombras Direcionais Dinâmicas (Sol em Tempo Real) -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="10dp">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical"
+                                android:layout_gravity="center_vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Sombras Dinâmicas (Iluminação Solar)"
+                                    android:textColor="#C8D8E8"
+                                    android:textSize="12sp" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Projeção realista de sombras do Link e do cenário com o sol"
+                                    android:textColor="#8B9BB4"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+                            <CheckBox
+                                android:id="@+id/cb_directional_shadows"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:buttonTint="#FFD700" />
+                        </LinearLayout>
 
                         <!-- Cel-Shading / Toon -->
                         <LinearLayout
@@ -1081,6 +1167,385 @@
                                 android:paddingLeft="12dp"
                                 android:paddingRight="12dp"
                                 android:text="↺ Padrão"
+                                android:textColor="#FFFFFF"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                </LinearLayout>
+            </ScrollView>
+
+            <!-- Panel: Gameplay (Trapaças, Vantagens & Injetor de Itens) -->
+            <ScrollView
+                android:id="@+id/panel_gameplay"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="4dp">
+
+                    <!-- Card 1: Vantagens e Status Infinito -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/card_bg"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="STATUS INFINITO (VANTAGENS ATIVAS)"
+                            android:textColor="#FFC107"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="10dp" />
+
+                        <!-- Vida Infinita -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="10dp">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="❤️  Vida Infinita (Invencível)"
+                                    android:textColor="#C8D8E8"
+                                    android:textSize="12sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Link não morre e a vida se mantém sempre cheia."
+                                    android:textColor="#8B9BB4"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+                            <CheckBox
+                                android:id="@+id/cb_infinite_health"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:buttonTint="#FFD700" />
+                        </LinearLayout>
+
+                        <!-- Magia Infinita -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="10dp">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="💚  Magia Infinita"
+                                    android:textColor="#C8D8E8"
+                                    android:textSize="12sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="A barra de magia nunca se esgota."
+                                    android:textColor="#8B9BB4"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+                            <CheckBox
+                                android:id="@+id/cb_infinite_magic"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:buttonTint="#FFD700" />
+                        </LinearLayout>
+
+                        <!-- Rúpias Infinitas -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="10dp">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="💎  Rúpias Infinitas (500)"
+                                    android:textColor="#C8D8E8"
+                                    android:textSize="12sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Mantém 500 rúpias na carteira permanentemente."
+                                    android:textColor="#8B9BB4"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+                            <CheckBox
+                                android:id="@+id/cb_infinite_rupees"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:buttonTint="#FFD700" />
+                        </LinearLayout>
+
+                        <!-- Munição Infinita -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="🏹  Munição Infinita"
+                                    android:textColor="#C8D8E8"
+                                    android:textSize="12sp"
+                                    android:textStyle="bold" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Flechas, bombas, bombchus e sementes não acabam."
+                                    android:textColor="#8B9BB4"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+                            <CheckBox
+                                android:id="@+id/cb_infinite_ammo"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:buttonTint="#FFD700" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Card 2: Ações Instantâneas de Vida e Magia -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/card_bg"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="AÇÕES INSTANTÂNEAS DE VIDA &amp; STATUS"
+                            android:textColor="#FFC107"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="8dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="8dp">
+
+                            <Button
+                                android:id="@+id/btn_action_max_hearts"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:layout_marginRight="6dp"
+                                android:background="@drawable/btn_gold"
+                                android:text="💖 20 Corações"
+                                android:textColor="#1A1500"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                            <Button
+                                android:id="@+id/btn_action_heal_full"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/btn_dark"
+                                android:text="❤️ Encher Vida"
+                                android:textColor="#FFFFFF"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="8dp">
+
+                            <Button
+                                android:id="@+id/btn_action_max_magic"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:layout_marginRight="6dp"
+                                android:background="@drawable/btn_dark"
+                                android:text="✨ Barra Magia Dupla"
+                                android:textColor="#FFFFFF"
+                                android:textSize="11sp" />
+
+                            <Button
+                                android:id="@+id/btn_action_max_rupees"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/btn_dark"
+                                android:text="💎 500 Rúpias"
+                                android:textColor="#FFFFFF"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <Button
+                                android:id="@+id/btn_action_all_equipment"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:layout_marginRight="6dp"
+                                android:background="@drawable/btn_dark"
+                                android:text="🛡️ Todas as Armas"
+                                android:textColor="#FFFFFF"
+                                android:textSize="11sp" />
+
+                            <Button
+                                android:id="@+id/btn_action_all_medallions"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/btn_dark"
+                                android:text="🏅 Todos Medalhões"
+                                android:textColor="#FFFFFF"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Card 3: Seleção e Injeção de Itens no Inventário -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/card_bg"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="SELECIONAR ITENS PARA ADICIONAR AO INVENTÁRIO"
+                            android:textColor="#FFC107"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="6dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Escolha qualquer item abaixo e clique em Adicionar para colocar diretamente no inventário de Link:"
+                            android:textColor="#8B9BB4"
+                            android:textSize="10sp"
+                            android:layout_marginBottom="8dp" />
+
+                        <Spinner
+                            android:id="@+id/sp_select_item"
+                            android:layout_width="match_parent"
+                            android:layout_height="38dp"
+                            android:background="@drawable/btn_dark"
+                            android:paddingLeft="10dp"
+                            android:paddingRight="10dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <Button
+                                android:id="@+id/btn_add_selected_item"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:layout_marginRight="6dp"
+                                android:background="@drawable/btn_gold"
+                                android:text="➕ Adicionar Este Item"
+                                android:textColor="#1A1500"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                            <Button
+                                android:id="@+id/btn_add_all_items"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/btn_dark"
+                                android:text="🎒 Todos os 24 Itens"
+                                android:textColor="#FFFFFF"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Card 4: Calabouços & Skulltulas -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/card_bg"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="CALABOUÇOS &amp; SKULLTULAS"
+                            android:textColor="#FFC107"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:layout_marginBottom="8dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <Button
+                                android:id="@+id/btn_action_dungeon_keys"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:layout_marginRight="6dp"
+                                android:background="@drawable/btn_dark"
+                                android:text="🗝️ Chaves &amp; Mapa do Calabouço"
+                                android:textColor="#FFFFFF"
+                                android:textSize="10sp" />
+
+                            <Button
+                                android:id="@+id/btn_action_all_skulltulas"
+                                android:layout_width="0dp"
+                                android:layout_height="38dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/btn_dark"
+                                android:text="💀 100 Skulltulas"
                                 android:textColor="#FFFFFF"
                                 android:textSize="11sp" />
                         </LinearLayout>

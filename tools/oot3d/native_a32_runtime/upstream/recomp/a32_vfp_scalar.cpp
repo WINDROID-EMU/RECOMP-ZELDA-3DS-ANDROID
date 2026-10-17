@@ -113,13 +113,20 @@ constexpr Control ControlFromFpscr(std::uint32_t fpscr) noexcept {
     };
 }
 
-unsigned BitLength(std::uint64_t value) noexcept {
+inline unsigned BitLength(std::uint64_t value) noexcept {
+#if defined(__GNUC__) || defined(__clang__)
+    return value == 0U ? 0U : 64U - static_cast<unsigned>(__builtin_clzll(value));
+#elif defined(_MSC_VER)
+    unsigned long index = 0;
+    return _BitScanReverse64(&index, value) ? static_cast<unsigned>(index + 1) : 0U;
+#else
     unsigned length = 0U;
     while (value != 0U) {
         ++length;
         value >>= 1U;
     }
     return length;
+#endif
 }
 
 std::uint64_t ShiftRightJam(std::uint64_t value, unsigned shift) noexcept {

@@ -60,7 +60,7 @@ if(TRIAEVUM_TRANSLATED_TITLE_DIR)
     option(TRIAEVUM_ANDROID_TITLE_DEBUG_INFO "Emit large translated-title debug information" OFF)
     target_compile_options(triaevum_android_title PRIVATE -O${TRIAEVUM_ANDROID_TITLE_OPTIMIZATION} -ffp-model=strict
         $<$<NOT:$<BOOL:${TRIAEVUM_ANDROID_TITLE_DEBUG_INFO}>>:-g0>)
-    target_compile_options(triaevum_title_whole_aot_support PRIVATE -O2 -ffp-model=strict)
+    target_compile_options(triaevum_title_whole_aot_support PRIVATE -O3 -ffp-model=strict)
     target_link_libraries(triaevum_android_title PRIVATE triaevum_title_whole_aot_support)
     target_link_options(triaevum_android_title PRIVATE -Wl,--no-undefined -Wl,-z,max-page-size=16384)
     set_target_properties(triaevum_android_title PROPERTIES OUTPUT_NAME triaevum_title_aot

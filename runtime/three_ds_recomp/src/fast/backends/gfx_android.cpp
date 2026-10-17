@@ -343,7 +343,7 @@ const char* GfxWindowBackendAndroid::GetKeyName(int scancode) {
 }
 
 bool GfxWindowBackendAndroid::CanDisableVsync() {
-    return false;
+    return true;
 }
 
 bool GfxWindowBackendAndroid::IsRunning() {

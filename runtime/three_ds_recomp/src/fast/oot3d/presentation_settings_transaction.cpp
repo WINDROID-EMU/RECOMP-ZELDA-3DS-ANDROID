@@ -27,8 +27,12 @@ void SetPresentationSettings(
 bool RequiresPresentationConfirmation(
     const PresentationSettingsValue& currentApplied,
     const PresentationSettingsValue& requested) {
+#if defined(__ANDROID__)
+    return false;
+#else
     return currentApplied.Window != requested.Window ||
            requested.Window == WindowMode::ExclusiveFullscreen;
+#endif
 }
 
 PresentationSettingsTransaction::PresentationSettingsTransaction(

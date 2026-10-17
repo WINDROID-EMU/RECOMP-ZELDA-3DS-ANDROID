@@ -81,26 +81,34 @@ class NativeA32Memory final : public oot3d::recomp::a32::MemoryBus {
                 reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
     }
 
+#if defined(__GNUC__) || defined(__clang__)
+#define OOT3D_A32_ALWAYS_INLINE inline __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define OOT3D_A32_ALWAYS_INLINE inline __forceinline
+#else
+#define OOT3D_A32_ALWAYS_INLINE inline
+#endif
+
     // AOT code uses these non-virtual typed paths. Fully mapped guest pages
     // become one indexed host load; boundaries and protected pages preserve
     // the exact checked-memory behavior.
     template <typename T>
-    bool ReadFast(uint32_t address, T* value,
+    [[nodiscard]] OOT3D_A32_ALWAYS_INLINE bool ReadFast(uint32_t address, T* value,
                   uint32_t* faultAddress = nullptr) const noexcept {
         static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>);
         static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
                       sizeof(T) == 8);
         static_assert(std::endian::native == std::endian::little);
-        if (value == nullptr) {
+        if (value == nullptr) [[unlikely]] {
             return false;
         }
         const size_t group = address >> FastGroupShift;
         const size_t page = (address >> PageShift) & FastGroupPageMask;
         const size_t offset = address & PageMask;
         if (offset <= PageSize - sizeof(T) &&
-            mFastPageGroups[group] != nullptr) {
+            mFastPageGroups[group] != nullptr) [[likely]] {
             const uint8_t* source = mFastPageGroups[group][page].Read;
-            if (source != nullptr) {
+            if (source != nullptr) [[likely]] {
                 std::memcpy(value, source + offset, sizeof(T));
                 if (mTraceWriteFingerprint) [[unlikely]] {
                     uint64_t checked = 0;
@@ -126,7 +134,7 @@ class NativeA32Memory final : public oot3d::recomp::a32::MemoryBus {
     }
 
     template <typename T>
-    bool WriteFast(uint32_t address, T value,
+    OOT3D_A32_ALWAYS_INLINE bool WriteFast(uint32_t address, T value,
                    uint32_t* faultAddress = nullptr) noexcept {
         static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>);
         static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
@@ -136,9 +144,9 @@ class NativeA32Memory final : public oot3d::recomp::a32::MemoryBus {
         const size_t page = (address >> PageShift) & FastGroupPageMask;
         const size_t offset = address & PageMask;
         if (offset <= PageSize - sizeof(T) &&
-            mFastPageGroups[group] != nullptr) {
+            mFastPageGroups[group] != nullptr) [[likely]] {
             uint8_t* destination = mFastPageGroups[group][page].Write;
-            if (destination != nullptr) {
+            if (destination != nullptr) [[likely]] {
                 std::memcpy(destination + offset, &value, sizeof(T));
                 if (mTraceWriteFingerprint) [[unlikely]] {
                     RecordTracedWrite(

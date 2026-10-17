@@ -202,18 +202,42 @@ Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
       const auto loaded = Fast::Oot3d::LoadGraphicsSettingsConfig(root, runtime.Snapshot());
       if (loaded.Found && !loaded.UnsupportedFutureVersion) {
         auto settingsToApply = loaded.Value;
+        settingsToApply.Window = runtime.Snapshot().Window;
+        settingsToApply.OutputWidth = runtime.Snapshot().OutputWidth;
+        settingsToApply.OutputHeight = runtime.Snapshot().OutputHeight;
         if (settingsToApply.InternalResolutionScale != 1.0f ||
             settingsToApply.AntiAliasing != Fast::Oot3d::AntiAliasingMode::Off ||
             settingsToApply.FrameRate != Fast::Oot3d::FrameRateMode::Original30 ||
             settingsToApply.Grass.Quality != Fast::Oot3d::GrassQuality::Off ||
-            settingsToApply.Effects.Toon != Fast::Oot3d::ToonMode::Off) {
+            settingsToApply.Effects.Toon != Fast::Oot3d::ToonMode::Off ||
+            settingsToApply.Effects.DirectionalShadows.Mode != Fast::Oot3d::DirectionalShadowMode::Off) {
           settingsToApply.Preset = Fast::Oot3d::GraphicsPreset::Custom;
         }
         if (runtime.NativePresentationOverrideActive()) {
           runtime.ToggleNativePresentationOverride();
         }
         setenv("OOT3D_GRAPHICS_GRASS_AUTO", "1", 0);
-        runtime.Apply(settingsToApply, true);
+
+        const auto &caps = runtime.Capabilities();
+        __android_log_print(
+            ANDROID_LOG_INFO, "TriAevum",
+            "Live reload capabilities: NriInterop=%d ('%s'), NriDirectionalShadows=%d ('%s')",
+            (int)caps.Has(Fast::Oot3d::GraphicsCapability::NriInterop),
+            caps.Get(Fast::Oot3d::GraphicsCapability::NriInterop).Reason.c_str(),
+            (int)caps.Has(Fast::Oot3d::GraphicsCapability::NriDirectionalShadows),
+            caps.Get(Fast::Oot3d::GraphicsCapability::NriDirectionalShadows).Reason.c_str());
+        __android_log_print(
+            ANDROID_LOG_INFO, "TriAevum",
+            "Live reload candidate DirectionalShadows.Mode=%d",
+            static_cast<int>(settingsToApply.Effects.DirectionalShadows.Mode));
+
+        auto valResult = runtime.Apply(settingsToApply, false);
+        for (const auto &issue : valResult.Issues) {
+          __android_log_print(
+              ANDROID_LOG_WARN, "TriAevum",
+              "Live reload validation issue: field='%s' msg='%s' corrected=%d",
+              issue.Field.c_str(), issue.Message.c_str(), (int)issue.Corrected);
+        }
         ::Oot3d::Renderer::AzaharTexturePackRuntime::Instance().Configure({
             .DumpTextures = loaded.Value.TexturePacks.Azahar.DumpTextures,
             .LoadCustomTextures = loaded.Value.TexturePacks.Azahar.LoadCustomTextures,
@@ -238,6 +262,13 @@ Java_org_triaevum_android_TriAevumConfigManager_nativeReloadGraphicsSettings(
   }
 
   NotifyAndroidTopScreenConfigChanged();
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_triaevum_android_TriAevumConfigManager_nativeIsDirectionalShadowsSupported(
+    JNIEnv * /*env*/, jclass /*clazz*/) {
+  auto &runtime = Fast::Oot3d::GraphicsSettingsRuntime::Instance();
+  return runtime.Capabilities().Has(Fast::Oot3d::GraphicsCapability::NriDirectionalShadows) ? JNI_TRUE : JNI_FALSE;
 }
 
 // Native activity lifecycle and surface management (replacing SDLActivity)
@@ -272,10 +303,15 @@ Java_org_triaevum_android_TriAevumActivity_nativeInitCustomDriver(
     return JNI_FALSE;
   }
 
+  if (sDriverDir.back() != '/') {
+    sDriverDir += '/';
+  }
+
   __android_log_print(ANDROID_LOG_INFO, "TriAevum",
                       "nativeInitCustomDriver: Initializing adrenotools for driver '%s' at '%s' (hookDir='%s', tmpDir='%s')",
                       sDriverName.c_str(), sDriverDir.c_str(), sHookDir.c_str(), sTmpDir.c_str());
 
+  dlerror(); // Clear any existing dlerror
   void *handle = adrenotools_open_libvulkan(
       RTLD_NOW,
       ADRENOTOOLS_DRIVER_CUSTOM,
@@ -292,9 +328,10 @@ Java_org_triaevum_android_TriAevumActivity_nativeInitCustomDriver(
                         "SUCCESS: Custom Turnip Vulkan driver loaded via adrenotools: handle=%p", handle);
     return JNI_TRUE;
   } else {
+    const char *err = dlerror();
     __android_log_print(ANDROID_LOG_ERROR, "TriAevum",
-                        "FAILED: adrenotools_open_libvulkan returned null for '%s'! Reverting to System Vulkan Driver.",
-                        sDriverName.c_str());
+                        "FAILED: adrenotools_open_libvulkan returned null for '%s'! dlerror='%s'. Reverting to System Vulkan Driver.",
+                        sDriverName.c_str(), err ? err : "none");
     return JNI_FALSE;
   }
 }

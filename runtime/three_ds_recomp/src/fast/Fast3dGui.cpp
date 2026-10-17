@@ -70,9 +70,15 @@ class Oot3dGraphicsSettingsPersistence final
     }
 
     bool StoreGraphics(const nlohmann::json& graphics) override {
+#if defined(__ANDROID__)
+        // On Android, graphics settings persistence is exclusively managed by TriAevumConfigManager in Java.
+        // The engine's internal validation must not overwrite user preferences on disk.
+        return true;
+#else
         auto* context = Ship::Context::GetRawInstance();
         return context != nullptr && context->GetConfig() != nullptr &&
             context->GetConfig()->SetBlock("Graphics", graphics);
+#endif
     }
 };
 

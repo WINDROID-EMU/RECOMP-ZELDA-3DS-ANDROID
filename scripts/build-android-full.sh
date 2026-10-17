@@ -77,6 +77,7 @@ echo "          TriAevum Android ARM64 - Pipeline de Build Mestre           "
 echo "======================================================================"
 
 # 1. Localização do Android SDK e NDK
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 NDK="${ANDROID_NDK_ROOT:-${ANDROID_NDK_HOME:-${NDK:-}}}"
 if [ -z "$NDK" ] || [ ! -d "$NDK" ]; then
     for candidate in \
@@ -106,16 +107,20 @@ mkdir -p "$REPO_ROOT/dist"
 # 2. Geração dos Shards C++ da ROM (se necessário)
 if [ "$SKIP_TITLE_GEN" -eq 0 ]; then
     if [ ! -f "$TITLE_SOURCES/TITLE_SOURCE_MANIFEST.json" ]; then
-        echo ""
-        echo ">>> [1/5] Gerando fontes C++ AOT a partir da ROM..."
-        ROM_ARG=""
-        if [ -n "$ROM_PATH" ]; then
-            ROM_ARG="--rom $ROM_PATH"
+        if [ -f "$REPO_ROOT/source.zip" ]; then
+            echo "ℹ️  Descompactando shards C++ pré-gerados a partir de source.zip..."
+            mkdir -p "$TITLE_SOURCES"
+            unzip -q -o "$REPO_ROOT/source.zip" -d "$TITLE_SOURCES"
+        else
+            ROM_ARG=""
+            if [ -n "$ROM_PATH" ]; then
+                ROM_ARG="--rom $ROM_PATH"
+            fi
+            python3 "$REPO_ROOT/tools/android/generate_title_from_rom.py" \
+                $ROM_ARG \
+                --work-dir "$BUILD_DIR/work-ir" \
+                --output "$TITLE_SOURCES"
         fi
-        python3 "$REPO_ROOT/tools/android/generate_title_from_rom.py" \
-            $ROM_ARG \
-            --work-dir "$BUILD_DIR/work-ir" \
-            --output "$TITLE_SOURCES"
     else
         echo "ℹ️  Fontes C++ já existem em $TITLE_SOURCES (pulando extração. Use sem --skip-title-gen ou apague a pasta para forçar re-extração)."
     fi
@@ -150,7 +155,7 @@ cmake -S "$REPO_ROOT/ports/android/native" -B "$BUILD_DIR/native_title" -G Ninja
   -DCMAKE_BUILD_TYPE=Release \
   -DTRIAEVUM_ANDROID_BUILD_NRI=OFF \
   -DTRIAEVUM_TRANSLATED_TITLE_DIR="$TITLE_SOURCES" \
-  -DTRIAEVUM_ANDROID_TITLE_OPTIMIZATION=1 \
+  -DTRIAEVUM_ANDROID_TITLE_OPTIMIZATION=2 \
   -DTRIAEVUM_ANDROID_TITLE_DEBUG_INFO=OFF
 ninja -C "$BUILD_DIR/native_title" -j "$JOBS" triaevum_android_title
 
