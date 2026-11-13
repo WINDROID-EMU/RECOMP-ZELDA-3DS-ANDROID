@@ -75,6 +75,12 @@ public final class TriAevumActivity extends Activity {
     private TriAevumSurface mSurface;
     private WindroidVirtualControllerView mWindroidOverlay;
     private AndroidNativeInputTarget mInputTarget;
+    // Último estado do hat (D-pad analógico) e dos gatilhos analógicos, para só enviar transições
+    // e não sobrescrever botões que o mesmo controle também envia como KeyEvent.
+    private int mHatX = 0;
+    private int mHatY = 0;
+    private boolean mAxisL2Down = false;
+    private boolean mAxisR2Down = false;
     private Thread mGameThread;
     private boolean mGameStarted = false;
 
@@ -643,6 +649,14 @@ public final class TriAevumActivity extends Activity {
                     return super.dispatchKeyEvent(event);
                 }
             }
+            // O Android (ViewRootImpl.SyntheticJoystickHandler) converte o analógico/hat de um
+            // joystick em KEYCODE_DPAD_* com FLAG_FALLBACK quando o MotionEvent não é consumido.
+            // Isso fazia o analógico "virar" D-pad. O analógico já é tratado em
+            // onGenericMotionEvent, então esses DPADs sintéticos são descartados.
+            if (isDpadKeyCode(keyCode)
+                    && (event.getFlags() & android.view.KeyEvent.FLAG_FALLBACK) != 0) {
+                return true;
+            }
             int hidMask = getHidMaskForKeyCode(keyCode);
             if (hidMask != 0) {
                 if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
@@ -660,45 +674,85 @@ public final class TriAevumActivity extends Activity {
     @Override
     public boolean onGenericMotionEvent(android.view.MotionEvent event) {
         InputDevice dev = event.getDevice();
-        if (mInputTarget != null && GameControllerDetector.isGameController(dev)) {
-            if (mWindroidOverlay != null && !mWindroidOverlay.isGamepadConnected()) {
+        // Qualquer MotionEvent de joystick é tratado aqui (não só os que passam no filtro de nome do
+        // GameControllerDetector). Se o evento sobrar sem consumir, o Android o converte em DPAD.
+        final boolean isJoystickMove =
+                (event.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+                        && event.getAction() == android.view.MotionEvent.ACTION_MOVE
+                        && dev != null && !dev.isVirtual();
+        if (mInputTarget != null && isJoystickMove) {
+            if (mWindroidOverlay != null && !mWindroidOverlay.isGamepadConnected()
+                    && GameControllerDetector.isGameController(dev)) {
                 updateControllerConnectionState();
             }
-            if (event.getAction() == android.view.MotionEvent.ACTION_MOVE) {
-                float x = event.getAxisValue(android.view.MotionEvent.AXIS_X);
-                float y = event.getAxisValue(android.view.MotionEvent.AXIS_Y);
-                if (Math.abs(x) < 0.15f) x = 0.0f;
-                if (Math.abs(y) < 0.15f) y = 0.0f;
-                mInputTarget.circlePad(Math.max(-1.0f, Math.min(1.0f, x)), Math.max(-1.0f, Math.min(1.0f, -y)));
+            // Analógico esquerdo -> Circle Pad
+            float x = event.getAxisValue(android.view.MotionEvent.AXIS_X);
+            float y = event.getAxisValue(android.view.MotionEvent.AXIS_Y);
+            if (Math.abs(x) < 0.15f) x = 0.0f;
+            if (Math.abs(y) < 0.15f) y = 0.0f;
+            mInputTarget.circlePad(Math.max(-1.0f, Math.min(1.0f, x)), Math.max(-1.0f, Math.min(1.0f, -y)));
 
-                float rx = event.getAxisValue(android.view.MotionEvent.AXIS_Z);
-                float ry = event.getAxisValue(android.view.MotionEvent.AXIS_RZ);
-                if (rx == 0.0f && ry == 0.0f) {
-                    rx = event.getAxisValue(android.view.MotionEvent.AXIS_RX);
-                    ry = event.getAxisValue(android.view.MotionEvent.AXIS_RY);
-                }
-                if (Math.abs(rx) < 0.15f) rx = 0.0f;
-                if (Math.abs(ry) < 0.15f) ry = 0.0f;
-                mInputTarget.cStick(Math.max(-1.0f, Math.min(1.0f, rx)), Math.max(-1.0f, Math.min(1.0f, -ry)));
+            // Analógico direito -> C-Stick
+            float rx = event.getAxisValue(android.view.MotionEvent.AXIS_Z);
+            float ry = event.getAxisValue(android.view.MotionEvent.AXIS_RZ);
+            if (rx == 0.0f && ry == 0.0f) {
+                rx = event.getAxisValue(android.view.MotionEvent.AXIS_RX);
+                ry = event.getAxisValue(android.view.MotionEvent.AXIS_RY);
+            }
+            if (Math.abs(rx) < 0.15f) rx = 0.0f;
+            if (Math.abs(ry) < 0.15f) ry = 0.0f;
+            mInputTarget.cStick(Math.max(-1.0f, Math.min(1.0f, rx)), Math.max(-1.0f, Math.min(1.0f, -ry)));
 
+            // D-pad (hat): só o AXIS_HAT_X/Y físico, e só quando o estado muda.
+            if (dev.getMotionRange(android.view.MotionEvent.AXIS_HAT_X, event.getSource()) != null) {
                 float hatX = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X);
                 float hatY = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y);
-                mInputTarget.button(1 << 5, hatX < -0.5f); // DPAD_LEFT
-                mInputTarget.button(1 << 4, hatX > 0.5f);  // DPAD_RIGHT
-                mInputTarget.button(1 << 6, hatY < -0.5f); // DPAD_UP
-                mInputTarget.button(1 << 7, hatY > 0.5f);  // DPAD_DOWN
+                int newHatX = hatX < -0.5f ? -1 : (hatX > 0.5f ? 1 : 0);
+                int newHatY = hatY < -0.5f ? -1 : (hatY > 0.5f ? 1 : 0);
+                if (newHatX != mHatX) {
+                    mInputTarget.button(1 << 5, newHatX < 0); // DPAD_LEFT
+                    mInputTarget.button(1 << 4, newHatX > 0); // DPAD_RIGHT
+                    mHatX = newHatX;
+                }
+                if (newHatY != mHatY) {
+                    mInputTarget.button(1 << 6, newHatY < 0); // DPAD_UP
+                    mInputTarget.button(1 << 7, newHatY > 0); // DPAD_DOWN
+                    mHatY = newHatY;
+                }
+            }
 
+            // Gatilhos analógicos -> ZL/ZR (agora também soltam; antes ficavam presos).
+            if (dev.getMotionRange(android.view.MotionEvent.AXIS_LTRIGGER, event.getSource()) != null
+                    || dev.getMotionRange(android.view.MotionEvent.AXIS_BRAKE, event.getSource()) != null) {
                 float lTrigger = event.getAxisValue(android.view.MotionEvent.AXIS_LTRIGGER);
                 if (lTrigger == 0.0f) lTrigger = event.getAxisValue(android.view.MotionEvent.AXIS_BRAKE);
+                boolean l2 = lTrigger > 0.5f;
+                if (l2 != mAxisL2Down) {
+                    mInputTarget.button(1 << 14, l2);
+                    mAxisL2Down = l2;
+                }
+            }
+            if (dev.getMotionRange(android.view.MotionEvent.AXIS_RTRIGGER, event.getSource()) != null
+                    || dev.getMotionRange(android.view.MotionEvent.AXIS_GAS, event.getSource()) != null) {
                 float rTrigger = event.getAxisValue(android.view.MotionEvent.AXIS_RTRIGGER);
                 if (rTrigger == 0.0f) rTrigger = event.getAxisValue(android.view.MotionEvent.AXIS_GAS);
-                if (lTrigger > 0.5f) mInputTarget.button(1 << 14, true);
-                if (rTrigger > 0.5f) mInputTarget.button(1 << 15, true);
-
-                return true;
+                boolean r2 = rTrigger > 0.5f;
+                if (r2 != mAxisR2Down) {
+                    mInputTarget.button(1 << 15, r2);
+                    mAxisR2Down = r2;
+                }
             }
+
+            return true;
         }
         return super.onGenericMotionEvent(event);
+    }
+
+    private static boolean isDpadKeyCode(int keyCode) {
+        return keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP
+                || keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                || keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT
+                || keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT;
     }
 
     private static int getHidMaskForKeyCode(int keyCode) {
