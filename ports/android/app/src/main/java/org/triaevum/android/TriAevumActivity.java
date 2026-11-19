@@ -845,7 +845,6 @@ public final class TriAevumActivity extends Activity {
             exportViewToCanvas(hudView, R.id.hud_diamond_cluster, "diamond_cluster", hudJson, scale, canvasWidth, canvasHeight);
             exportViewToCanvas(hudView, R.id.hud_top_left_status, "status", hudJson, scale, canvasWidth, canvasHeight);
             exportViewToCanvas(hudView, R.id.hud_bottom_left_collectibles, "rupees", hudJson, scale, canvasWidth, canvasHeight);
-            exportViewToCanvas(hudView, R.id.hud_minimap_container, "minimap", hudJson, scale, canvasWidth, canvasHeight);
             exportViewToCanvas(hudView, R.id.hud_dpad_item_cluster, "dpad_items", hudJson, scale, canvasWidth, canvasHeight);
 
             File targetFile = new File(root, "custom_hud_layout.json");

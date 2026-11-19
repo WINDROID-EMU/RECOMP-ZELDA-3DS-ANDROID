@@ -613,7 +613,6 @@ TopScreenVerifiedLayoutPatches() noexcept {
 bool ApplyTopScreenVerifiedLayout(NativeA32Memory &memory,
                                   TopScreenLayoutApplyStats *stats,
                                   std::string *error) {
-  return true;
   TopScreenLayoutApplyStats result;
 
   // Complete validation precedes the first write. Already-applied values are
@@ -672,7 +671,6 @@ TopScreenVerifiedRuntimeQuadStreams() noexcept {
 bool RebindTopScreenVerifiedRuntimeGeometry(
     NativeA32Memory &memory, TopScreenRuntimeGeometryApplyStats *stats,
     std::string *error) {
-  return true;
   TopScreenRuntimeGeometryApplyStats result;
   std::vector<StagedTopScreenGeometryWord> writes;
 
@@ -3103,13 +3101,9 @@ bool ApplyTopScreenPauseProjection(NativeA32Memory &memory,
     nativeOffsetY -= 3000.0F;
     state.MapY.OriginalBits = std::bit_cast<std::uint32_t>(nativeOffsetY);
   }
-  const auto *custom = GetTopScreenCustomHudLayout();
   const float maximumExtent = std::max(extentA, extentB);
   float projectedOffsetX = nativeOffsetX;
-  if (custom != nullptr && custom->Minimap.Valid) {
-    projectedOffsetX = custom->Minimap.X;
-    state.OffsetX = custom->Minimap.X - nativeOffsetX;
-  } else if (maximumExtent - std::min(extentA, extentB) > 0.0F) {
+  if (maximumExtent - std::min(extentA, extentB) > 0.0F) {
     const float rightEdge = secondaryLayer == 1U ? 425.0F : 438.0F;
     const float configuredMargin = config != nullptr
                                        ? static_cast<float>(config->HudMarginX)
@@ -3120,10 +3114,6 @@ bool ApplyTopScreenPauseProjection(NativeA32Memory &memory,
     projectedOffsetX = nativeOffsetX + state.OffsetX;
   }
   float projectedOffsetY = nativeOffsetY;
-  if (custom != nullptr && custom->Minimap.Valid) {
-    projectedOffsetY = custom->Minimap.Y;
-    state.OffsetY = custom->Minimap.Y - nativeOffsetY;
-  }
   if (!state.AlternatePage) {
     projectedOffsetY += 3000.0F;
     state.OffsetY = 3000.0F;
@@ -3190,21 +3180,6 @@ bool ApplyTopScreenPauseProjection(NativeA32Memory &memory,
         if (error != nullptr)
           *error = "cannot write minimap indicator position";
         return false;
-      }
-
-      if (custom != nullptr && custom->Minimap.Valid) {
-        const std::uint32_t addressY = address + 4U;
-        std::uint32_t currentBitsY = 0U;
-        if (memory.Read32(addressY, &currentBitsY)) {
-          auto &trackedY = state.IconY[group * 64U + index];
-          const float originalY = recoverOriginal(trackedY, addressY, currentBitsY);
-          if (originalY < 240.0F) {
-            const float projectedY =
-                state.AlternatePage ? originalY + state.OffsetY : 240.0F;
-            trackedY.LastWrittenBits = std::bit_cast<std::uint32_t>(projectedY);
-            (void)memory.Write32(addressY, trackedY.LastWrittenBits);
-          }
-        }
       }
     }
   }

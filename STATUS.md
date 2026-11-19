@@ -173,5 +173,11 @@ Fase atual: **Fase 10 — Otimização Adreno** (Concluída) -> **Todas as Fases
   - **Empacotamento nos Assets:** Pacote `.o3ps` e manifesto `.json` embutidos em `ports/android/app/src/main/assets/game/`.
   - **Desempacotamento Automático:** `TriAevumConfigManager` e `TriAevumDownloadActivity` desempacotam o pacote para o armazenamento do app e injetam `--pica-aot-shader-pack ${profile_dir}/oot3d_pica_default.o3ps` no `TriAevum.android.launch.json`.
   - **Zero Compilação em Runtime:** Todos os shaders atingem `mPicaAotShaderHits`, eliminando compilações em tempo de execução via `shaderc` no dispositivo e acelerando a inicialização e o frame pacing. Validado em hardware real no Xiaomi 12.
+- [x] **11.10** Correção da Projeção de Tela do Mini-Mapa e Indicadores PICA200:
+  - **Identificação da Regressão:** Descoberto que coordenadas de layout customizado ($X \approx 468.55, Y \approx 180.11$) exportadas pelo editor Android empurravam o quad do mini-mapa nativo (400x240) para fora do viewport visível, causando culling.
+  - **Correção em C++ (`oot3d_top_screen_mod_profile.cpp`):** `ApplyTopScreenPauseProjection` restaurada para projeção verificada TopScreen 1.2 com clamping estrito dentro do canvas nativo 400x240. Removidos stubs de bypass precoce em `ApplyTopScreenVerifiedLayout` e `RebindTopScreenVerifiedRuntimeGeometry`.
+  - **Desvinculação na Camada Android:** Removida a chave `"minimap"` de `HudLayoutEditorOverlay.java` e `TriAevumActivity.java`.
+  - **Validação de Testes:** Suíte de testes `oot3d_top_screen_mod_profile_tests` com novo teste unitário de projeção aprovada. Build completo ARM64 gerado e instalado via ADB no Xiaomi 12.
+
 
 

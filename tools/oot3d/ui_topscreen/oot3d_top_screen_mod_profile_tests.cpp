@@ -3287,6 +3287,42 @@ int main() {
   Require(customHealth.Positions[0].X == 15.0F && customHealth.Positions[0].Y == 12.0F,
           "TopScreen custom health position not applied");
 
+  // Verify that custom widescreen minimap coordinates cannot corrupt the native
+  // 400x240 PICA200 minimap projection offset into clipping outside the viewport.
+  customLayout.Minimap = {true, 468.55F, 180.11F, 48.0F, 48.0F};
+  SetTopScreenCustomHudLayout(customLayout);
+
+  NativeA32Memory customMinimapMemory;
+  std::string customMinimapError;
+  Require(customMinimapMemory.MapRegion(
+              {"roots", 0x004F0000U, 0x00010000U, true, false, {}}, &customMinimapError) &&
+          customMinimapMemory.MapRegion(
+              {"state", 0x00500000U, 0x000E0000U, true, false, {}}, &customMinimapError),
+          "cannot map custom minimap memory regions");
+  TopScreenPauseProjectionState customMinimapProjectionState;
+  constexpr std::uint32_t customProjectionOwner = 0x00550000U;
+  constexpr std::uint32_t customProjectionExtents = 0x00551000U;
+  constexpr std::uint32_t customProjectionOffset = 0x00553000U;
+  Require(customMinimapMemory.Write32(0x004FDA84U, customProjectionOwner) &&
+          customMinimapMemory.Write32(customProjectionOwner + 0x0CU, customProjectionExtents) &&
+          customMinimapMemory.Write32(customProjectionOwner + 0x1CU, customProjectionOffset) &&
+          customMinimapMemory.Write32(customProjectionExtents, std::bit_cast<std::uint32_t>(100.0F)) &&
+          customMinimapMemory.Write32(customProjectionExtents + 0x24U, std::bit_cast<std::uint32_t>(200.0F)) &&
+          customMinimapMemory.Write32(customProjectionOffset, std::bit_cast<std::uint32_t>(10.0F)) &&
+          customMinimapMemory.Write32(customProjectionOffset + 4U, std::bit_cast<std::uint32_t>(100.0F)),
+          "cannot seed custom minimap projection fixture");
+  Require(ApplyTopScreenPauseProjection(customMinimapMemory, customMinimapProjectionState, &customMinimapError),
+          "ApplyTopScreenPauseProjection failed with custom HUD layout");
+  std::uint32_t customProjectedX = 0U;
+  std::uint32_t customProjectedY = 0U;
+  Require(customMinimapMemory.Read32(customProjectionOffset, &customProjectedX) &&
+          customMinimapMemory.Read32(customProjectionOffset + 4U, &customProjectedY),
+          "cannot read projected minimap offsets with custom HUD layout");
+  Require(std::bit_cast<float>(customProjectedX) == 234.0F,
+          "custom HUD layout corrupted minimap X projection offset outside 400px PICA canvas");
+  Require(std::bit_cast<float>(customProjectedY) == 100.0F,
+          "custom HUD layout corrupted minimap Y projection offset outside 240px PICA canvas");
+
   ResetTopScreenCustomHudLayout();
   Require(GetTopScreenCustomHudLayout() == nullptr,
           "TopScreen custom HUD layout not reset properly");

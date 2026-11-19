@@ -93,7 +93,6 @@ public final class HudLayoutEditorOverlay extends FrameLayout {
         setupDraggable(R.id.hud_btn_b, "Botão B");
         setupDraggable(R.id.hud_diamond_cluster, "Itens (X/Y/ZR/ZL)");
         setupDraggable(R.id.hud_bottom_left_collectibles, "Rúpias");
-        setupDraggable(R.id.hud_minimap_container, "Minimapa");
         setupDraggable(R.id.hud_dpad_item_cluster, "D-Pad Itens");
 
         // Carrega posições customizadas salvas previamente, se existirem
@@ -291,7 +290,6 @@ public final class HudLayoutEditorOverlay extends FrameLayout {
             applySavedPosition(root, "btn_b", R.id.hud_btn_b);
             applySavedPosition(root, "diamond_cluster", R.id.hud_diamond_cluster);
             applySavedPosition(root, "rupees", R.id.hud_bottom_left_collectibles);
-            applySavedPosition(root, "minimap", R.id.hud_minimap_container);
             applySavedPosition(root, "dpad_items", R.id.hud_dpad_item_cluster);
 
         } catch (Throwable t) {
@@ -329,7 +327,6 @@ public final class HudLayoutEditorOverlay extends FrameLayout {
         resetViewTranslation(R.id.hud_btn_b);
         resetViewTranslation(R.id.hud_diamond_cluster);
         resetViewTranslation(R.id.hud_bottom_left_collectibles);
-        resetViewTranslation(R.id.hud_minimap_container);
         resetViewTranslation(R.id.hud_dpad_item_cluster);
         Toast.makeText(getContext(), "Posições restauradas para o padrão do XML", Toast.LENGTH_SHORT).show();
     }
@@ -360,7 +357,6 @@ public final class HudLayoutEditorOverlay extends FrameLayout {
             exportViewToCanvas(R.id.hud_diamond_cluster, "diamond_cluster", hudJson);
             exportViewToCanvas(R.id.hud_top_left_status, "status", hudJson);
             exportViewToCanvas(R.id.hud_bottom_left_collectibles, "rupees", hudJson);
-            exportViewToCanvas(R.id.hud_minimap_container, "minimap", hudJson);
             exportViewToCanvas(R.id.hud_dpad_item_cluster, "dpad_items", hudJson);
 
             // Marca o JSON como customizado pelo usuário para que o app não o sobrescreva

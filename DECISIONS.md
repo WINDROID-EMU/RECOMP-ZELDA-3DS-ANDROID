@@ -200,6 +200,19 @@ Registro formal de decisões de engenharia, premissas técnicas e rastreamento d
 
 ---
 
+### ADR-0017: Correção da Projeção de Tela do Mini-Mapa e Indicadores PICA200 (TopScreen 1.2 vs HUD Customizado)
+- **Data:** 2026-11-18
+- **Status:** Aprovada
+- **Contexto:** Após a introdução do suporte a layouts customizados no HUD (`custom_hud_layout.json`), o mini-mapa parou de aparecer durante o gameplay. A investigação revelou que as coordenadas exportadas pelo overlay Android (`hud_minimap_container`) estavam em espaço de tela widescreen ($X \approx 468.55, Y \approx 180.11$). Como o mini-mapa de OoT3D é renderizado nativamente pelo código guest do 3DS via PICA200 em um framebuffer canônico de $400 \times 240$, injetar $X = 468.55$ empurrava o quad do mapa (128x128) e seus indicadores (seta de posição do Link, ícones de salas/baús) para além de 400px, sofrendo culling (descarte) fora do viewport.
+- **Decisão:**
+  1. **Preservação dos Limites Nativos TopScreen 1.2:** Reverter a função `ApplyTopScreenPauseProjection` em `oot3d_top_screen_mod_profile.cpp` para utilizar exclusivamente o cálculo de limites verificado ($X \le 438 - \text{largura}$, $Y = \text{offset nativo}$), ignorando qualquer coordenada externa arbitrária que viole o frame nativo.
+  2. **Remoção do Mini-Mapa do Editor de HUD Android:** Desvincular o contêiner `hud_minimap_container` de `HudLayoutEditorOverlay.java` e `TriAevumActivity.java`, impedindo que posições de touch ou resoluções widescreen do host corrompam a projeção interna do guest 3DS.
+  3. **Restauração de Contratos de Layout:** Remover stubs de bypass precoce em `ApplyTopScreenVerifiedLayout` e `RebindTopScreenVerifiedRuntimeGeometry` para restabelecer a contagem rigorosa de estatísticas de layout.
+  4. **Teste Unitário de Regressão:** Adicionar caso de teste em `oot3d_top_screen_mod_profile_tests.cpp` verificando que a injeção de coordenadas widescreen arbitrárias no HUD não altera a projeção nativa do mini-mapa nem dos indicadores.
+- **Evidência:** Suíte de testes `oot3d_top_screen_mod_profile_tests` 100% aprovada; build ARM64 compilado e instalado no Xiaomi 12 via ADB com sucesso.
+
+---
+
 
 
 
