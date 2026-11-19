@@ -101,7 +101,16 @@ jobs:
           fi
           # AGP 8.13 requires API 35 while configuring the Android projects.
           yes | "$SDKMANAGER" --licenses >/dev/null || true
+          # sdkmanager closes stdin after accepting licenses; tolerate yes(1)'s
+          # expected SIGPIPE instead of failing the step under pipefail.
+          set +o pipefail
           yes | "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+          SDKMANAGER_STATUS=${PIPESTATUS[1]}
+          set -o pipefail
+          if [ "$SDKMANAGER_STATUS" -ne 0 ]; then
+            echo "sdkmanager failed while installing Android components (exit $SDKMANAGER_STATUS)"
+            exit "$SDKMANAGER_STATUS"
+          fi
           NDK_DIR="$SDK_DIR/ndk/27.2.12479018"
           if [ ! -d "$NDK_DIR" ]; then
             echo "Android NDK installation failed: $NDK_DIR"
