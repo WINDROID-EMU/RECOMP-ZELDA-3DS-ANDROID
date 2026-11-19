@@ -85,13 +85,31 @@ jobs:
 
       - name: Locate Android SDK and NDK
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          NDK_DIR=$(find "$ANDROID_HOME/ndk" -maxdepth 1 -mindepth 1 | sort -V | tail -n 1)
-          if [ -z "$NDK_DIR" ] || [ ! -d "$NDK_DIR" ]; then
-            echo "Installing Android NDK 27.2.12479018..."
-            echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.2.12479018"
-            NDK_DIR="$ANDROID_HOME/ndk/27.2.12479018"
+          set -euo pipefail
+          SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$SDK_DIR" ] || [ ! -d "$SDK_DIR" ]; then
+            echo "Android SDK was not provided by the runner (ANDROID_HOME=$SDK_DIR)"
+            exit 1
           fi
+          SDK_DIR="$(cd "$SDK_DIR" && pwd)"
+          echo "ANDROID_HOME=$SDK_DIR" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_DIR" >> "$GITHUB_ENV"
+          SDKMANAGER="$SDK_DIR/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "Android sdkmanager not found at $SDKMANAGER"
+            exit 1
+          fi
+          # AGP 8.13 requires API 35 while configuring the Android projects.
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          yes | "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+          NDK_DIR="$SDK_DIR/ndk/27.2.12479018"
+          if [ ! -d "$NDK_DIR" ]; then
+            echo "Android NDK installation failed: $NDK_DIR"
+            exit 1
+          fi
+          # AGP can resolve the SDK even when a runner does not export the env var.
+          printf 'sdk.dir=%s\n' "$SDK_DIR" > ports/android/local.properties
+          echo "Using Android SDK: $SDK_DIR"
           echo "Found Android NDK at: $NDK_DIR"
           echo "ANDROID_NDK_ROOT=$NDK_DIR" >> $GITHUB_ENV
           echo "NDK=$NDK_DIR" >> $GITHUB_ENV
@@ -218,12 +236,14 @@ jobs:
 
       - name: Build Android Controls & APK
         run: |
+          set -euo pipefail
           chmod +x ports/android/gradlew
-          ports/android/gradlew -p ports/android :controls:assembleDebug :controls:testDebugUnitTest --console=plain
+          ports/android/gradlew -p ports/android :controls:assembleDebug :controls:testDebugUnitTest \
+            --console=plain --stacktrace --warning-mode=all
           ports/android/gradlew -p ports/android :app:assembleDebug \
             -PtriaevumSdlSource="$(pwd)/build/runtime/_deps/sdl2-src" \
             -PtriaevumNativeStage="$(pwd)/build/staged_native_libs" \
-            --console=plain
+            --console=plain --stacktrace --warning-mode=all
 
       - name: Package Release APK
         run: |
